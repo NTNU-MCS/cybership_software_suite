@@ -3,6 +3,9 @@ import rclpy
 from rclpy.node import Node
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Float64MultiArray
+from geometry_msgs.msg import Wrench
+from geometry_msgs.msg import TransformStamped
+from tf2_ros import TransformBroadcaster
 from cybership_simulator.common_tools.math_tools import *
 import threading
 
@@ -44,9 +47,21 @@ class CSEI(Node):
         self.odom.header.frame_id = "odom"
         self.tauMsg = Float64MultiArray()
 
+        # TF2 Broadcast
+        
+        self.shipname = self.declare_parameter(
+            'shipname', 'CSEI'
+        ).get_parameter_value().string_value
+        self.tf_broadcaster = TransformBroadcaster(self)
+
         self.pubOdom = self.create_publisher(Odometry, '/qualisys/CSEI/odom', 1)
         self.pubTau = self.create_publisher(Float64MultiArray, '/CSEI/tau', 1)
-        self.subU = self.create_subscription(Float64MultiArray, '/CSEI/u_cmd', self.callback, 1)
+        # self.subU = self.create_subscription(Float64MultiArray, '/CSEI/u_cmd', self.callback, 1)
+        # self.subTunnelThruster = self.create_subscription('/CSEI/thrusters/bow/command', Wrench, self.callback_bow_tunnel_thruster)
+        # self.subStarboardRearThruster = self.create_subscription('/CSEI/thrusters/starboard/command', Wrench, self.callback_starboard_rear_thruster)
+        # self.subBaboardRearThruster = self.create_subscription('/CSEI/thrusters/port/command', Wrench, self.callback_stern_rear_thruster)
+        
+        
         self.u = np.zeros(5)
         self.dt = 0.1
 
@@ -148,11 +163,44 @@ class CSEI(Node):
         self.odom.twist.twist.angular.y = 0.0
         self.odom.twist.twist.angular.z = self.nu[2].item()
 
+
+    def handle_CSE1_pose(self, msg):
+        t = TransformStamped()
+
+        t.header.stamp = self.get_clock().now().to_msg()
+        t.header.frame_id = 'world'
+        #t.child_frame_id = self.shipname
+        t.child_frame_id = 'base_link'
+
+        t.transform.translation.x = self.eta[0,0]
+        t.transform.translation.y = self.eta[1,0]
+        t.transform.translation.z = 0.0
+
+        quat = yaw2quat(self.eta[2][0])
+
+        t.transform.rotation.x = quat[0]
+        t.transform.rotation.y = quat[1]
+        t.transform.rotation.z = quat[2]
+        t.transform.rotation.w = quat[3]
+
+        self.tf_broadcaster.sendTransform(t)
+
     def get_odom(self):
         return self.odom
 
-    def callback(self, msg):
-        self.u = msg.data
+    # def callback(self, msg):
+    #     self.u = msg.data
+
+    def callback_bow_tunnel_thruster(self, msg):
+        self.u[0] = msg.force.x
+
+    def callback_starboard_rear_thruster(self, msg):
+        self.u[1] = msg.force.x
+        self.u[2] = msg.force.y
+
+    def callback_stern_rear_thruster(self, msg):
+        self.u[3] = msg.force.x
+        self.u[4] = msg.force.y
 
     # Move the ship
     def iterate(self):
@@ -163,9 +211,7 @@ class CSEI(Node):
         self.set_nu()   # Compute the velocity
         self.set_eta()  # Compute the position
         self.publishOdom() # Publish the new position
-
-
-
+        self.handle_CSE1_pose(self.eta)
 
     ### End of publishers and subscribers ###
 
