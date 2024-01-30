@@ -1,13 +1,18 @@
 import numpy as np
 import rclpy
+
 from rclpy.node import Node
+import rclpy.clock
+import rclpy.logging
+
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Float64MultiArray
-from geometry_msgs.msg import Wrench
-from geometry_msgs.msg import TransformStamped
+from geometry_msgs.msg import Wrench, TransformStamped, WrenchStamped
+
 from tf2_ros import TransformBroadcaster
 from cybership_simulator.common_tools.math_tools import *
-import threading
+
+from rosgraph_msgs.msg import Clock
 
 
 class CSEI(Node):
@@ -43,44 +48,49 @@ class CSEI(Node):
         self.tau = np.array([[0], [0], [0]])  # Zero forces and moments at initialization
         self.nu_dot = np.array([[0], [0], [0]])
         self.eta_dot = np.array([[0], [0], [0]])
+
         self.odom = Odometry() #Msg to be published
-        self.odom.header.frame_id = "odom"
         self.tauMsg = Float64MultiArray()
 
         # TF2 Broadcast
-        
-        self.shipname = self.declare_parameter(
-            'shipname', 'CSEI'
-        ).get_parameter_value().string_value
-        self.tf_broadcaster = TransformBroadcaster(self)
+        self.tf_broadcaster = TransformBroadcaster(self, 1)
 
-        self.pubOdom = self.create_publisher(Odometry, '/qualisys/CSEI/odom', 1)
-        self.pubTau = self.create_publisher(Float64MultiArray, '/CSEI/tau', 1)
-        # self.subU = self.create_subscription(Float64MultiArray, '/CSEI/u_cmd', self.callback, 1)
-        # self.subTunnelThruster = self.create_subscription('/CSEI/thrusters/bow/command', Wrench, self.callback_bow_tunnel_thruster)
-        # self.subStarboardRearThruster = self.create_subscription('/CSEI/thrusters/starboard/command', Wrench, self.callback_starboard_rear_thruster)
-        # self.subBaboardRearThruster = self.create_subscription('/CSEI/thrusters/port/command', Wrench, self.callback_stern_rear_thruster)
-        
-        
+        self.publisher_odom = self.create_publisher(Odometry, '/CSEI/odom', 1)
+        self.subscriber_tunnel_thruster = self.create_subscription(Wrench, '/CSEI/thrusters/tunnel/command', self.cb_tunnel_thruster, 10)
+        self.subscriber_starboard_thruster = self.create_subscription(Wrench, '/CSEI/thrusters/starboard/command', self.cb_starboard_thruster, 10)
+        self.subcriber_port_thruster = self.create_subscription(Wrench, '/CSEI/thrusters/port/command', self.cb_port_thruster, 10)
+
+        self.publisher_tunnel_thruster = self.create_publisher(WrenchStamped, '/CSEI/thrusters/tunnel/issued', 1)
+        self.publisher_starboard_thruster = self.create_publisher(WrenchStamped, '/CSEI/thrusters/starboard/issued', 1)
+        self.publisher_port_thruster = self.create_publisher(WrenchStamped, '/CSEI/thrusters/port/issued', 1)
+        self.publisher_allocated = self.create_publisher(WrenchStamped, '/CSEI/allocated', 1)
+
+
         self.u = np.zeros(5)
-        self.dt = 0.1
+        self.dt = 0.01
 
-        # self._loop_rate = self.create_rate((1.0 / self.dt), self.get_clock())
+        self._loop_rate = self.create_rate((1.0 / self.dt), self.get_clock())
 
         self.timer = self.create_timer(self.dt, self.iterate)
 
 
-
-    def publishOdom(self):
+    def publish_odom(self):
         self.nav_msg()
-        self.pubOdom.publish(self.odom)
+        self.publisher_odom.publish(self.odom)
 
-    def publishTau(self):
-        tau = Float64MultiArray()
-        tau.data.fromlist(self.tau.flatten().tolist())
-        self.pubTau.publish(tau)
+    # def publish_tau(self):
+    #     tau = Float64MultiArray()
+    #     tau.data.fromlist(self.tau.flatten().tolist())
+    #     self.pub_tau.publish(tau)
 
-    ### Computation ###
+    def publish_clock(self):
+
+        self.t += self.dt
+        msg = Clock()
+        msg.clock.sec = int(self.t)
+        msg.clock.nanosec = int((self.t - msg.clock.sec) * 1e9)
+        self.publisher_clock.publish(msg)
+
     def set_D(self):
         u = self.nu[0]
         v = self.nu[1]
@@ -91,7 +101,7 @@ class CSEI(Node):
         d23 = (-self._Y[3] - self._Y[7]*np.abs(v) - self._Y[4]*np.abs(r) - self._Y[5]*(r**2))[0]
         d32 = (-self._N[0] - self._N[2]*np.abs(v) - self._N[3]*(v**2) - self._N[6]*np.abs(r))[0]
         new_D = np.array([[d11, 0, 0], [0, d22, d23], [0, d32, d33]])
-        self.D = new_D  # Designates the damping matrix
+        self.D = new_D
 
     def set_C(self):
         u = self.nu[0]
@@ -103,6 +113,7 @@ class CSEI(Node):
         self.C = new_C
 
     def set_tau(self, u):
+
         u_t = np.transpose(np.take(u, [0, 1, 2])[np.newaxis])
         alpha = np.take(u, [3, 4])
         c1 = 0
@@ -114,6 +125,14 @@ class CSEI(Node):
         B = np.array([[c1, c2, c3], [s1, s2, s3], [self.lx1*s1-self.ly1*c1, self.lx2*s2 - self.ly2*c2, self.lx3*s3-self.ly3*c3]])
         new_tau = (B @ self._K) @ u_t
         self.tau = new_tau
+
+        allocated = WrenchStamped()
+        allocated.header.frame_id = "base_link"
+        allocated.header.stamp = self.get_clock().now().to_msg()
+        allocated.wrench.force.x = self.tau[0,0]
+        allocated.wrench.force.y = self.tau[1,0]
+        allocated.wrench.torque.z = self.tau[2,0]
+        self.publisher_allocated.publish(allocated)
 
     def set_eta(self):
         psi = self.eta[2]
@@ -137,16 +156,15 @@ class CSEI(Node):
     def get_nu(self):
         return self.nu
 
-    ### Publishers and subscribers ###
-
     def nav_msg(self):
         """
         Computes the Odometry message of the ship
         """
         quat = yaw2quat(self.eta[2][0])
 
+        self.odom.header.frame_id = 'odom'
         self.odom.child_frame_id = 'base_link'
-        # self.odom.header.stamp = rospy.Time.now()
+        self.odom.header.stamp = self.get_clock().now().to_msg()
 
         self.odom.pose.pose.position.x = self.eta[0].item()
         self.odom.pose.pose.position.y = self.eta[1].item()
@@ -164,56 +182,70 @@ class CSEI(Node):
         self.odom.twist.twist.angular.z = self.nu[2].item()
 
 
-    def handle_CSE1_pose(self, msg):
+    def publish_tf(self):
         t = TransformStamped()
 
         t.header.stamp = self.get_clock().now().to_msg()
         t.header.frame_id = 'world'
-        #t.child_frame_id = self.shipname
         t.child_frame_id = 'base_link'
-
-        t.transform.translation.x = self.eta[0,0]
-        t.transform.translation.y = self.eta[1,0]
-        t.transform.translation.z = 0.0
-
-        quat = yaw2quat(self.eta[2][0])
-
-        t.transform.rotation.x = quat[0]
-        t.transform.rotation.y = quat[1]
-        t.transform.rotation.z = quat[2]
-        t.transform.rotation.w = quat[3]
+        t.transform.translation.x = self.odom.pose.pose.position.x
+        t.transform.translation.y = self.odom.pose.pose.position.y
+        t.transform.translation.z = self.odom.pose.pose.position.z
+        t.transform.rotation.x = self.odom.pose.pose.orientation.x
+        t.transform.rotation.y = self.odom.pose.pose.orientation.y
+        t.transform.rotation.z = self.odom.pose.pose.orientation.z
+        t.transform.rotation.w = self.odom.pose.pose.orientation.w
 
         self.tf_broadcaster.sendTransform(t)
 
     def get_odom(self):
         return self.odom
 
-    # def callback(self, msg):
-    #     self.u = msg.data
-
-    def callback_bow_tunnel_thruster(self, msg):
+    def cb_tunnel_thruster(self, msg):
         self.u[0] = msg.force.x
 
-    def callback_starboard_rear_thruster(self, msg):
-        self.u[1] = msg.force.x
-        self.u[2] = msg.force.y
+        issued = WrenchStamped()
+        issued.header.frame_id = "bow_tunnel_thruster_link"
+        issued.header.stamp = self.get_clock().now().to_msg()
+        issued.wrench.force.x = msg.force.x
+        self.publisher_tunnel_thruster.publish(issued)
 
-    def callback_stern_rear_thruster(self, msg):
-        self.u[3] = msg.force.x
-        self.u[4] = msg.force.y
+
+    def cb_starboard_thruster(self, msg):
+        self.u[1] = np.linalg.norm(np.array((msg.force.y, msg.force.x)))
+        self.u[3] = np.arctan2(msg.force.y, msg.force.x)
+
+        issued = WrenchStamped()
+        issued.header.frame_id = "stern_starboard_thruster_link"
+        issued.header.stamp = self.get_clock().now().to_msg()
+        issued.wrench.force.x = msg.force.x
+        issued.wrench.force.y = msg.force.y
+        self.publisher_starboard_thruster.publish(issued)
+
+    def cb_port_thruster(self, msg):
+        self.u[2] = np.linalg.norm(np.array((msg.force.y, msg.force.x)))
+        self.u[4] = np.arctan2(msg.force.y, msg.force.x)
+
+        issued = WrenchStamped()
+        issued.header.frame_id = "stern_port_thruster_link"
+        issued.header.stamp = self.get_clock().now().to_msg()
+        issued.wrench.force.x = msg.force.x
+        issued.wrench.force.y = msg.force.y
+        self.publisher_port_thruster.publish(issued)
 
     # Move the ship
     def iterate(self):
-        #self.set_C()  # Coreolis matrix
+        # self.publish_clock()
+        self.set_C()  # Coreolis matrix
         self.set_D()  # Compute damping matrix
         self.set_tau(self.u) # Compute the force vector
-        self.publishTau()   # Publish the tau, this is needed for the Observer :)
+        # self.publish_tau()   # Publish the tau, this is needed for the Observer :)
         self.set_nu()   # Compute the velocity
         self.set_eta()  # Compute the position
-        self.publishOdom() # Publish the new position
-        self.handle_CSE1_pose(self.eta)
+        self.publish_odom() # Publish the new position
+        self.publish_tf()
 
-    ### End of publishers and subscribers ###
+
 
 def main(args=None):
 
@@ -223,20 +255,6 @@ def main(args=None):
     rclpy.spin(simulator)
 
     rclpy.shutdown()
-
-    # initial_conditions = np.array([[0, 0, 0]]).T
-
-    # ship = CSEI(initial_conditions)
-
-    # rate = ship.create_rate(100)
-
-    # while rclpy.ok():
-    #     ship.iterate()
-    #     ship.publishOdom()
-    #     # rate.sleep()
-    #     print(f"whats up?")
-
-    # rclpy.shutdown()
 
 if __name__ == '__main__':
     main()
