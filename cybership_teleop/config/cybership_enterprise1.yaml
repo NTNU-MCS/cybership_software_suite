@@ -1,0 +1,31 @@
+joy_teleop:
+  ros__parameters:
+    port_thruster:
+      type: topic
+      interface_type: geometry_msgs/msg/Wrench
+      topic_name: /CSEI/thrusters/port/command
+      deadman_buttons: [9,10]
+      axis_mappings:
+        force-x:
+          axis: 1
+          scale: 0.5
+          offset: 0.0
+        force-y:
+          axis: 0
+          scale: 0.5
+          offset: 0.0
+
+    starboard_thruster:
+      type: topic
+      interface_type: geometry_msgs/msg/Wrench
+      topic_name: /CSEI/thrusters/starboard/command
+      deadman_buttons: [9,10]
+      axis_mappings:
+        force-x:
+          axis: 3
+          scale: 0.5
+          offset: 0.0
+        force-y:
+          axis: 2
+          scale: 0.5
+          offset: 0.0
