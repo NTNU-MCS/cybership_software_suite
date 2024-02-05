@@ -164,7 +164,7 @@ class CSEI(Node):
         """
         quat = yaw2quat(self.eta[2][0])
 
-        self.odom.header.frame_id = 'odom'
+        self.odom.header.frame_id = 'world'
         self.odom.child_frame_id = 'base_link'
         self.odom.header.stamp = self.get_clock().now().to_msg()
 
