@@ -1,9 +1,3 @@
 [submodule "cybership_external/mocap4ros2_qualisys"]
 	path = cybership_external/mocap4ros2_qualisys
 	url = https://github.com/MOCAP4ROS2-Project/mocap4ros2_qualisys
-[submodule "cybership_external/mocap4r2"]
-	path = cybership_external/mocap4r2
-	url = https://github.com/MOCAP4ROS2-Project/mocap4r2
-[submodule "cybership_external/mocap4r2_msgs"]
-	path = cybership_external/mocap4r2_msgs
-	url = https://github.com/MOCAP4ROS2-Project/mocap4r2_msgs.git
