@@ -1,19 +1,43 @@
 servo_driver_node:
   ros__parameters:
-    frequency: 50.0
+    frequency: 40.0
     channels:
-      channel_0:
-        topic: cybership/servo/pwm/tunnel_thruster
+      bow_thruster:
+        topic: cybership/servo/pwm/bow_thruster
         channel: 0
-      channel_1:
-        topic: cybership/servo/pwm/port_servo0
+      vsp_1:
+        topic: cybership/servo/pwm/vsp_1
         channel: 1
-      channel_2:
-        topic: cybership/servo/pwm/port_servo1
+        center: 1.0
+        min: 1.0
+        max: 1.5
+      vsp_2:
+        topic: cybership/servo/pwm/vsp_2
         channel: 2
-      channel_3:
-        topic: cybership/servo/pwm/starboard_servo0
+        center: 1.0
+        min: 1.0
+        max: 1.5
+      servo_1:
+        topic: cybership/servo/pwm/servo_1
         channel: 3
-      channel_4:
-        topic: cybership/servo/pwm/startboard_servo1
+        center: 1.05
+        max: 1.25
+        min: 0.85
+      servo_3:
+        topic: cybership/servo/pwm/servo_3
         channel: 4
+        min: 1.03
+        center: 1.2
+        max: 1.42
+      servo_2:
+        topic: cybership/servo/pwm/servo_2
+        channel: 5
+        center: 1.05
+        min: 0.86
+        max: 1.2
+      servo_4:
+        topic: cybership/servo/pwm/servo_4
+        channel: 6
+        center: 1.05
+        min: 0.95
+        max: 1.24
