@@ -36,7 +36,7 @@ def generate_launch_description():
         get_package_share_directory('cybership_bringup'),
         'param',
         'enterprise1',
-        'mocap_driver.yaml'
+        'mocap_connector.yaml'
     )
     node_mocap_connector = launch_ros.actions.LifecycleNode(
         name='mocap_connector_node',
