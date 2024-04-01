@@ -1,3 +1,9 @@
 [submodule "cybership_external/mocap4ros2_qualisys"]
 	path = cybership_external/mocap4ros2_qualisys
 	url = https://github.com/MOCAP4ROS2-Project/mocap4ros2_qualisys
+[submodule "cybership_external/dynamixel_azimuth_driver"]
+	path = cybership_external/dynamixel_azimuth_driver
+	url = https://github.com/incebellipipo/dynamixel_azimuth_driver.git
+[submodule "cybership_external/ros2_pca9685"]
+	path = cybership_external/ros2_pca9685
+	url = https://github.com/incebellipipo/ros2_pca9685.git

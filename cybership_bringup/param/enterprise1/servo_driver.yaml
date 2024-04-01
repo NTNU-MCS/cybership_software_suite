@@ -1,0 +1,19 @@
+servo_driver_node:
+  ros__parameters:
+    frequency: 50.0
+    channels:
+      channel_0:
+        topic: cybership/servo/pwm/tunnel_thruster
+        channel: 0
+      channel_1:
+        topic: cybership/servo/pwm/port_servo0
+        channel: 1
+      channel_2:
+        topic: cybership/servo/pwm/port_servo1
+        channel: 2
+      channel_3:
+        topic: cybership/servo/pwm/starboard_servo0
+        channel: 3
+      channel_4:
+        topic: cybership/servo/pwm/startboard_servo1
+        channel: 4
