@@ -73,6 +73,21 @@ def generate_launch_description():
         output='screen'
     )
 
+    config_cybership_thruster_control = os.path.join(
+        get_package_share_directory('cybership_bringup'),
+        'param',
+        'enterprise1',
+        'thruster_driver.yaml'
+    )
+
+    node_cybership_thruster_control = launch_ros.actions.Node(
+        package='cybership_thrusters',
+        executable='cybership_thrusters_node',
+        name='enterprise1_thruster_node',
+        parameters=[config_cybership_thruster_control],
+        output='screen'
+    )
+
     ld = launch.LaunchDescription()
     ld.add_action(stdout_linebuf_envvar)
     ld.add_action(node_servo_driver)
@@ -80,5 +95,6 @@ def generate_launch_description():
     ld.add_action(node_mocap_transformer)
     ld.add_action(driver_configure_trans_event)
     ld.add_action(driver_activate_trans_event)
+    ld.add_action(node_cybership_thruster_control)
 
     return ld

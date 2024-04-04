@@ -1,6 +1,6 @@
 servo_driver_node:
   ros__parameters:
-    frequency: 50.0
+    frequency: 40.0
     channels:
       bow_thruster:
         pwm_topic: /CSEI/hardware/servo/bow_thruster/pwm
@@ -35,7 +35,7 @@ servo_driver_node:
         scaled_topic: /CSEI/hardware/servo/servo_3/scaled
         channel: 4
         min: 1.03
-        center: 1.2
+        center: 1.25
         max: 1.42
       servo_2:
         pwm_topic: /CSEI/hardware/servo/servo_2/pwm
@@ -51,3 +51,11 @@ servo_driver_node:
         center: 1.05
         min: 0.95
         max: 1.24
+      # test_servo:
+      #   pwm_topic: /test_servo
+      #   scaled_topic: /test_servo/scaled
+      #   channel: 16
+      #   center: 2.5
+      #   min: 1.5
+      #   max: 3.3
+

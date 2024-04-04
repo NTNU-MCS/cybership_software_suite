@@ -21,10 +21,10 @@ VoithSchneider::VoithSchneider(rclcpp::Node::SharedPtr node, std::string name) :
 
     m_rpm_pub = m_node->create_publisher<std_msgs::msg::Float32>(m_config.rpm_topic, 10);
 
-    m_enable_service = m_node->create_service<std_srvs::srv::Empty>("enable",
+    m_enable_service = m_node->create_service<std_srvs::srv::Empty>("~/enable",
         std::bind(&VoithSchneider::f_enable_callback, this, std::placeholders::_1, std::placeholders::_2));
 
-    m_disable_service = m_node->create_service<std_srvs::srv::Empty>("disable",
+    m_disable_service = m_node->create_service<std_srvs::srv::Empty>("~/disable",
         std::bind(&VoithSchneider::f_disable_callback, this, std::placeholders::_1, std::placeholders::_2));
 
 }
@@ -54,6 +54,7 @@ void VoithSchneider::f_force_callback(const geometry_msgs::msg::Wrench::SharedPt
         m_arm_x_pub->publish(zero_msg);
         m_arm_y_pub->publish(zero_msg);
         m_rpm_pub->publish(zero_msg);
+        return;
     }
 
 
