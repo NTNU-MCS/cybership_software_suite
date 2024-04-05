@@ -15,11 +15,10 @@ class CSEITeleop(rclpy.node.Node):
         self.subscriber = self.create_subscription(sensor_msgs.msg.Joy, '/joy', self.cb_joy, 10)
 
     def cb_joy(self, msg):
-        if not (msg.buttons[9] or msg.buttons[10]):
-            return
+
 
         wrench = geometry_msgs.msg.Wrench()
-        wrench.force.x = (msg.axes[5] - msg.axes[4]) / 2.0
+        wrench.force.x = 0.4 * (msg.axes[5] - msg.axes[2]) / 2.0
         self.publisher.publish(wrench)
 
 

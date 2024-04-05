@@ -59,12 +59,6 @@ void Fixed::f_force_callback(const geometry_msgs::msg::Wrench::SharedPtr msg)
         filtered_input.force.x = m_config.force_min;
     }
 
-    if (filtered_input.force.y > m_config.force_max) {
-        filtered_input.force.y = m_config.force_max;
-    } else if (filtered_input.force.y < m_config.force_min) {
-        filtered_input.force.y = m_config.force_min;
-    }
-
     std_msgs::msg::Float32 signal_msg;
 
     auto linear_interpolate = [] (float x, float x0, float x1, float y0, float y1) -> float {
