@@ -120,8 +120,8 @@ void VoithSchneider::Config::update(rclcpp::Node::SharedPtr node)
 {
     node->get_parameter("thrusters." + name + ".force_topic", force_topic);
     node->get_parameter("thrusters." + name + ".arm_x.topic", arm_x_topic);
-    node->get_parameter("thrusters." + name + ".arm_x_inverted", arm_x_inverted);
-    node->get_parameter("thrusters." + name + ".arm_y_inverted", arm_y_inverted);
+    node->get_parameter("thrusters." + name + ".arm_x.inverted", arm_x_inverted);
+    node->get_parameter("thrusters." + name + ".arm_y.inverted", arm_y_inverted);
     node->get_parameter("thrusters." + name + ".arm_y.topic", arm_y_topic);
     node->get_parameter("thrusters." + name + ".force_max", force_max);
     node->get_parameter("thrusters." + name + ".force_min", force_min);

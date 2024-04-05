@@ -113,7 +113,15 @@ class Fixed : public ThrusterBase {
 
         std::string name;
 
-        std::string force_topic_name;
+        float force_max;
+
+        float force_min;
+
+        std::string force_topic;
+
+        std::string signal_topic;
+
+        bool signal_inverted;
 
         void declare(rclcpp::Node::SharedPtr node);
 
@@ -122,7 +130,23 @@ class Fixed : public ThrusterBase {
 
     Config m_config;
 
+    bool m_enabled = false;
+
+    rclcpp::Subscription<geometry_msgs::msg::Wrench>::SharedPtr m_wrench_sub;
+
+    rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr m_signal_pub;
+
     void f_force_callback(const geometry_msgs::msg::Wrench::SharedPtr msg);
+
+    rclcpp::Service<std_srvs::srv::Empty>::SharedPtr m_enable_service;
+
+    rclcpp::Service<std_srvs::srv::Empty>::SharedPtr m_disable_service;
+
+    void f_enable_callback(const std::shared_ptr<std_srvs::srv::Empty::Request> request,
+                           std::shared_ptr<std_srvs::srv::Empty::Response> response);
+
+    void f_disable_callback(const std::shared_ptr<std_srvs::srv::Empty::Request> request,
+                            std::shared_ptr<std_srvs::srv::Empty::Response> response);
 
 public:
     Fixed(rclcpp::Node::SharedPtr node, std::string thruster_name);

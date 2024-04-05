@@ -63,10 +63,10 @@ vessel_control_node:
           topic: /CSEI/hardware/servo/pwm/vsp_2
           cmd: 0.5
 
-      # tunnel:
-      #   type: fixed
-      #   force_max: 10
-      #   force_min: -10
-      #   force_topic: /CSEI/hardware/servo/bow_thruster/scaled
-      #   control:
-      #     inverted: false
+      tunnel:
+        type: fixed
+        force_max: 10
+        force_min: -10
+        force_topic: /CSEI/hardware/servo/bow_thruster/scaled
+        control:
+          inverted: false
