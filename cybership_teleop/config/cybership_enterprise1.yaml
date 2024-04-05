@@ -30,6 +30,17 @@ joy_teleop:
           scale: 1.0
           offset: 0.0
 
+    test_servo:
+      type: topic
+      interface_type: std_msgs/msg/Float32
+      topic_name: /test_servo/scaled
+      deadman_buttons: [4]
+      axis_mappings:
+        data:
+          axis: 1
+          scale: 1.0
+          offset: 0.0
+
     enable:
       type: service
       interface_type: std_srvs/srv/Empty

@@ -1,4 +1,4 @@
-mocap_transformer_node:
+/**:
   ros__parameters:
     world_frame: world
     base_frame: base_link

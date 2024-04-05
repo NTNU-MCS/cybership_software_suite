@@ -1,4 +1,4 @@
-enterprise1_thruster_node:
+/**:
   ros__parameters:
     thrusters:
       vsp_port:
