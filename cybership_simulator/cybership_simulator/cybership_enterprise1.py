@@ -9,7 +9,14 @@ import rclpy.logging
 
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Float64MultiArray
-from geometry_msgs.msg import Wrench, TransformStamped, WrenchStamped
+from geometry_msgs.msg import (
+    Wrench,
+    TransformStamped,
+    WrenchStamped,
+    PoseStamped,
+    PoseWithCovarianceStamped,
+    TwistWithCovarianceStamped
+)
 
 from tf2_ros import TransformBroadcaster
 from cybership_simulator.common_tools.math_tools import *
@@ -57,7 +64,8 @@ class CSEI(Node):
         # TF2 Broadcast
         self.tf_broadcaster = TransformBroadcaster(self, 1)
 
-        self.publisher_odom = self.create_publisher(Odometry, '/CSEI/odom', 1)
+        self.publisher_odom = self.create_publisher(Odometry, '/CSEI/measurement/odom', 1)
+        self.publisher_pose = self.create_publisher(PoseWithCovarianceStamped, '/CSEI/measurement/pose', 1)
         self.subscriber_tunnel_thruster = self.create_subscription(Wrench, '/CSEI/thrusters/tunnel/command', self.cb_tunnel_thruster, 10)
         self.subscriber_starboard_thruster = self.create_subscription(Wrench, '/CSEI/thrusters/starboard/command', self.cb_starboard_thruster, 10)
         self.subcriber_port_thruster = self.create_subscription(Wrench, '/CSEI/thrusters/port/command', self.cb_port_thruster, 10)
@@ -182,6 +190,13 @@ class CSEI(Node):
         self.odom.twist.twist.angular.x = 0.0
         self.odom.twist.twist.angular.y = 0.0
         self.odom.twist.twist.angular.z = self.nu[2].item()
+
+        pose_msg = PoseWithCovarianceStamped()
+        pose_msg.header = self.odom.header
+
+        pose_msg.pose = self.odom.pose
+
+        self.publisher_pose.publish(pose_msg)
 
 
     def publish_tf(self):

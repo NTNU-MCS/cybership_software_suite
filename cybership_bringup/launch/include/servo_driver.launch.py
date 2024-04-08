@@ -20,7 +20,7 @@ def generate_launch_description():
 
     config_servo_driver = os.path.join(
         get_package_share_directory('cybership_bringup'),
-        'config',
+        'param',
         'enterprise1',
         'servo_driver.yaml'
     )
@@ -34,7 +34,7 @@ def generate_launch_description():
 
     config_mocap_connector = os.path.join(
         get_package_share_directory('cybership_bringup'),
-        'config',
+        'param',
         'enterprise1',
         'mocap_connector.yaml'
     )
@@ -61,7 +61,7 @@ def generate_launch_description():
 
     config_mocap_transformer = os.path.join(
         get_package_share_directory('cybership_bringup'),
-        'config',
+        'param',
         'enterprise1',
         'mocap_transformer.yaml'
     )
@@ -75,7 +75,7 @@ def generate_launch_description():
 
     config_cybership_thruster_control = os.path.join(
         get_package_share_directory('cybership_bringup'),
-        'config',
+        'param',
         'enterprise1',
         'thruster_driver.yaml'
     )
