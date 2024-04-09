@@ -20,14 +20,13 @@ def generate_launch_description():
     config_param_file = launch.actions.DeclareLaunchArgument(
         'param_file',
         default_value=launch.substitutions.PathJoinSubstitution(
-            [pkg_cybership_bringup, 'config', 'any', 'mocap_connector.config.yaml']
+            [pkg_cybership_bringup, 'config', 'any', 'empty.config.yaml']
         ),
         description='Motion Capture System connector configuration file'
     )
 
     node_mocap_connector = launch_ros.actions.LifecycleNode(
         name='mocap_connector_node',
-        namespace='',
         package='qualisys_driver',
         executable='qualisys_driver_main',
         output='screen',

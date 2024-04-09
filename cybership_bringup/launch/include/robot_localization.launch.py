@@ -4,14 +4,7 @@ import launch
 import launch.actions
 import launch.substitutions
 import launch_ros.actions
-import os
 from ament_index_python.packages import get_package_share_directory
-
-import lifecycle_msgs.msg
-
-from launch.actions import SetEnvironmentVariable
-from launch_ros.events.lifecycle import ChangeState
-
 
 def generate_launch_description():
 
@@ -20,15 +13,15 @@ def generate_launch_description():
     config_param_file = launch.actions.DeclareLaunchArgument(
         'param_file',
         default_value=launch.substitutions.PathJoinSubstitution(
-            [pkg_cybership_bringup, 'config', 'any', 'mocap_transformer.config.yaml']
+            [pkg_cybership_bringup, 'config', 'any', 'empty.config.yaml']
         ),
         description='Motion Capture System transformer configuration file'
     )
 
     node_robot_localization = launch_ros.actions.Node(
-        package='cybership_mocap',
-        executable='cybership_mocap_node',
-        name='mocap_transformer_node',
+        package='robot_localization',
+        executable='ekf_node',
+        name='robot_localization_node',
         parameters=[launch.substitutions.LaunchConfiguration('param_file')],
         output='screen'
     )

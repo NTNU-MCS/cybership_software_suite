@@ -20,7 +20,7 @@ def generate_launch_description():
     config_param_file = launch.actions.DeclareLaunchArgument(
         'param_file',
         default_value=launch.substitutions.PathJoinSubstitution(
-            [pkg_cybership_bringup, 'config', 'any', 'mocap_transformer.config.yaml']
+            [pkg_cybership_bringup, 'config', 'any', 'empty.config.yaml']
         ),
         description='Motion Capture System transformer configuration file'
     )

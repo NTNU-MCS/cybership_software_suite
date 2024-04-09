@@ -3,98 +3,61 @@
 import launch
 import launch.actions
 import launch.substitutions
-import launch_ros.actions
-import os
+import launch.launch_description_sources
+
 from ament_index_python.packages import get_package_share_directory
 
-import lifecycle_msgs.msg
-
-from launch.actions import SetEnvironmentVariable
-from launch_ros.events.lifecycle import ChangeState
-
+def include_launch_action_with_config(pkg_dir, model, launch_file, config_file):
+    return launch.actions.IncludeLaunchDescription(
+        launch.launch_description_sources.PythonLaunchDescriptionSource(
+            [pkg_dir, 'launch', 'include', launch_file]
+        ),
+        launch_arguments=[
+            ('param_file',
+                launch.substitutions.PathJoinSubstitution(
+                    [pkg_dir, 'config', model, config_file]
+                )
+            )
+        ]
+    )
 
 def generate_launch_description():
 
-    stdout_linebuf_envvar = launch.actions.SetEnvironmentVariable(
-        'RCUTILS_CONSOLE_STDOUT_LINE_BUFFERED', '1')
+    model = 'enterprise1'
 
-    config_servo_driver = os.path.join(
-        get_package_share_directory('cybership_bringup'),
-        'config',
-        'enterprise1',
-        'servo_driver.yaml'
-    )
-    node_servo_driver = launch_ros.actions.Node(
-        package='ros2_pca9685',
-        executable='ros2_pca9685_node',
-        name='servo_driver_node',
-        parameters=[config_servo_driver],
-        output='screen'
-    )
+    pkg_dir = get_package_share_directory('cybership_bringup')
 
-    config_mocap_connector = os.path.join(
-        get_package_share_directory('cybership_bringup'),
-        'config',
-        'enterprise1',
-        'mocap_connector.yaml'
-    )
-    node_mocap_connector = launch_ros.actions.LifecycleNode(
-        name='mocap_connector_node',
-        namespace='',
-        package='qualisys_driver',
-        executable='qualisys_driver_main',
-        output='screen',
-        parameters=[config_mocap_connector],
-    )
-    driver_configure_trans_event = launch.actions.EmitEvent(
-        event=ChangeState(
-          lifecycle_node_matcher=launch.events.matchers.matches_action(node_mocap_connector),
-          transition_id=lifecycle_msgs.msg.Transition.TRANSITION_CONFIGURE,
-        )
-    )
-    driver_activate_trans_event = launch.actions.EmitEvent(
-       event=launch_ros.events.lifecycle.ChangeState(
-          lifecycle_node_matcher=launch.events.matchers.matches_action(node_mocap_connector),
-          transition_id=lifecycle_msgs.msg.Transition.TRANSITION_ACTIVATE,
-        )
-    )
-
-    config_mocap_transformer = os.path.join(
-        get_package_share_directory('cybership_bringup'),
-        'config',
-        'enterprise1',
-        'mocap_transformer.yaml'
-    )
-    node_mocap_transformer = launch_ros.actions.Node(
-        package='cybership_mocap',
-        executable='cybership_mocap_node',
-        name='mocap_transformer_node',
-        parameters=[config_mocap_transformer],
-        output='screen'
-    )
-
-    config_cybership_thruster_control = os.path.join(
-        get_package_share_directory('cybership_bringup'),
-        'config',
-        'enterprise1',
-        'thruster_driver.yaml'
-    )
-
-    node_cybership_thruster_control = launch_ros.actions.Node(
-        package='cybership_thrusters',
-        executable='cybership_thrusters_node',
-        name='enterprise1_thruster_node',
-        parameters=[config_cybership_thruster_control],
-        output='screen'
-    )
 
     ld = launch.LaunchDescription()
-    ld.add_action(stdout_linebuf_envvar)
-    ld.add_action(node_servo_driver)
-    ld.add_action(node_mocap_connector)
-    ld.add_action(node_mocap_transformer)
-    ld.add_action(driver_configure_trans_event)
-    ld.add_action(driver_activate_trans_event)
-    ld.add_action(node_cybership_thruster_control)
+
+    ld.add_action(
+        include_launch_action_with_config(
+            pkg_dir, model, 'motion_capture_system_connector.launch.py', 'mocap_connector.yaml'
+        )
+    )
+
+    ld.add_action(
+        include_launch_action_with_config(
+            pkg_dir, model, 'motion_capture_system_transformer.launch.py', 'mocap_transformer.yaml'
+        )
+    )
+
+    ld.add_action(
+        include_launch_action_with_config(
+            pkg_dir, model, 'robot_localization.launch.py', 'robot_localization.yaml'
+        )
+    )
+
+    ld.add_action(
+        include_launch_action_with_config(
+            pkg_dir, model, 'servo_driver.launch.py', 'servo_driver.yaml'
+        )
+    )
+
+    ld.add_action(
+        include_launch_action_with_config(
+            pkg_dir, model, 'thruster_control.launch.py', 'thruster_control.yaml'
+        )
+    )
 
     return ld
