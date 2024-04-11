@@ -1,9 +1,9 @@
-joy_teleop:
+/**:
   ros__parameters:
     port_thruster:
       type: topic
       interface_type: geometry_msgs/msg/Wrench
-      topic_name: /CSEI/thrusters/port/command
+      topic_name: thrusters/port/command
       deadman_buttons: [4]
       axis_mappings:
         force-x:
@@ -18,7 +18,7 @@ joy_teleop:
     starboard_thruster:
       type: topic
       interface_type: geometry_msgs/msg/Wrench
-      topic_name: /CSEI/thrusters/starboard/command
+      topic_name: thrusters/starboard/command
       deadman_buttons: [4]
       axis_mappings:
         force-x:
@@ -30,26 +30,15 @@ joy_teleop:
           scale: 1.0
           offset: 0.0
 
-    test_servo:
-      type: topic
-      interface_type: std_msgs/msg/Float32
-      topic_name: /test_servo/scaled
-      deadman_buttons: [4]
-      axis_mappings:
-        data:
-          axis: 1
-          scale: 1.0
-          offset: 0.0
-
     enable:
       type: service
       interface_type: std_srvs/srv/Empty
-      service_name: /enterprise1_thruster_node/enable
+      service_name: thruster_control_node/enable
       buttons: [0]
 
 
     disable:
       type: service
       interface_type: std_srvs/srv/Empty
-      service_name: /enterprise1_thruster_node/disable
+      service_name: thruster_control_node/disable
       buttons: [1]
