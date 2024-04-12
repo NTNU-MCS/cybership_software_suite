@@ -22,7 +22,7 @@ def generate_launch_description():
     arg_param_file = launch.actions.DeclareLaunchArgument(
         'param_file',
         default_value=launch.substitutions.PathJoinSubstitution(
-            [launch_ros.substitutions.FindPackageShare('cybership_bringup'), 'config', 'any', 'empty.config.yaml']
+            [launch_ros.substitutions.FindPackageShare('cybership_config'), 'config', 'any', 'empty.config.yaml']
         ),
         description='Motion Capture System connector configuration file'
     )
@@ -34,6 +34,8 @@ def generate_launch_description():
         executable='qualisys_driver_main',
         output='screen',
         parameters=[launch.substitutions.LaunchConfiguration('param_file')],
+        respawn=True,
+        respawn_delay=5
     )
 
     driver_configure_trans_event = launch.actions.EmitEvent(

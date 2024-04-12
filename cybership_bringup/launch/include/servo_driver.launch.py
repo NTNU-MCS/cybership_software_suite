@@ -16,7 +16,7 @@ def generate_launch_description():
     arg_param_file = launch.actions.DeclareLaunchArgument(
         'param_file',
         default_value=launch.substitutions.PathJoinSubstitution(
-            [launch_ros.substitutions.FindPackageShare('cybership_bringup'), 'config', 'any', 'empty.config.yaml']
+            [launch_ros.substitutions.FindPackageShare('cybership_config'), 'config', 'any', 'empty.config.yaml']
         ),
         description='Configuration for servo driver node'
     )
@@ -27,7 +27,9 @@ def generate_launch_description():
         namespace=launch.substitutions.LaunchConfiguration('vessel_name'),
         name='pwm_driver_node',
         parameters=[launch.substitutions.LaunchConfiguration('param_file')],
-        output='screen'
+        output='screen',
+        respawn=True,
+        respawn_delay=5
     )
 
     ld = launch.LaunchDescription()

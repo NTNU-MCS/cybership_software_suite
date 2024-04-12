@@ -1,0 +1,60 @@
+/**:
+  ros__parameters:
+    frequency: 50.0
+    channels:
+      bow_thruster:
+        pwm_topic: /CSEI/hardware/servo/bow_thruster/pwm
+        scaled_topic: /CSEI/hardware/servo/bow_thruster/scaled
+        channel: 0
+        pulse_duration:
+          center: 1.3
+          min: 1.15
+          max: 1.45
+      vsp_1:
+        pwm_topic: /CSEI/hardware/servo/vsp_1/pwm
+        scaled_topic: /CSEI/hardware/servo/vsp_1/scaled
+        channel: 1
+        pulse_duration:
+          center: 1.0
+          min: 1.0
+          max: 1.5
+      vsp_2:
+        pwm_topic: /CSEI/hardware/servo/vsp_2/pwm
+        scaled_topic: /CSEI/hardware/servo/vsp_2/scaled
+        channel: 2
+        pulse_duration:
+          center: 1.0
+          min: 1.0
+          max: 1.5
+      servo_1:
+        pwm_topic: /CSEI/hardware/servo/servo_1/pwm
+        scaled_topic: /CSEI/hardware/servo/servo_1/scaled
+        channel: 3
+        pulse_duration:
+          center: 1.05
+          max: 1.25
+          min: 0.85
+      servo_3:
+        pwm_topic: /CSEI/hardware/servo/servo_3/pwm
+        scaled_topic: /CSEI/hardware/servo/servo_3/scaled
+        channel: 4
+        pulse_duration:
+          min: 1.03
+          center: 1.25
+          max: 1.42
+      servo_2:
+        pwm_topic: /CSEI/hardware/servo/servo_2/pwm
+        scaled_topic: /CSEI/hardware/servo/servo_2/scaled
+        channel: 5
+        pulse_duration:
+          center: 1.05
+          min: 0.86
+          max: 1.2
+      servo_4:
+        pwm_topic: /CSEI/hardware/servo/servo_4/pwm
+        scaled_topic: /CSEI/hardware/servo/servo_4/scaled
+        channel: 6
+        pulse_duration:
+          center: 1.05
+          min: 0.95
+          max: 1.24
