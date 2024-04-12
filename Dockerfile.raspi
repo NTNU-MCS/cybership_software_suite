@@ -1,0 +1,18 @@
+FROM ros:humble
+
+RUN \
+    mkdir -p /ros/src && cd /ros/src && \
+    apt-get update && \
+    apt-get install -y git ros-dev-tools && \
+    git clone https://github.com/incebellipipo/cybership_common.git && \
+    cd cybership_common && \
+    git submodule update --init --recursive
+RUN \
+    cd /ros && \
+    rosdep install --from-paths src --ignore-src -r -y
+
+WORKDIR /ros
+RUN /bin/bash -c "source /opt/ros/${ROS_DISTRO}/setup.sh && colcon build --symlink-install"
+
+# Set the entry point to your launch file
+CMD ["ros2", "launch", "cybership_bringup", "enterprise1.launch.py"]
