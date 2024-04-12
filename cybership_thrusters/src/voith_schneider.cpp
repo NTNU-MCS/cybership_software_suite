@@ -118,13 +118,13 @@ void VoithSchneider::Config::declare(rclcpp::Node::SharedPtr  node)
 
 void VoithSchneider::Config::update(rclcpp::Node::SharedPtr node)
 {
-    node->get_parameter("thrusters." + name + ".force_topic", force_topic);
-    node->get_parameter("thrusters." + name + ".arm_x.topic", arm_x_topic);
-    node->get_parameter("thrusters." + name + ".arm_x.inverted", arm_x_inverted);
-    node->get_parameter("thrusters." + name + ".arm_y.inverted", arm_y_inverted);
-    node->get_parameter("thrusters." + name + ".arm_y.topic", arm_y_topic);
-    node->get_parameter("thrusters." + name + ".force_max", force_max);
-    node->get_parameter("thrusters." + name + ".force_min", force_min);
-    node->get_parameter("thrusters." + name + ".rpm.topic", rpm_topic);
-    node->get_parameter("thrusters." + name + ".rpm.cmd", rpm_cmd);
+    node->get_parameter_or<std::string>("thrusters." + name + ".force_topic", force_topic, "");
+    node->get_parameter_or<std::string>("thrusters." + name + ".arm_x.topic", arm_x_topic, "");
+    node->get_parameter_or<bool>("thrusters." + name + ".arm_x.inverted", arm_x_inverted, false);
+    node->get_parameter_or<bool>("thrusters." + name + ".arm_y.inverted", arm_y_inverted, false);
+    node->get_parameter_or<std::string>("thrusters." + name + ".arm_y.topic", arm_y_topic, "");
+    node->get_parameter_or<float>("thrusters." + name + ".force_max", force_max, 0.0);
+    node->get_parameter_or<float>("thrusters." + name + ".force_min", force_min, 0.0);
+    node->get_parameter_or<std::string>("thrusters." + name + ".rpm.topic", rpm_topic, "");
+    node->get_parameter_or<float>("thrusters." + name + ".rpm.cmd", rpm_cmd, 0.0);
 }

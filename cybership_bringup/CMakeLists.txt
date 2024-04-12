@@ -12,7 +12,6 @@ find_package(rclpy REQUIRED)
 install(
   DIRECTORY
     launch
-    config
   DESTINATION
     share/${PROJECT_NAME}
 )

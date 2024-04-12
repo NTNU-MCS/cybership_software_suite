@@ -29,7 +29,7 @@
           inverted: true
         rpm:
           topic: /CSEI/hardware/servo/vsp_2/scaled
-          cmd: 0.4
+          cmd: 0.0
 
       tunnel:
         type: fixed

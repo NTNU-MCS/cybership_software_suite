@@ -17,7 +17,7 @@
         pulse_duration:
           center: 1.0
           min: 1.0
-          max: 1.5
+          max: 1.4
       vsp_2:
         pwm_topic: /CSEI/hardware/servo/vsp_2/pwm
         scaled_topic: /CSEI/hardware/servo/vsp_2/scaled
@@ -25,7 +25,7 @@
         pulse_duration:
           center: 1.0
           min: 1.0
-          max: 1.5
+          max: 1.4
       servo_1:
         pwm_topic: /CSEI/hardware/servo/servo_1/pwm
         scaled_topic: /CSEI/hardware/servo/servo_1/scaled
