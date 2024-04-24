@@ -7,3 +7,6 @@
 [submodule "cybership_external/ros2_pca9685"]
 	path = cybership_external/ros2_pca9685
 	url = https://github.com/incebellipipo/ros2_pca9685.git
+[submodule "cybership_external/mocap4r2_msgs"]
+	path = cybership_external/mocap4r2_msgs
+	url = https://github.com/MOCAP4ROS2-Project/mocap4r2_msgs.git
