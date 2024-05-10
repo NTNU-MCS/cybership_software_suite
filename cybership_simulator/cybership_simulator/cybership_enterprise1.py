@@ -172,10 +172,10 @@ class CSEI(Node):
         """
         quat = yaw2quat(self.eta[2][0])
 
-        self.odom.header.frame_id = 'world'
-        self.odom.child_frame_id = 'base_link'
+        self.odom.header.frame_id = 'odom'
         self.odom.header.stamp = self.get_clock().now().to_msg()
 
+        self.odom.child_frame_id = 'base_link'
         self.odom.pose.pose.position.x = self.eta[0].item()
         self.odom.pose.pose.position.y = self.eta[1].item()
         self.odom.pose.pose.position.z = 0.0
@@ -195,7 +195,6 @@ class CSEI(Node):
         pose_msg.header = self.odom.header
 
         pose_msg.pose = self.odom.pose
-
         self.publisher_pose.publish(pose_msg)
 
 
@@ -260,7 +259,7 @@ class CSEI(Node):
         self.set_nu()   # Compute the velocity
         self.set_eta()  # Compute the position
         self.publish_odom() # Publish the new position
-        self.publish_tf()
+        # self.publish_tf()
 
 
 
