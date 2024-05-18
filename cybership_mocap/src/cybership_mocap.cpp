@@ -59,8 +59,8 @@ void CybershipMocap::Config::declare(CybershipMocap && node)
     if(!node.has_parameter("rigid_body_name")) {
         node.declare_parameter("rigid_body_name", rigid_body_name);
     }
-    if(!node.has_parameter("topic")) {
-        node.declare_parameter("topic", std::string("rigid_bodies"));
+    if(!node.has_parameter("topic_name")) {
+        node.declare_parameter("topic_name", topic_name);
     }
 }
 
@@ -69,4 +69,5 @@ void CybershipMocap::Config::update(CybershipMocap && node)
     node.get_parameter("world_frame", world_frame);
     node.get_parameter("base_frame", base_frame);
     node.get_parameter("rigid_body_name", rigid_body_name);
+    node.get_parameter("topic_name", topic_name);
 }

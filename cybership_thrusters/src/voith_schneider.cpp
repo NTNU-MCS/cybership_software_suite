@@ -11,15 +11,15 @@ VoithSchneider::VoithSchneider(rclcpp::Node::SharedPtr node, std::string name) :
     std::cout << "topic names are " << m_config.force_topic << " " << m_config.arm_x_topic << " " << m_config.arm_y_topic << " " << m_config.rpm_topic << std::endl;
 
     m_wrench_sub = m_node->create_subscription<geometry_msgs::msg::Wrench>(
-        m_config.force_topic, 10,
+        m_config.force_topic, 1,
         std::bind(&VoithSchneider::f_force_callback, this, std::placeholders::_1)
     );
 
-    m_arm_x_pub = m_node->create_publisher<std_msgs::msg::Float32>(m_config.arm_x_topic, 10);
+    m_arm_x_pub = m_node->create_publisher<std_msgs::msg::Float32>(m_config.arm_x_topic, 1);
 
-    m_arm_y_pub = m_node->create_publisher<std_msgs::msg::Float32>(m_config.arm_y_topic, 10);
+    m_arm_y_pub = m_node->create_publisher<std_msgs::msg::Float32>(m_config.arm_y_topic, 1);
 
-    m_rpm_pub = m_node->create_publisher<std_msgs::msg::Float32>(m_config.rpm_topic, 10);
+    m_rpm_pub = m_node->create_publisher<std_msgs::msg::Float32>(m_config.rpm_topic, 1);
 
     m_enable_service = m_node->create_service<std_srvs::srv::Empty>("~/enable",
         std::bind(&VoithSchneider::f_enable_callback, this, std::placeholders::_1, std::placeholders::_2));

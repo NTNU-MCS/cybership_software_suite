@@ -3,21 +3,33 @@
     thrusters:
       azimuth_port:
         type: azimuth
-        force_topic: /CSEI/thrusters/port/command
+        force_topic: /CSV/thrusters/port/command
         force_max: 1.0
         force_min: -1.0
+        rpm:
+          topic: /CSV/hardware/prop/esc_2/scaled
+          inverted: false
+        angle:
+          topic: /CSV/hardware/joint/servo_2/angle
+          inverted: false
 
-      azimuth_port:
+      azimuth_starboard:
         type: azimuth
-        force_topic: /CSEI/thrusters/starboard/command
+        force_topic: /CSV/thrusters/starboard/command
         force_max: 1.0
         force_min: -1.0
+        rpm:
+          topic: /CSV/hardware/prop/esc_1/scaled
+          inverted: false
+        angle:
+          topic: /CSV/hardware/joint/servo_1/angle
+          inverted: false
 
       tunnel:
         type: fixed
-        force_max: 0.5
-        force_min: -0.5
-        force_topic: /CSEI/thrusters/tunnel/command
+        force_max: 1.0
+        force_min: -1.0
+        force_topic: /CSV/thrusters/tunnel/command
         signal:
-          topic:
+          topic: /CSV/hardware/prop/esc_0/scaled
           inverted: false

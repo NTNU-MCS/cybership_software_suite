@@ -10,11 +10,11 @@ Fixed::Fixed(rclcpp::Node::SharedPtr node, std::string name) : ThrusterBase(node
 
 
     m_wrench_sub = m_node->create_subscription<geometry_msgs::msg::Wrench>(
-        m_config.force_topic, 10,
+        m_config.force_topic, 1,
         std::bind(&Fixed::f_force_callback, this, std::placeholders::_1)
     );
 
-    m_signal_pub = m_node->create_publisher<std_msgs::msg::Float32>(m_config.signal_topic, 10);
+    m_signal_pub = m_node->create_publisher<std_msgs::msg::Float32>(m_config.signal_topic, 1);
 
     m_enable_service = m_node->create_service<std_srvs::srv::Empty>("~/enable",
         std::bind(&Fixed::f_enable_callback, this, std::placeholders::_1, std::placeholders::_2));

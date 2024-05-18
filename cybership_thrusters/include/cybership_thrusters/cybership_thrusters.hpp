@@ -156,16 +156,47 @@ public:
 class Azimuth : public ThrusterBase {
 
     struct Config {
+
         std::string name;
 
-        std::string force_topic_name;
+        std::string force_topic;
+
+        std::string angle_topic;
+
+        std::string rpm_topic;
+
+        float force_max;
+
+        float force_min;
+
+        bool rpm_inverted;
+
+        bool angle_inverted;
 
         void declare(rclcpp::Node::SharedPtr node);
 
-        void update(rclcpp::Node::SharedPtr  node);
+        void update(rclcpp::Node::SharedPtr node);
     };
 
+    bool m_enabled = false;
+
     Config m_config;
+
+    rclcpp::Subscription<geometry_msgs::msg::Wrench>::SharedPtr m_wrench_sub;
+
+    rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr m_angle_pub;
+
+    rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr m_rpm_pub;
+
+    rclcpp::Service<std_srvs::srv::Empty>::SharedPtr m_enable_service;
+
+    rclcpp::Service<std_srvs::srv::Empty>::SharedPtr m_disable_service;
+
+    void f_enable_callback(const std::shared_ptr<std_srvs::srv::Empty::Request> request,
+                           std::shared_ptr<std_srvs::srv::Empty::Response> response);
+
+    void f_disable_callback(const std::shared_ptr<std_srvs::srv::Empty::Request> request,
+                            std::shared_ptr<std_srvs::srv::Empty::Response> response);
 
     void f_force_callback(const geometry_msgs::msg::Wrench::SharedPtr msg);
 
