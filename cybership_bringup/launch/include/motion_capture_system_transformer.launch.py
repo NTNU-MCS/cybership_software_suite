@@ -4,6 +4,8 @@ import launch
 import launch.actions
 import launch.substitutions
 import launch_ros.actions
+from cybership_utilities.utilities import anon
+
 
 def generate_launch_description():
 
@@ -25,7 +27,7 @@ def generate_launch_description():
         package='cybership_mocap',
         executable='cybership_mocap_node',
         namespace=launch.substitutions.LaunchConfiguration('vessel_name'),
-        name='mocap_transformer_node',
+        name=f'{anon()}mocap_transformer_node',
         parameters=[launch.substitutions.LaunchConfiguration('param_file')],
         output='screen',
         respawn=True,

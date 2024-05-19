@@ -6,7 +6,7 @@ import launch.substitutions
 import launch_ros.actions
 import os
 from ament_index_python.packages import get_package_share_directory
-
+from cybership_utilities.utilities import anon
 
 def generate_launch_description():
 
@@ -28,7 +28,7 @@ def generate_launch_description():
         package='dynamixel_servo_ros',
         executable='dynamixel_node',
         namespace=launch.substitutions.LaunchConfiguration('vessel_name'),
-        name='dynamixel_node',
+        name=f'{anon()}dynamixel_node',
         parameters=[launch.substitutions.LaunchConfiguration('param_file')],
         output='screen',
         respawn=True,

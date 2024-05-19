@@ -65,10 +65,11 @@ void Azimuth::f_force_callback(const geometry_msgs::msg::Wrench::SharedPtr msg)
     angle_msg.data = angle;
     rpm_msg.data = rpm;
 
-    m_angle_pub->publish(angle_msg);
     m_rpm_pub->publish(rpm_msg);
-
-
+    if (rpm == 0) {
+        return;
+    }
+    m_angle_pub->publish(angle_msg);
 
 }
 

@@ -5,6 +5,8 @@ import launch.actions
 import launch.substitutions
 import launch_ros.actions
 from ament_index_python.packages import get_package_share_directory
+from cybership_utilities.utilities import anon
+
 
 def generate_launch_description():
 
@@ -26,7 +28,7 @@ def generate_launch_description():
         package='robot_localization',
         executable='ekf_node',
         namespace=launch.substitutions.LaunchConfiguration('vessel_name'),
-        name='robot_localization_node',
+        name=f'{anon()}robot_localization_node',
         parameters=[launch.substitutions.LaunchConfiguration('param_file')],
         output='screen',
         respawn=True,

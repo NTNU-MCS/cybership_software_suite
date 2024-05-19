@@ -4,6 +4,7 @@ import launch
 import launch.actions
 import launch.substitutions
 import launch_ros.actions
+from cybership_utilities.utilities import anon
 
 
 def generate_launch_description():
@@ -26,7 +27,7 @@ def generate_launch_description():
         package='cybership_thrusters',
         executable='cybership_thrusters_node',
         namespace=launch.substitutions.LaunchConfiguration('vessel_name'),
-        name='thruster_control_node',
+        name=f'{anon()}thruster_control_node',
         parameters=[launch.substitutions.LaunchConfiguration('param_file')],
         output='screen',
         respawn=True,

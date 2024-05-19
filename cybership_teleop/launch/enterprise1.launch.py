@@ -1,10 +1,9 @@
-
 import launch
 from launch import LaunchDescription
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
 import os
-
+from cybership_utilities.utilities import anon
 
 def generate_launch_description():
 
@@ -17,7 +16,7 @@ def generate_launch_description():
     node_joy = Node(
         package='joy',
         executable='joy_node',
-        name='vessel_joy_node',
+        name=f'{anon()}_vessel_joy_node',
         namespace=launch.substitutions.LaunchConfiguration('vessel_name'),
         output='screen'
     )
@@ -27,7 +26,7 @@ def generate_launch_description():
     node_topic_relay = Node(
         package='topic_tools',
         executable='relay',
-        name='joystick_relay_node',
+        name=f'{anon()}_joystick_relay_node',
         namespace=launch.substitutions.LaunchConfiguration('vessel_name'),
         output='screen',
         parameters=[
@@ -41,7 +40,7 @@ def generate_launch_description():
     node_joy_teleop = Node(
         package='joy_teleop',
         executable='joy_teleop',
-        name='vessel_joy_teleop',
+        name=f'{anon()}_vessel_joy_teleop',
         output='screen',
         namespace=launch.substitutions.LaunchConfiguration('vessel_name'),
         parameters=[
@@ -56,7 +55,7 @@ def generate_launch_description():
     node_vessel_tunnel_thruster = Node(
         package='cybership_teleop',
         executable='cybership_enterprise1_tunnel.py',
-        name='vessel_tunnel_thruster',
+        name=f'{anon()}_vessel_tunnel_thruster',
         namespace=launch.substitutions.LaunchConfiguration('vessel_name'),
         output='screen'
     )

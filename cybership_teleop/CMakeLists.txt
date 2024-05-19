@@ -33,6 +33,7 @@ install(
 install(
   PROGRAMS
     bin/cybership_enterprise1_tunnel.py
+    bin/cybership_jonny_tunnel.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

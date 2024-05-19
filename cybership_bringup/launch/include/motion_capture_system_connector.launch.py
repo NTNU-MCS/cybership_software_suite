@@ -9,7 +9,7 @@ import lifecycle_msgs.msg
 
 from launch.actions import SetEnvironmentVariable
 from launch_ros.events.lifecycle import ChangeState
-
+from cybership_utilities.utilities import anon
 
 def generate_launch_description():
 
@@ -28,7 +28,7 @@ def generate_launch_description():
     )
 
     node_mocap_connector = launch_ros.actions.LifecycleNode(
-        name='mocap_connector_node',
+        name=f'{anon()}mocap_connector_node',
         namespace=launch.substitutions.LaunchConfiguration('vessel_name'),
         package='qualisys_driver',
         executable='qualisys_driver_main',
