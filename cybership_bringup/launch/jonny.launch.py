@@ -79,4 +79,10 @@ def generate_launch_description():
         )
     )
 
+    ld.add_action(
+        include_launch_action_with_config(
+            bringup_pkg_dir, config_pkg_dir, model, 'imu_bno055.launch.py', 'imu_bno055.yaml', vessel_name
+        )
+    )
+
     return ld
