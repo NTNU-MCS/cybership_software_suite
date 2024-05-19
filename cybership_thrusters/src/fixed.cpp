@@ -16,10 +16,10 @@ Fixed::Fixed(rclcpp::Node::SharedPtr node, std::string name) : ThrusterBase(node
 
     m_signal_pub = m_node->create_publisher<std_msgs::msg::Float32>(m_config.signal_topic, 1);
 
-    m_enable_service = m_node->create_service<std_srvs::srv::Empty>("~/enable",
+    m_enable_service = m_node->create_service<std_srvs::srv::Empty>("thrusters/enable",
         std::bind(&Fixed::f_enable_callback, this, std::placeholders::_1, std::placeholders::_2));
 
-    m_disable_service = m_node->create_service<std_srvs::srv::Empty>("~/disable",
+    m_disable_service = m_node->create_service<std_srvs::srv::Empty>("thrusters/disable",
         std::bind(&Fixed::f_disable_callback, this, std::placeholders::_1, std::placeholders::_2));
 
 }
