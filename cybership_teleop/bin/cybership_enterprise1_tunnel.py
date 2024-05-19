@@ -12,7 +12,7 @@ class CSEITeleop(rclpy.node.Node):
         super().__init__('cse_teleop')
 
         self.publisher = self.create_publisher(geometry_msgs.msg.Wrench, '/CSEI/thrusters/tunnel/command', 1)
-        self.subscriber = self.create_subscription(sensor_msgs.msg.Joy, '/joy', self.cb_joy, 10)
+        self.subscriber = self.create_subscription(sensor_msgs.msg.Joy, '/CSEI/joy', self.cb_joy, 10)
 
     def cb_joy(self, msg):
 

@@ -12,13 +12,13 @@ class CSEITeleop(rclpy.node.Node):
         super().__init__('cse_teleop')
 
         self.publisher = self.create_publisher(geometry_msgs.msg.Wrench, '/CSV/thrusters/tunnel/command', 1)
-        self.subscriber = self.create_subscription(sensor_msgs.msg.Joy, '/joy', self.cb_joy, 10)
+        self.subscriber = self.create_subscription(sensor_msgs.msg.Joy, '/CSV/joy', self.cb_joy, 10)
 
     def cb_joy(self, msg):
 
 
         wrench = geometry_msgs.msg.Wrench()
-        wrench.force.x = 0.4 * (msg.axes[5] - msg.axes[2]) / 2.0
+        wrench.force.x = 0.4 * (msg.axes[5] - msg.axes[4]) / 2.0
         self.publisher.publish(wrench)
 
 

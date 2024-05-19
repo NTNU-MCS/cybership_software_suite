@@ -1,0 +1,44 @@
+/**:
+  ros__parameters:
+    port_thruster:
+      type: topic
+      interface_type: geometry_msgs/msg/Wrench
+      topic_name: thrusters/port/command
+      deadman_buttons: [9]
+      axis_mappings:
+        force-x:
+          axis: 1
+          scale: 1.0
+          offset: 0.0
+        force-y:
+          axis: 0
+          scale: 1.0
+          offset: 0.0
+
+    starboard_thruster:
+      type: topic
+      interface_type: geometry_msgs/msg/Wrench
+      topic_name: thrusters/starboard/command
+      deadman_buttons: [9]
+      axis_mappings:
+        force-x:
+          axis: 3
+          scale: 1.0
+          offset: 0.0
+        force-y:
+          axis: 2
+          scale: 1.0
+          offset: 0.0
+
+    enable:
+      type: service
+      interface_type: std_srvs/srv/Empty
+      service_name: thrusters/enable
+      buttons: [0]
+
+
+    disable:
+      type: service
+      interface_type: std_srvs/srv/Empty
+      service_name: thrusters/disable
+      buttons: [1]

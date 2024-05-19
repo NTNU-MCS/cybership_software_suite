@@ -14,35 +14,19 @@ def generate_launch_description():
     )
 
     node_joy = Node(
+        namespace=launch.substitutions.LaunchConfiguration('vessel_name'),
         package='joy',
         executable='joy_node',
         name=f'vessel_joy_node_{anon()}',
-        namespace=launch.substitutions.LaunchConfiguration('vessel_name'),
         output='screen'
     )
 
-    # launch.substitutions.LaunchConfiguration('asdf').perform()
-
-    node_topic_relay = Node(
-        package='topic_tools',
-        executable='relay',
-        name=f'joystick_relay_node_{anon()}',
-        namespace=launch.substitutions.LaunchConfiguration('vessel_name'),
-        output='screen',
-        parameters=[
-            {
-            'input_topic': "/CSEI/joy",
-            'output_topic': "/joy"
-            }
-        ]
-    )
-
     node_joy_teleop = Node(
+        namespace=launch.substitutions.LaunchConfiguration('vessel_name'),
         package='joy_teleop',
         executable='joy_teleop',
         name=f'vessel_joy_teleop_{anon()}',
         output='screen',
-        namespace=launch.substitutions.LaunchConfiguration('vessel_name'),
         parameters=[
             os.path.join(
                 get_package_share_directory('cybership_teleop'),
@@ -53,10 +37,10 @@ def generate_launch_description():
     )
 
     node_vessel_tunnel_thruster = Node(
+        namespace=launch.substitutions.LaunchConfiguration('vessel_name'),
         package='cybership_teleop',
         executable='cybership_enterprise1_tunnel.py',
         name=f'vessel_tunnel_thruster_{anon()}',
-        namespace=launch.substitutions.LaunchConfiguration('vessel_name'),
         output='screen'
     )
 
@@ -65,5 +49,4 @@ def generate_launch_description():
         node_joy,
         node_joy_teleop,
         node_vessel_tunnel_thruster,
-        node_topic_relay
     ])
