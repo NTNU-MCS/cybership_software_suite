@@ -27,7 +27,7 @@ def generate_launch_description():
         package='cybership_thrusters',
         executable='cybership_thrusters_node',
         namespace=launch.substitutions.LaunchConfiguration('vessel_name'),
-        name=f'{anon()}thruster_control_node',
+        name=f'thruster_control_node{anon()}',
         parameters=[launch.substitutions.LaunchConfiguration('param_file')],
         output='screen',
         respawn=True,

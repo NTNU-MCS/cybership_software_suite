@@ -27,7 +27,7 @@ def generate_launch_description():
         package='ros2_pca9685',
         executable='ros2_pca9685_node',
         namespace=launch.substitutions.LaunchConfiguration('vessel_name'),
-        name=f'{anon()}pwm_driver_node',
+        name=f'pwm_driver_node_{anon()}',
         parameters=[launch.substitutions.LaunchConfiguration('param_file')],
         output='screen',
         respawn=True,

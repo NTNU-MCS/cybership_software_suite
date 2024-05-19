@@ -28,7 +28,7 @@ def generate_launch_description():
     )
 
     node_mocap_connector = launch_ros.actions.LifecycleNode(
-        name=f'{anon()}mocap_connector_node',
+        name=f'mocap_connector_node_{anon()}',
         namespace=launch.substitutions.LaunchConfiguration('vessel_name'),
         package='qualisys_driver',
         executable='qualisys_driver_main',

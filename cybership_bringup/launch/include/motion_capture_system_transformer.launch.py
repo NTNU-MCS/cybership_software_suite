@@ -27,7 +27,7 @@ def generate_launch_description():
         package='cybership_mocap',
         executable='cybership_mocap_node',
         namespace=launch.substitutions.LaunchConfiguration('vessel_name'),
-        name=f'{anon()}mocap_transformer_node',
+        name=f'mocap_transformer_node_{anon()}',
         parameters=[launch.substitutions.LaunchConfiguration('param_file')],
         output='screen',
         respawn=True,

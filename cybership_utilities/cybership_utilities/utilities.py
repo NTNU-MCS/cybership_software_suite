@@ -24,4 +24,4 @@ import uuid
 
 
 def anon():
-    return "node_" + str(uuid.uuid4().hex[:8]) + "_"
+    return str(uuid.uuid4().hex[:8])

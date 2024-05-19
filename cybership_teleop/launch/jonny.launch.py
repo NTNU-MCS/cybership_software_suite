@@ -16,7 +16,7 @@ def generate_launch_description():
     node_joy = Node(
         package='joy',
         executable='joy_node',
-        name=f'{anon()}_vessel_joy_node',
+        name=f'vessel_joy_node_{anon()}',
         namespace=launch.substitutions.LaunchConfiguration('vessel_name'),
         output='screen'
     )
@@ -26,7 +26,7 @@ def generate_launch_description():
     node_topic_relay = Node(
         package='topic_tools',
         executable='relay',
-        name=f'{anon()}_joystick_relay_node',
+        name=f'joystick_relay_node_{anon()}',
         namespace=launch.substitutions.LaunchConfiguration('vessel_name'),
         output='screen',
         parameters=[
@@ -40,7 +40,7 @@ def generate_launch_description():
     node_joy_teleop = Node(
         package='joy_teleop',
         executable='joy_teleop',
-        name=f'{anon()}_vessel_joy_teleop',
+        name=f'vessel_joy_teleop_{anon()}',
         output='screen',
         namespace=launch.substitutions.LaunchConfiguration('vessel_name'),
         parameters=[
@@ -55,7 +55,7 @@ def generate_launch_description():
     node_vessel_tunnel_thruster = Node(
         package='cybership_teleop',
         executable='cybership_jonny_tunnel.py',
-        name=f'{anon()}_vessel_tunnel_thruster',
+        name=f'vessel_tunnel_thruster_{anon()}',
         namespace=launch.substitutions.LaunchConfiguration('vessel_name'),
         output='screen'
     )

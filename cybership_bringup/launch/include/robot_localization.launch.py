@@ -28,7 +28,7 @@ def generate_launch_description():
         package='robot_localization',
         executable='ekf_node',
         namespace=launch.substitutions.LaunchConfiguration('vessel_name'),
-        name=f'{anon()}robot_localization_node',
+        name=f'robot_localization_node_{anon()}',
         parameters=[launch.substitutions.LaunchConfiguration('param_file')],
         output='screen',
         respawn=True,
