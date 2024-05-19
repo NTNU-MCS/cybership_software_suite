@@ -1,0 +1,31 @@
+{
+    "image": "incebellipipo/devcontainer:humble",
+    "customizations": {
+        "terminalPrompt": "🐳 [container] ${containerName} ${folder}",
+        "settings": {
+            "terminal.integrated.shell.linux": "/bin/bash"
+        },
+        "vscode": {
+            "extensions": [
+                "ms-iot.vscode-ros",
+                "ms-vscode.cmake-tools",
+                "twxs.cmake"
+            ]
+        }
+    },
+    "workspaceFolder": "/home/developer/src",
+    "workspaceMount": "source=${localWorkspaceFolder},target=/home/developer/src,type=bind",
+    "privileged": true,
+    "containerEnv": {
+        "DISPLAY": "unix:0"
+    },
+    "runArgs": [
+        "--net=host",
+        "-e", "DISPLAY=${env:DISPLAY}"
+    ],
+    "mounts": [
+       "source=/tmp/.X11-unix,target=/tmp/.X11-unix,type=bind,consistency=cached",
+        "source=/dev/dri,target=/dev/dri,type=bind,consistency=cached"
+    ],
+    "postCreateCommand": "sudo rosdep update && sudo rosdep install --from-paths . --ignore-src -y"
+}
