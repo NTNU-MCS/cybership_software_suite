@@ -3,7 +3,7 @@
     thrusters:
       azimuth_port:
         type: azimuth
-        force_topic: /voyager/thrusters/port/command
+        force_topic: /voyager/thruster/port/command
         force_max: 1.0
         force_min: -1.0
         rpm:
@@ -15,7 +15,7 @@
 
       azimuth_starboard:
         type: azimuth
-        force_topic: /voyager/thrusters/starboard/command
+        force_topic: /voyager/thruster/starboard/command
         force_max: 1.0
         force_min: -1.0
         rpm:
@@ -29,7 +29,7 @@
         type: fixed
         force_max: 1.0
         force_min: -1.0
-        force_topic: /voyager/thrusters/tunnel/command
+        force_topic: /voyager/thruster/tunnel/command
         signal:
           topic: /voyager/hardware/prop/esc_0/scaled
           inverted: false

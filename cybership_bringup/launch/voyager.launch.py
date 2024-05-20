@@ -55,11 +55,11 @@ def generate_launch_description():
         )
     )
 
-    # ld.add_action(
-    #     include_launch_action_with_config(
-    #         bringup_pkg_dir, config_pkg_dir, model, 'robot_localization.launch.py', 'robot_localization.yaml', vessel_name
-    #     )
-    # )
+    ld.add_action(
+        include_launch_action_with_config(
+            bringup_pkg_dir, config_pkg_dir, model, 'robot_localization.launch.py', 'robot_localization.yaml', vessel_name
+        )
+    )
 
     ld.add_action(
         include_launch_action_with_config(
@@ -82,6 +82,12 @@ def generate_launch_description():
     ld.add_action(
         include_launch_action_with_config(
             bringup_pkg_dir, config_pkg_dir, model, 'imu_bno055.launch.py', 'imu_bno055.yaml', vessel_name
+        )
+    )
+
+    ld.add_action(
+        include_launch_action_with_config(
+            bringup_pkg_dir, config_pkg_dir, model, 'urdf_description.launch.py', '', vessel_name
         )
     )
 

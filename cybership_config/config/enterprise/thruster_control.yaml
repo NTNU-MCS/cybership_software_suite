@@ -3,7 +3,7 @@
     thrusters:
       vsp_port:
         type: vsp
-        force_topic: /enterprise/thrusters/port/command
+        force_topic: /enterprise/thruster/port/command
         force_max: 1.0
         force_min: -1.0
         arm_x:
@@ -18,7 +18,7 @@
 
       vsp_starboard:
         type: vsp
-        force_topic: /enterprise/thrusters/starboard/command
+        force_topic: /enterprise/thruster/starboard/command
         force_max: 1.0
         force_min: -1.0
         arm_x:
@@ -35,7 +35,7 @@
         type: fixed
         force_max: 0.5
         force_min: -0.5
-        force_topic: /enterprise/thrusters/tunnel/command
+        force_topic: /enterprise/thruster/tunnel/command
         signal:
           topic: /enterprise/hardware/servo/bow_thruster/scaled
           inverted: false

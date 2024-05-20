@@ -3,7 +3,7 @@
     port_thruster:
       type: topic
       interface_type: geometry_msgs/msg/Wrench
-      topic_name: thrusters/port/command
+      topic_name: thruster/port/command
       deadman_buttons: [9]
       axis_mappings:
         force-x:
@@ -18,7 +18,7 @@
     starboard_thruster:
       type: topic
       interface_type: geometry_msgs/msg/Wrench
-      topic_name: thrusters/starboard/command
+      topic_name: thruster/starboard/command
       deadman_buttons: [9]
       axis_mappings:
         force-x:
@@ -33,12 +33,12 @@
     enable:
       type: service
       interface_type: std_srvs/srv/Empty
-      service_name: thrusters/enable
+      service_name: thruster/enable
       buttons: [0]
 
 
     disable:
       type: service
       interface_type: std_srvs/srv/Empty
-      service_name: thrusters/disable
+      service_name: thruster/disable
       buttons: [1]

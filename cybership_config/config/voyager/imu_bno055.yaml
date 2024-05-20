@@ -29,7 +29,7 @@
 # Example parameters for an I2C connection to the BNO055 motion sensor.
 /**:
   ros__parameters:
-    ros_topic_prefix: "measurements/"
+    ros_topic_prefix: "measurement/"
     connection_type: "i2c"
     i2c_bus: 1
     i2c_addr: 0x28

@@ -11,6 +11,8 @@
 #include "tf2/LinearMath/Quaternion.h"
 #include "nav_msgs/msg/odometry.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
+#include "geometry_msgs/msg/pose_with_covariance_stamped.hpp"
+
 
 class CybershipMocap : public rclcpp::Node {
 private:
@@ -24,6 +26,8 @@ private:
 
         std::string topic_name;
 
+        bool publish_tf;
+
         void declare(CybershipMocap && node);
 
         void update(CybershipMocap && node);
@@ -35,7 +39,7 @@ private:
 
     rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr m_odom_pub;
 
-    rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr m_pose_pub;
+    rclcpp::Publisher<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr m_pose_pub;
 
     std::unique_ptr<tf2_ros::TransformBroadcaster> m_tf_broadcaster;
 
