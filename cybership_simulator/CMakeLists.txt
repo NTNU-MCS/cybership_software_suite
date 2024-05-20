@@ -16,8 +16,8 @@ install(
 )
 
 install(
-  DIRECTORY
-    bin/
+  PROGRAMS
+    ${PROJECT_NAME}/cybership_enterprise.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
