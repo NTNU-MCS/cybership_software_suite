@@ -16,10 +16,10 @@ install(
 )
 
 install(
-  PROGRAMS
-    ${PROJECT_NAME}/cybership_enterprise.py
+  DIRECTORY
+    bin/
   DESTINATION lib/${PROJECT_NAME}
+  FILES_MATCHING PATTERN "*.py"
 )
-
 
 ament_package()
