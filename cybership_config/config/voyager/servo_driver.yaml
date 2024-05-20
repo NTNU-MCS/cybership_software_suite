@@ -9,8 +9,8 @@
         channel: 0
         pulse_duration:
           center: 1.5
-          min: 1.32
-          max: 1.68
+          min: 1.25
+          max: 1.75
         scale:
           center: 0.0
           min: -1.0

@@ -34,7 +34,6 @@ install(
   DIRECTORY
     bin/
   DESTINATION lib/${PROJECT_NAME}
-  FILES_MATCHING PATTERN "*.py"
 )
 
 ament_package()
