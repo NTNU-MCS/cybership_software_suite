@@ -17,7 +17,7 @@ install(
 
 install(
   PROGRAMS
-    ${PROJECT_NAME}/cybership_enterprise1.py
+    ${PROJECT_NAME}/cybership_enterprise.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

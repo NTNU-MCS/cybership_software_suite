@@ -4,8 +4,8 @@
     channels:
       # Tunnel thruster
       esc_0:
-        pwm_topic: /CSV/hardware/prop/esc_0/pwm
-        scaled_topic: /CSV/hardware/prop/esc_0/scaled
+        pwm_topic: /voyager/hardware/prop/esc_0/pwm
+        scaled_topic: /voyager/hardware/prop/esc_0/scaled
         channel: 0
         pulse_duration:
           center: 1.5
@@ -17,8 +17,8 @@
           max: 1.0
       # Starboard
       esc_1:
-        pwm_topic: /CSV/hardware/prop/esc_1/pwm
-        scaled_topic: /CSV/hardware/prop/esc_1/scaled
+        pwm_topic: /voyager/hardware/prop/esc_1/pwm
+        scaled_topic: /voyager/hardware/prop/esc_1/scaled
         channel: 1
         pulse_duration:
           center: 1.5
@@ -30,8 +30,8 @@
           max: 1.0
       # Port
       esc_2:
-        pwm_topic: /CSV/hardware/prop/esc_2/pwm
-        scaled_topic: /CSV/hardware/prop/esc_2/scaled
+        pwm_topic: /voyager/hardware/prop/esc_2/pwm
+        scaled_topic: /voyager/hardware/prop/esc_2/scaled
         channel: 2
         pulse_duration:
           center: 1.5

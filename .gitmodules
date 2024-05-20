@@ -10,3 +10,6 @@
 [submodule "cybership_external/mocap4r2_msgs"]
 	path = cybership_external/mocap4r2_msgs
 	url = https://github.com/MOCAP4ROS2-Project/mocap4r2_msgs.git
+[submodule "cybership_external/bno055"]
+	path = cybership_external/bno055
+	url = https://github.com/flynneva/bno055.git

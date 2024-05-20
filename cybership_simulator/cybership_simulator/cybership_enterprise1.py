@@ -24,9 +24,9 @@ from cybership_simulator.common_tools.math_tools import *
 from rosgraph_msgs.msg import Clock
 
 
-class CSEI(Node):
+class enterprise(Node):
     """
-    The CSEI object represents the C/S Enterprise and contains the necessary
+    The enterprise object represents the C/S Enterprise and contains the necessary
     kinematics and dynamics of the ship, as well as the operations required to
     "move" the ship over one time-step
     """
@@ -64,16 +64,16 @@ class CSEI(Node):
         # TF2 Broadcast
         self.tf_broadcaster = TransformBroadcaster(self, 1)
 
-        self.publisher_odom = self.create_publisher(Odometry, '/CSEI/measurement/odom', 1)
-        self.publisher_pose = self.create_publisher(PoseWithCovarianceStamped, '/CSEI/measurement/pose', 1)
-        self.subscriber_tunnel_thruster = self.create_subscription(Wrench, '/CSEI/thrusters/tunnel/command', self.cb_tunnel_thruster, 10)
-        self.subscriber_starboard_thruster = self.create_subscription(Wrench, '/CSEI/thrusters/starboard/command', self.cb_starboard_thruster, 10)
-        self.subcriber_port_thruster = self.create_subscription(Wrench, '/CSEI/thrusters/port/command', self.cb_port_thruster, 10)
+        self.publisher_odom = self.create_publisher(Odometry, '/enterprise/measurement/odom', 1)
+        self.publisher_pose = self.create_publisher(PoseWithCovarianceStamped, '/enterprise/measurement/pose', 1)
+        self.subscriber_tunnel_thruster = self.create_subscription(Wrench, '/enterprise/thrusters/tunnel/command', self.cb_tunnel_thruster, 10)
+        self.subscriber_starboard_thruster = self.create_subscription(Wrench, '/enterprise/thrusters/starboard/command', self.cb_starboard_thruster, 10)
+        self.subcriber_port_thruster = self.create_subscription(Wrench, '/enterprise/thrusters/port/command', self.cb_port_thruster, 10)
 
-        self.publisher_tunnel_thruster = self.create_publisher(WrenchStamped, '/CSEI/thrusters/tunnel/issued', 1)
-        self.publisher_starboard_thruster = self.create_publisher(WrenchStamped, '/CSEI/thrusters/starboard/issued', 1)
-        self.publisher_port_thruster = self.create_publisher(WrenchStamped, '/CSEI/thrusters/port/issued', 1)
-        self.publisher_allocated = self.create_publisher(WrenchStamped, '/CSEI/allocated', 1)
+        self.publisher_tunnel_thruster = self.create_publisher(WrenchStamped, '/enterprise/thrusters/tunnel/issued', 1)
+        self.publisher_starboard_thruster = self.create_publisher(WrenchStamped, '/enterprise/thrusters/starboard/issued', 1)
+        self.publisher_port_thruster = self.create_publisher(WrenchStamped, '/enterprise/thrusters/port/issued', 1)
+        self.publisher_allocated = self.create_publisher(WrenchStamped, '/enterprise/allocated', 1)
 
 
         self.u = np.zeros(5)
@@ -266,7 +266,7 @@ class CSEI(Node):
 def main(args=None):
 
     rclpy.init(args=args)
-    simulator = CSEI((initial_conditions := np.array([[0, 0, 0]]).T))
+    simulator = enterprise((initial_conditions := np.array([[0, 0, 0]]).T))
 
     rclpy.spin(simulator)
 

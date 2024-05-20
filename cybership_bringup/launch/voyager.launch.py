@@ -32,9 +32,9 @@ def include_launch_action_with_config(bringup_pkg_dir, config_pkg_dir, model, la
 
 def generate_launch_description():
 
-    vessel_name = 'CSV'
+    vessel_name = 'voyager'
 
-    model = 'jonny'
+    model = 'voyager'
 
     bringup_pkg_dir = launch_ros.substitutions.FindPackageShare('cybership_bringup')
 

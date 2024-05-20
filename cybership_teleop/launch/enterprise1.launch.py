@@ -9,7 +9,7 @@ def generate_launch_description():
 
     arg_vessel_name = launch.actions.DeclareLaunchArgument(
         'vessel_name',
-        default_value='CSEI',
+        default_value='enterprise',
         description='vessel_name'
     )
 
@@ -31,7 +31,7 @@ def generate_launch_description():
             os.path.join(
                 get_package_share_directory('cybership_teleop'),
                 'config',
-                'enterprise1.yaml',
+                'enterprise.yaml',
             ),
         ]
     )
@@ -39,7 +39,7 @@ def generate_launch_description():
     node_vessel_tunnel_thruster = Node(
         namespace=launch.substitutions.LaunchConfiguration('vessel_name'),
         package='cybership_teleop',
-        executable='cybership_enterprise1_tunnel.py',
+        executable='cybership_enterprise_tunnel.py',
         name=f'vessel_tunnel_thruster_{anon()}',
         output='screen'
     )

@@ -49,7 +49,7 @@ Visualization Manager:
     - Alpha: 0.75
       Class: rviz_default_plugins/RobotModel
       Collision Enabled: false
-      Description File: /home/cem/mclab/ros_ws/src/cybership_common/cybership_description/urdf/cybership_enterprise1_base.urdf
+      Description File: /home/cem/mclab/ros_ws/src/cybership_common/cybership_description/urdf/cybership_enterprise_base.urdf
       Description Source: Topic
       Description Topic:
         Depth: 5
@@ -165,7 +165,7 @@ Visualization Manager:
         Filter size: 10
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /CSEI/odom
+        Value: /enterprise/odom
       Value: false
     - Class: rviz_common/Group
       Displays:
@@ -184,7 +184,7 @@ Visualization Manager:
             Filter size: 10
             History Policy: Keep Last
             Reliability Policy: Reliable
-            Value: /CSEI/thrusters/port/issued
+            Value: /enterprise/thrusters/port/issued
           Torque Arrow Scale: 2
           Torque Color: 204; 204; 51
           Value: true
@@ -203,7 +203,7 @@ Visualization Manager:
             Filter size: 10
             History Policy: Keep Last
             Reliability Policy: Reliable
-            Value: /CSEI/thrusters/starboard/issued
+            Value: /enterprise/thrusters/starboard/issued
           Torque Arrow Scale: 2
           Torque Color: 204; 204; 51
           Value: true
@@ -222,7 +222,7 @@ Visualization Manager:
             Filter size: 10
             History Policy: Keep Last
             Reliability Policy: Reliable
-            Value: /CSEI/thrusters/tunnel/issued
+            Value: /enterprise/thrusters/tunnel/issued
           Torque Arrow Scale: 2
           Torque Color: 204; 204; 51
           Value: true
@@ -243,7 +243,7 @@ Visualization Manager:
         Filter size: 10
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /CSEI/allocated
+        Value: /enterprise/allocated
       Torque Arrow Scale: 2
       Torque Color: 204; 204; 51
       Value: true

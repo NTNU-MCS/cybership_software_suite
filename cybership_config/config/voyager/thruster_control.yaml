@@ -3,33 +3,33 @@
     thrusters:
       azimuth_port:
         type: azimuth
-        force_topic: /CSV/thrusters/port/command
+        force_topic: /voyager/thrusters/port/command
         force_max: 1.0
         force_min: -1.0
         rpm:
-          topic: /CSV/hardware/prop/esc_2/scaled
+          topic: /voyager/hardware/prop/esc_2/scaled
           inverted: false
         angle:
-          topic: /CSV/hardware/joint/servo_2/angle
+          topic: /voyager/hardware/joint/servo_2/angle
           inverted: false
 
       azimuth_starboard:
         type: azimuth
-        force_topic: /CSV/thrusters/starboard/command
+        force_topic: /voyager/thrusters/starboard/command
         force_max: 1.0
         force_min: -1.0
         rpm:
-          topic: /CSV/hardware/prop/esc_1/scaled
+          topic: /voyager/hardware/prop/esc_1/scaled
           inverted: false
         angle:
-          topic: /CSV/hardware/joint/servo_1/angle
+          topic: /voyager/hardware/joint/servo_1/angle
           inverted: false
 
       tunnel:
         type: fixed
         force_max: 1.0
         force_min: -1.0
-        force_topic: /CSV/thrusters/tunnel/command
+        force_topic: /voyager/thrusters/tunnel/command
         signal:
-          topic: /CSV/hardware/prop/esc_0/scaled
+          topic: /voyager/hardware/prop/esc_0/scaled
           inverted: false

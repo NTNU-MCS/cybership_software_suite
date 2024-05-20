@@ -15,4 +15,4 @@ WORKDIR /ros
 RUN /bin/bash -c "source /opt/ros/${ROS_DISTRO}/setup.sh && colcon build --symlink-install"
 
 # Set the entry point to your launch file
-CMD ["ros2", "launch", "cybership_bringup", "enterprise1.launch.py"]
+CMD ["ros2", "launch", "cybership_bringup", "enterprise.launch.py"]

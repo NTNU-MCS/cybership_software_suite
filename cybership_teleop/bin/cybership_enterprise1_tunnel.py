@@ -6,26 +6,26 @@ import geometry_msgs.msg
 import sensor_msgs.msg
 
 
-class CSEITeleop(rclpy.node.Node):
+class enterpriseTeleop(rclpy.node.Node):
 
     def __init__(self):
         super().__init__('cse_teleop')
 
-        self.publisher = self.create_publisher(geometry_msgs.msg.Wrench, '/CSEI/thrusters/tunnel/command', 1)
-        self.subscriber = self.create_subscription(sensor_msgs.msg.Joy, '/CSEI/joy', self.cb_joy, 10)
+        self.publisher = self.create_publisher(geometry_msgs.msg.Wrench, '/enterprise/thrusters/tunnel/command', 1)
+        self.subscriber = self.create_subscription(sensor_msgs.msg.Joy, '/enterprise/joy', self.cb_joy, 10)
 
     def cb_joy(self, msg):
 
 
         wrench = geometry_msgs.msg.Wrench()
-        wrench.force.x = 0.4 * (msg.axes[5] - msg.axes[2]) / 2.0
+        wrench.force.x = 0.4 * (msg.axes[5] - msg.axes[4]) / 2.0
         self.publisher.publish(wrench)
 
 
 def main(args=None):
     rclpy.init(args=args)
 
-    cse_teleop = CSEITeleop()
+    cse_teleop = enterpriseTeleop()
 
     rclpy.spin(cse_teleop)
 

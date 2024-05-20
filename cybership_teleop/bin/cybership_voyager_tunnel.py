@@ -6,13 +6,13 @@ import geometry_msgs.msg
 import sensor_msgs.msg
 
 
-class CSEITeleop(rclpy.node.Node):
+class enterpriseTeleop(rclpy.node.Node):
 
     def __init__(self):
         super().__init__('cse_teleop')
 
-        self.publisher = self.create_publisher(geometry_msgs.msg.Wrench, '/CSV/thrusters/tunnel/command', 1)
-        self.subscriber = self.create_subscription(sensor_msgs.msg.Joy, '/CSV/joy', self.cb_joy, 10)
+        self.publisher = self.create_publisher(geometry_msgs.msg.Wrench, '/voyager/thrusters/tunnel/command', 1)
+        self.subscriber = self.create_subscription(sensor_msgs.msg.Joy, '/voyager/joy', self.cb_joy, 10)
 
     def cb_joy(self, msg):
 
@@ -25,7 +25,7 @@ class CSEITeleop(rclpy.node.Node):
 def main(args=None):
     rclpy.init(args=args)
 
-    cse_teleop = CSEITeleop()
+    cse_teleop = enterpriseTeleop()
 
     rclpy.spin(cse_teleop)
 

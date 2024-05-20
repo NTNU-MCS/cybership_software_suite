@@ -3,4 +3,4 @@
     world_frame: world
     base_frame: cybership/base_link
     rigid_body_name: "0"
-    topic_name: /CSEI/measurement/base
+    topic_name: /enterprise/measurement/base
