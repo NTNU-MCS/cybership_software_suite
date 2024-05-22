@@ -12,7 +12,7 @@ def generate_launch_description():
     for argument in ARGUMENTS:
         ld.add_action(argument)
 
-    launch.actions.IncludeLaunchDescription(
+    include_cs_description = launch.actions.IncludeLaunchDescription(
         launch.launch_description_sources.PythonLaunchDescriptionSource(
             launch.substitutions.PathJoinSubstitution(
                 [launch_ros.substitutions.FindPackageShare(
@@ -25,6 +25,6 @@ def generate_launch_description():
         ]
     )
 
-    ld.get_launch_arguments()
+    ld.add_action(include_cs_description)
 
     return ld

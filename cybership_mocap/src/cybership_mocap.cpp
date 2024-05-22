@@ -26,6 +26,11 @@ void CybershipMocap::f_mocapCallback(const mocap4r2_msgs::msg::RigidBodies::Shar
             continue;
         }
 
+        if(rb.pose.position.x != rb.pose.position.x) {
+            // check for nans!
+            return;
+        }
+
         geometry_msgs::msg::TransformStamped transform;
         transform.header.stamp = msg->header.stamp;
         transform.header.frame_id = m_config.world_frame;

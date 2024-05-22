@@ -9,7 +9,7 @@ def include_launch_action_with_config(
         vessel_model,
         vessel_name,
         launch_file,
-        config_file=""):
+        param_file=""):
 
     bringup_pkg_dir = launch_ros.substitutions.FindPackageShare(
         'cybership_bringup')
@@ -21,13 +21,13 @@ def include_launch_action_with_config(
         ('vessel_model', vessel_model)
     ]
 
-    if len(config_file) != 0:
+    if len(param_file) != 0:
         launch_arguments.append(
             (
                 'param_file',
                 launch.substitutions.PathJoinSubstitution(
                     launch.substitutions.PathJoinSubstitution(
-                        [config_pkg_dir, 'config', vessel_model, config_file]
+                        [config_pkg_dir, 'config', vessel_model, param_file]
                     )
                 )
             )
@@ -54,6 +54,13 @@ def generate_launch_description():
     ld.add_action(
         include_launch_action_with_config(
             vessel_model, vessel_name,
+            'azimuth_controller.launch.py', 'azimuth_controller.yaml'
+        )
+    )
+
+    ld.add_action(
+        include_launch_action_with_config(
+            vessel_model, vessel_name,
             'motion_capture_system_connector.launch.py', 'mocap_connector.yaml'
         )
     )
@@ -65,12 +72,12 @@ def generate_launch_description():
         )
     )
 
-    ld.add_action(
-        include_launch_action_with_config(
-            vessel_model, vessel_name,
-            'robot_localization.launch.py', 'robot_localization.yaml'
-        )
-    )
+    # ld.add_action(
+    #     include_launch_action_with_config(
+    #         vessel_model, vessel_name,
+    #         'robot_localization.launch.py', 'robot_localization.yaml'
+    #     )
+    # )
 
     ld.add_action(
         include_launch_action_with_config(
@@ -89,8 +96,15 @@ def generate_launch_description():
     ld.add_action(
         include_launch_action_with_config(
             vessel_model, vessel_name,
-            'urdf_description.launch.py'
+            'imu_bno055.launch.py', 'imu_bno055.yaml'
         )
     )
+
+    # ld.add_action(
+    #     include_launch_action_with_config(
+    #         vessel_model, vessel_name,
+    #         'urdf_description.launch.py', 'empty.yaml'
+    #     )
+    # )
 
     return ld

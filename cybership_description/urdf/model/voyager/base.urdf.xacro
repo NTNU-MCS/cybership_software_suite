@@ -7,7 +7,7 @@
     <joint name="mocap_link_joint" type="fixed">
         <parent link="base_link"/>
         <child link="mocap_link"/>
-        <origin xyz="0.0 0.0 0.0" rpy="0.0 3.14159265358979 1.5707963267948966"/>
+        <origin xyz="0.0 0.0 0.3" rpy="0.0 3.14159265358979 1.5707963267948966"/>
     </joint>
 
     <link name="imu_link"></link>

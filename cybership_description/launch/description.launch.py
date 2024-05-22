@@ -20,7 +20,6 @@ def generate_launch_description():
     )
 
     node_robot_state_publisher = launch_ros.actions.Node(
-        namespace=launch.substitutions.LaunchConfiguration('vessel_name'),
         package='robot_state_publisher',
         executable='robot_state_publisher',
         name=f'robot_state_publisher_{anon()}',
@@ -40,7 +39,6 @@ def generate_launch_description():
     )
 
     node_static_transform_publisher_world = launch_ros.actions.Node(
-        namespace=launch.substitutions.LaunchConfiguration('vessel_name'),
         package='tf2_ros',
         executable='static_transform_publisher',
         name=f'static_transform_publisher_{anon()}',
