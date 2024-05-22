@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import launch
 import launch.actions
 import launch.substitutions
@@ -9,23 +7,11 @@ import lifecycle_msgs.msg
 
 from launch.actions import SetEnvironmentVariable
 from launch_ros.events.lifecycle import ChangeState
+
 from cybership_utilities.utilities import anon
+from cybership_utilities.launch import COMMON_ARGUMENTS as ARGUMENTS
 
 def generate_launch_description():
-
-    arg_vessel_name = launch.actions.DeclareLaunchArgument(
-        'vessel_name',
-        default_value='cybership',
-        description='vessel_name'
-    )
-
-    arg_param_file = launch.actions.DeclareLaunchArgument(
-        'param_file',
-        default_value=launch.substitutions.PathJoinSubstitution(
-            [launch_ros.substitutions.FindPackageShare('cybership_config'), 'config', 'any', 'empty.config.yaml']
-        ),
-        description='Motion Capture System connector configuration file'
-    )
 
     node_mocap_connector = launch_ros.actions.LifecycleNode(
         name=f'mocap_connector_node_{anon()}',
@@ -54,9 +40,11 @@ def generate_launch_description():
 
 
     ld = launch.LaunchDescription()
+
+    for arg in ARGUMENTS:
+        ld.add_action(arg)
+
     ld.add_action(node_mocap_connector)
-    ld.add_action(arg_param_file)
-    ld.add_action(arg_vessel_name)
     ld.add_action(driver_configure_trans_event)
     ld.add_action(driver_activate_trans_event)
 

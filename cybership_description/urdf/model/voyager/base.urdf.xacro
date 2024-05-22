@@ -1,20 +1,16 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="cybership_voyager">
 
-    <link name="base_link">
-    </link>
+    <link name="base_link"></link>
 
-    <link name="base_link_ned"></link>
-    <joint name="base_link_transform" type="fixed">
+    <link name="mocap_link"></link>
+    <joint name="mocap_link_joint" type="fixed">
         <parent link="base_link"/>
-        <child link="base_link_ned"/>
-        <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 1.5707963267948966"/>
+        <child link="mocap_link"/>
+        <origin xyz="0.0 0.0 0.0" rpy="0.0 3.14159265358979 1.5707963267948966"/>
     </joint>
 
-    <link name="imu_link">
-
-    </link>
-
+    <link name="imu_link"></link>
     <joint name="imu_joint" type="fixed">
         <parent link="base_link"/>
         <child link="imu_link"/>

@@ -1,28 +1,12 @@
-#!/usr/bin/env python3
-
 import launch
 import launch.actions
 import launch.substitutions
 import launch_ros.actions
-from ament_index_python.packages import get_package_share_directory
-from cybership_utilities.utilities import anon
 
+from cybership_utilities.utilities import anon
+from cybership_utilities.launch import COMMON_ARGUMENTS as ARGUMENTS
 
 def generate_launch_description():
-
-    arg_vessel_name = launch.actions.DeclareLaunchArgument(
-        'vessel_name',
-        default_value='cybership',
-        description='vessel_name'
-    )
-
-    arg_param_file = launch.actions.DeclareLaunchArgument(
-        'param_file',
-        default_value=launch.substitutions.PathJoinSubstitution(
-            [launch_ros.substitutions.FindPackageShare('cybership_config'), 'config', 'any', 'empty.config.yaml']
-        ),
-        description='Motion Capture System transformer configuration file'
-    )
 
     node_robot_localization = launch_ros.actions.Node(
         package='robot_localization',
@@ -36,7 +20,9 @@ def generate_launch_description():
     )
 
     ld = launch.LaunchDescription()
-    ld.add_action(arg_param_file)
-    ld.add_action(arg_vessel_name)
+
+    for arg in ARGUMENTS:
+        ld.add_action(arg)
+
     ld.add_action(node_robot_localization)
     return ld

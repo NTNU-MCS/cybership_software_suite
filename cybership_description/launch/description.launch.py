@@ -1,34 +1,63 @@
-import os
-from ament_index_python.packages import get_package_share_directory
-from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
-from launch.substitutions import LaunchConfiguration
-from launch_ros.actions import Node
+import launch
+import launch.actions
+import launch.substitutions
+import launch_ros.actions
+
+# from ament_index_python.packages import get_package_share_directory
+
+from cybership_utilities.utilities import anon
+from cybership_utilities.launch import COMMON_ARGUMENTS as ARGUMENTS
+
 
 def generate_launch_description():
 
-    use_sim_time = LaunchConfiguration('use_sim_time', default='false')
+    xacro_file = launch.substitutions.PathJoinSubstitution([
+        launch_ros.substitutions.FindPackageShare('cybership_description'),
+        'urdf',
+        'model',
+        launch.substitutions.LaunchConfiguration('vessel_model'),
+        'base.urdf.xacro']
+    )
 
-    urdf_file_name = "urdf/cybership_enterprise_base.urdf"
-    urdf = os.path.join(
-        get_package_share_directory('cybership_description'),
-        urdf_file_name)
-    with open(urdf, 'r') as infp:
-        robot_desc = infp.read()
+    node_robot_state_publisher = launch_ros.actions.Node(
+        package='robot_state_publisher',
+        executable='robot_state_publisher',
+        name=f'robot_state_publisher_{anon()}',
+        output='screen',
+        parameters=[
+            {'use_sim_time': launch.substitutions.LaunchConfiguration(
+                'use_sim_time')},
+            {'robot_description': launch.substitutions.Command([
+                'xacro', ' ', xacro_file, ' ',
+                'gazebo:=ignition', ' ',
+                'namespace:=', launch.substitutions.LaunchConfiguration('vessel_name')])}
+        ],
+        remappings=[
+            ('/tf', 'tf'),
+            ('/tf_static', 'tf_static')
+        ]
+    )
 
-    return LaunchDescription([
-        DeclareLaunchArgument(
-            'use_sim_time',
-            default_value='false',
-            description='Use simulation clock if true'),
-        Node(
-            package='robot_state_publisher',
-            executable='robot_state_publisher',
-            name='robot_state_publisher',
-            output='screen',
-            parameters=[{
-                'use_sim_time': use_sim_time,
-                'robot_description': robot_desc
-            }],
-            arguments=[urdf]),
-    ])
+    node_static_transform_publisher_world = launch_ros.actions.Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name=f'static_transform_publisher_{anon()}',
+        output='screen',
+        arguments=[
+            "--yaw", "1.5707963267948966",
+            "--pitch", "3.141592653589793",
+            "--roll", "0.0",
+            "--frame-id",  "world",
+            "--child-frame-id", "world_ned"
+        ]
+    )
+
+    ld = launch.LaunchDescription()
+
+    for args in ARGUMENTS:
+        ld.add_action(args)
+
+    ld.add_action(node_robot_state_publisher)
+    ld.add_action(node_static_transform_publisher_world)
+
+    return ld
