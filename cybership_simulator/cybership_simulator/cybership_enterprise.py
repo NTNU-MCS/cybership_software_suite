@@ -66,13 +66,13 @@ class enterprise(Node):
 
         self.publisher_odom = self.create_publisher(Odometry, '/enterprise/measurement/odom', 1)
         self.publisher_pose = self.create_publisher(PoseWithCovarianceStamped, '/enterprise/measurement/pose', 1)
-        self.subscriber_tunnel_thruster = self.create_subscription(Wrench, '/enterprise/thrusters/tunnel/command', self.cb_tunnel_thruster, 10)
-        self.subscriber_starboard_thruster = self.create_subscription(Wrench, '/enterprise/thrusters/starboard/command', self.cb_starboard_thruster, 10)
-        self.subcriber_port_thruster = self.create_subscription(Wrench, '/enterprise/thrusters/port/command', self.cb_port_thruster, 10)
+        self.subscriber_tunnel_thruster = self.create_subscription(Wrench, '/enterprise/thruster/tunnel/command', self.cb_tunnel_thruster, 10)
+        self.subscriber_starboard_thruster = self.create_subscription(Wrench, '/enterprise/thruster/starboard/command', self.cb_starboard_thruster, 10)
+        self.subcriber_port_thruster = self.create_subscription(Wrench, '/enterprise/thruster/port/command', self.cb_port_thruster, 10)
 
-        self.publisher_tunnel_thruster = self.create_publisher(WrenchStamped, '/enterprise/thrusters/tunnel/issued', 1)
-        self.publisher_starboard_thruster = self.create_publisher(WrenchStamped, '/enterprise/thrusters/starboard/issued', 1)
-        self.publisher_port_thruster = self.create_publisher(WrenchStamped, '/enterprise/thrusters/port/issued', 1)
+        self.publisher_tunnel_thruster = self.create_publisher(WrenchStamped, '/enterprise/thruster/tunnel/issued', 1)
+        self.publisher_starboard_thruster = self.create_publisher(WrenchStamped, '/enterprise/thruster/starboard/issued', 1)
+        self.publisher_port_thruster = self.create_publisher(WrenchStamped, '/enterprise/thruster/port/issued', 1)
         self.publisher_allocated = self.create_publisher(WrenchStamped, '/enterprise/allocated', 1)
 
 
@@ -172,7 +172,7 @@ class enterprise(Node):
         """
         quat = yaw2quat(self.eta[2][0])
 
-        self.odom.header.frame_id = 'odom'
+        self.odom.header.frame_id = 'world'
         self.odom.header.stamp = self.get_clock().now().to_msg()
 
         self.odom.child_frame_id = 'base_link'
@@ -190,6 +190,8 @@ class enterprise(Node):
         self.odom.twist.twist.angular.x = 0.0
         self.odom.twist.twist.angular.y = 0.0
         self.odom.twist.twist.angular.z = self.nu[2].item()
+
+        self.publisher_odom.publish(self.odom)
 
         pose_msg = PoseWithCovarianceStamped()
         pose_msg.header = self.odom.header
@@ -259,7 +261,7 @@ class enterprise(Node):
         self.set_nu()   # Compute the velocity
         self.set_eta()  # Compute the position
         self.publish_odom() # Publish the new position
-        # self.publish_tf()
+        self.publish_tf()
 
 
 

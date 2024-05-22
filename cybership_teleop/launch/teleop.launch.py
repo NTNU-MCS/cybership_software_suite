@@ -4,13 +4,20 @@ from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
 import os
 from cybership_utilities.utilities import anon
+from cybership_utilities.launch import COMMON_ARGUMENTS as ARGUMENTS
+
 
 def generate_launch_description():
 
-    arg_vessel_name = launch.actions.DeclareLaunchArgument(
-        'vessel_name',
-        default_value='voyager',
-        description='vessel_name'
+    ld = LaunchDescription()
+
+    for argument in ARGUMENTS:
+        ld.add_action(argument)
+
+    arg_joy_config = launch.actions.DeclareLaunchArgument(
+        'joy_config',
+        default_value='ps5.yaml',
+        description='Name of the joystick configuration file'
     )
 
     node_joy = Node(
@@ -31,7 +38,7 @@ def generate_launch_description():
             os.path.join(
                 get_package_share_directory('cybership_teleop'),
                 'config',
-                'voyager.yaml',
+                'ps5.yaml',
             ),
         ]
     )
@@ -39,14 +46,14 @@ def generate_launch_description():
     node_vessel_tunnel_thruster = Node(
         namespace=launch.substitutions.LaunchConfiguration('vessel_name'),
         package='cybership_teleop',
-        executable='cybership_voyager_tunnel.py',
+        executable='tunnel.py',
         name=f'vessel_tunnel_thruster_{anon()}',
         output='screen'
     )
 
-    return LaunchDescription([
-        arg_vessel_name,
-        node_joy,
-        node_joy_teleop,
-        node_vessel_tunnel_thruster,
-    ])
+    ld.add_action(arg_joy_config)
+    ld.add_action(node_joy)
+    ld.add_action(node_joy_teleop)
+    ld.add_action(node_vessel_tunnel_thruster)
+
+    return ld

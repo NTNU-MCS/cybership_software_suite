@@ -11,8 +11,8 @@ class enterpriseTeleop(rclpy.node.Node):
     def __init__(self):
         super().__init__('cse_teleop')
 
-        self.publisher = self.create_publisher(geometry_msgs.msg.Wrench, '/voyager/thruster/tunnel/command', 1)
-        self.subscriber = self.create_subscription(sensor_msgs.msg.Joy, '/voyager/joy', self.cb_joy, 10)
+        self.publisher = self.create_publisher(geometry_msgs.msg.Wrench, 'thruster/tunnel/command', 1)
+        self.subscriber = self.create_subscription(sensor_msgs.msg.Joy, 'joy', self.cb_joy, 10)
 
     def cb_joy(self, msg):
 

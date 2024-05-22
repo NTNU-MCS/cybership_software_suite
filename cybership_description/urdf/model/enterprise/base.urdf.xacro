@@ -18,8 +18,6 @@
         </visual>
     </link>
 
-    <link name="imu_link">
-    </link>
 
     <link name="stern_port_thruster_link"/>
     <joint name="base_stern_port_thruster_joint" type="fixed">
@@ -42,9 +40,17 @@
         <origin xyz="0.3875 0 -0.05" rpy="0 0 1.5707963267948966"/>
     </joint>
 
+    <link name="imu_link"></link>
     <joint name="imu_joint" type="fixed">
         <parent link="base_link"/>
         <child link="imu_link"/>
         <origin xyz="0.4 0 0.1" rpy="0 0 0"/>
+    </joint>
+
+    <link name="mocap_link"></link>
+    <joint name="mocap_link_joint" type="fixed">
+        <parent link="base_link"/>
+        <child link="mocap_link"/>
+        <origin xyz="0.0 0.0 0.0" rpy="0.0 3.14159265358979 1.5707963267948966"/>
     </joint>
 </robot>
