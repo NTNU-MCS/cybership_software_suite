@@ -9,9 +9,9 @@ from cybership_utilities.launch import COMMON_ARGUMENTS as ARGUMENTS
 def generate_launch_description():
 
     node_servo_driver = launch_ros.actions.Node(
+        namespace=launch.substitutions.LaunchConfiguration('vessel_name'),
         package='ros2_pca9685',
         executable='ros2_pca9685_node',
-        namespace=launch.substitutions.LaunchConfiguration('vessel_name'),
         name=f'pwm_driver_node_{anon()}',
         parameters=[launch.substitutions.LaunchConfiguration('param_file')],
         output='screen',

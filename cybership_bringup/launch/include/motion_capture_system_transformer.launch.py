@@ -9,9 +9,9 @@ from cybership_utilities.launch import COMMON_ARGUMENTS as ARGUMENTS
 def generate_launch_description():
 
     node_mocap_transformer = launch_ros.actions.Node(
+        namespace=launch.substitutions.LaunchConfiguration('vessel_name'),
         package='cybership_mocap',
         executable='cybership_mocap_node',
-        namespace=launch.substitutions.LaunchConfiguration('vessel_name'),
         name=f'mocap_transformer_node_{anon()}',
         parameters=[launch.substitutions.LaunchConfiguration('param_file')],
         output='screen',

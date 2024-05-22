@@ -9,9 +9,9 @@ from cybership_utilities.launch import COMMON_ARGUMENTS as ARGUMENTS
 def generate_launch_description():
 
     node_imu_bno055 = launch_ros.actions.Node(
+        namespace=launch.substitutions.LaunchConfiguration('vessel_name'),
         package='bno055',
         executable='bno055',
-        namespace=launch.substitutions.LaunchConfiguration('vessel_name'),
         name=f'imu_bno055_{anon()}',
         parameters=[launch.substitutions.LaunchConfiguration('param_file')],
         output='screen',

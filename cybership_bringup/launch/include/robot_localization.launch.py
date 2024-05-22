@@ -9,9 +9,9 @@ from cybership_utilities.launch import COMMON_ARGUMENTS as ARGUMENTS
 def generate_launch_description():
 
     node_robot_localization = launch_ros.actions.Node(
+        namespace=launch.substitutions.LaunchConfiguration('vessel_name'),
         package='robot_localization',
         executable='ekf_node',
-        namespace=launch.substitutions.LaunchConfiguration('vessel_name'),
         name=f'robot_localization_node_{anon()}',
         parameters=[launch.substitutions.LaunchConfiguration('param_file')],
         output='screen',

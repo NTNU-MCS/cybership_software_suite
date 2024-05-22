@@ -10,9 +10,9 @@ from cybership_utilities.launch import COMMON_ARGUMENTS as ARGUMENTS
 def generate_launch_description():
 
     node_dynamixel_control = launch_ros.actions.Node(
+        namespace=launch.substitutions.LaunchConfiguration('vessel_name'),
         package='dynamixel_servo_ros',
         executable='dynamixel_node',
-        namespace=launch.substitutions.LaunchConfiguration('vessel_name'),
         name=f'dynamixel_node_{anon()}',
         parameters=[launch.substitutions.LaunchConfiguration('param_file')],
         output='screen',

@@ -14,8 +14,8 @@ from cybership_utilities.launch import COMMON_ARGUMENTS as ARGUMENTS
 def generate_launch_description():
 
     node_mocap_connector = launch_ros.actions.LifecycleNode(
-        name=f'mocap_connector_node_{anon()}',
         namespace=launch.substitutions.LaunchConfiguration('vessel_name'),
+        name=f'mocap_connector_node_{anon()}',
         package='qualisys_driver',
         executable='qualisys_driver_main',
         output='screen',

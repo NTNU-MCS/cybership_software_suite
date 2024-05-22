@@ -140,7 +140,7 @@
     # odom1_pose_rejection_threshold: 2.0
     # odom1_twist_rejection_threshold: 0.2
 
-    pose0: /voyager/measurement/pose
+    pose0: measurement/pose
     pose0_config: [ true,  true,  true,
                     true,  true,  true,
                     false, false, false,
@@ -160,7 +160,7 @@
     # twist0_queue_size: 3
     # twist0_rejection_threshold: 2.0
 
-    imu0: /voyager/measurement/imu
+    imu0: measurement/imu
     imu0_config: [false, false, false,
                   true,  true,  true,
                   false, false, false,
