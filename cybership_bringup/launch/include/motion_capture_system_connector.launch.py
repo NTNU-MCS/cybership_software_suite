@@ -8,7 +8,7 @@ import lifecycle_msgs.msg
 from launch.actions import SetEnvironmentVariable
 from launch_ros.events.lifecycle import ChangeState
 
-from cybership_utilities.utilities import anon
+from cybership_utilities.launch import anon
 from cybership_utilities.launch import COMMON_ARGUMENTS as ARGUMENTS
 
 def generate_launch_description():

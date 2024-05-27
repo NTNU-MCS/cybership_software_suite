@@ -1,0 +1,1 @@
+skadipy @ git+https://github.com/incebellipipo/skadipy.git@master

@@ -24,12 +24,7 @@ from cybership_simulator.common_tools.math_tools import *
 from rosgraph_msgs.msg import Clock
 
 
-class enterprise(Node):
-    """
-    The enterprise object represents the C/S Enterprise and contains the necessary
-    kinematics and dynamics of the ship, as well as the operations required to
-    "move" the ship over one time-step
-    """
+class Simulator(Node):
     ### Main data of the C/S Enterprise. Do not touch ###
     _M = np.array([[16.11, 0.0, 0.0], [0.0, 24.11, 0.5291], [0.0, 0.5291, 2.7600]])  # Inertia matrix
     _X = np.array([-0.6555, 0.3545, -3.787, 0.0, -2.443, 0.0]) # Hydro surge [Xu, Xuu, Xuuu, Xv, Xvv, Xvvv]
@@ -73,20 +68,14 @@ class enterprise(Node):
         self.publisher_tunnel_thruster = self.create_publisher(WrenchStamped, 'thruster/tunnel/issued', 1)
         self.publisher_starboard_thruster = self.create_publisher(WrenchStamped, 'thruster/starboard/issued', 1)
         self.publisher_port_thruster = self.create_publisher(WrenchStamped, 'thruster/port/issued', 1)
-        self.publisher_allocated = self.create_publisher(WrenchStamped, 'allocated', 1)
+        self.publisher_allocated = self.create_publisher(WrenchStamped, 'control/force/allocated', 1)
 
-
-        self.u = np.zeros(5)
         self.dt = 0.01
 
         self._loop_rate = self.create_rate((1.0 / self.dt), self.get_clock())
 
         self.timer = self.create_timer(self.dt, self.iterate)
 
-
-    def publish_odom(self):
-        self.nav_msg()
-        self.publisher_odom.publish(self.odom)
 
     # def publish_tau(self):
     #     tau = Float64MultiArray()
@@ -166,7 +155,7 @@ class enterprise(Node):
     def get_nu(self):
         return self.nu
 
-    def nav_msg(self):
+    def publish_odom(self):
         """
         Computes the Odometry message of the ship
         """
@@ -215,9 +204,6 @@ class enterprise(Node):
         t.transform.rotation.w = self.odom.pose.pose.orientation.w
 
         self.tf_broadcaster.sendTransform(t)
-
-    def get_odom(self):
-        return self.odom
 
     def cb_tunnel_thruster(self, msg):
         self.u[0] = msg.force.x
@@ -268,7 +254,7 @@ class enterprise(Node):
 def main(args=None):
 
     rclpy.init(args=args)
-    simulator = enterprise((initial_conditions := np.array([[0, 0, 0]]).T))
+    simulator = Simulator((initial_conditions := np.array([[0, 0, 0]]).T))
 
     rclpy.spin(simulator)
 

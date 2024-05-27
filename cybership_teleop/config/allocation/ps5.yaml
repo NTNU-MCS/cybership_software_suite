@@ -1,0 +1,33 @@
+/**:
+  ros__parameters:
+    allocation:
+      type: topic
+      interface_type: geometry_msgs/msg/Wrench
+      topic_name: control/force/command
+      deadman_buttons: [9]
+      axis_mappings:
+        force-x:
+          axis: 3
+          scale: 1.0
+          offset: 0.0
+        force-y:
+          axis: 2
+          scale: 1.0
+          offset: 0.0
+        torque-z:
+          axis: 0
+          scale: 1.0
+          offset: 0.0
+
+    enable:
+      type: service
+      interface_type: std_srvs/srv/Empty
+      service_name: thruster/enable
+      buttons: [0]
+
+
+    disable:
+      type: service
+      interface_type: std_srvs/srv/Empty
+      service_name: thruster/disable
+      buttons: [1]

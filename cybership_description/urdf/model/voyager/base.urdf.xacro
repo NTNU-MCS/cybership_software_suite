@@ -14,6 +14,27 @@
     <joint name="imu_joint" type="fixed">
         <parent link="base_link"/>
         <child link="imu_link"/>
-        <origin xyz="-0.1 0 0.1" rpy="0 0 0"/>
+        <origin xyz="-0.1 0 0.1" rpy="0 0 3.14159265358979"/>
+    </joint>
+
+    <link name="stern_port_thruster_link"/>
+    <joint name="base_stern_port_thruster_joint" type="fixed">
+        <parent link="base_link"/>
+        <child link="stern_port_thruster_link"/>
+        <origin xyz="-0.4574 0.055 -0.1" rpy="0 0 0"/>
+    </joint>
+
+    <link name="stern_starboard_thruster_link"/>
+    <joint name="stern_starboard_thruster_joint" type="fixed">
+        <parent link="base_link"/>
+        <child link="stern_starboard_thruster_link"/>
+        <origin xyz="-0.4574 -0.055 -0.1" rpy="0 0 0"/>
+    </joint>
+
+    <link name="bow_tunnel_thruster_link"/>
+    <joint name="bow_tunnel_thruster_joint" type="fixed">
+        <parent link="base_link"/>
+        <child link="bow_tunnel_thruster_link"/>
+        <origin xyz="0.3875 0 -0.05" rpy="0 0 1.5707963267948966"/>
     </joint>
 </robot>

@@ -3,7 +3,7 @@ import launch.actions
 import launch.substitutions
 import launch_ros.actions
 
-from cybership_utilities.utilities import anon
+from cybership_utilities.launch import anon
 from cybership_utilities.launch import COMMON_ARGUMENTS as ARGUMENTS
 
 def generate_launch_description():
