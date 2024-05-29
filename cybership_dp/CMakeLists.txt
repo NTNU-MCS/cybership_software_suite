@@ -15,6 +15,7 @@ install(
 install(
   PROGRAMS
     nodes/force_controller.py
+    nodes/velocity_controller.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

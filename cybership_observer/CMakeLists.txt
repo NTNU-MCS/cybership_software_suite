@@ -38,7 +38,7 @@ install(
 install(
   DIRECTORY
     launch
-    param
+    config
   DESTINATION share/${PROJECT_NAME}
 )
 

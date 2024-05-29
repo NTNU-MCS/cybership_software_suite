@@ -22,7 +22,7 @@ def generate_launch_description():
             [
                 launch_ros.substitutions.FindPackageShare("cybership_teleop"),
                 "config",
-                "allocation",
+                "velocity",
                 "ps5.yaml",
             ]
         ),

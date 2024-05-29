@@ -52,9 +52,6 @@ class ForceControllerROS(rclpy.node.Node):
 
         self.allocator.allocate(tau=self.tau_cmd)
 
-        for id, actuator in enumerate(self.actuators):
-            self.get_logger().info(f"{id}: {actuator.force.T}")
-
         # Tunnel thruster
         u0_f = self.actuators[0].force
         msg = geometry_msgs.msg.Wrench()
@@ -140,11 +137,11 @@ class ForceControllerROS(rclpy.node.Node):
         self.allocator = skadipy.allocator.reference_filters.MinimumMagnitudeAndAzimuth(
             actuators=self.actuators,
             force_torque_components=dofs,
-            gamma=0.1,
-            mu=0.1,
+            gamma=0.01,
+            mu=0.5,
             rho=10,
             time_step=(1.0 /self.freq ),
-            control_barrier_function=skadipy.safety.ControlBarrierFunctionType.ABSOLUTE,
+            control_barrier_function=skadipy.safety.ControlBarrierFunctionType.SUMSQUARE,
         )
         self.allocator.compute_configuration_matrix()
 
