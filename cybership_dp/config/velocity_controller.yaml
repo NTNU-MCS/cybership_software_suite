@@ -2,10 +2,10 @@
   ros__parameters:
     frequency: 5.0
     surge:
-      p_gain: 4.0
-      i_gain: 0.0
-      d_gain: 4.0
-      i_limit: 0.0
+      p_gain: 20.0
+      i_gain: 0.1
+      d_gain: 0.0
+      i_limit: 0.1
     sway:
       p_gain: 5.0
       i_gain: 0.1
