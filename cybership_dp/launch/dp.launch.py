@@ -20,12 +20,22 @@ def generate_launch_description():
                     "launch",
                     "force_controller.launch.py",
                 ]
+            )
+        ),
+        launch_arguments=[
+            ("vessel_name", launch.substitutions.LaunchConfiguration("vessel_name")),
+            ("vessel_model", launch.substitutions.LaunchConfiguration("vessel_model")),
+            (
+                "param_file",
+                launch.substitutions.PathJoinSubstitution(
+                    [
+                        launch_ros.substitutions.FindPackageShare("cybership_dp"),
+                        "config",
+                        "force_controller.yaml",
+                    ]
+                ),
             ),
-            launch_arguments=[
-                ("vessel_name", launch.substitutions.LaunchConfiguration("vessel_name")),
-                ("vessel_model", launch.substitutions.LaunchConfiguration("vessel_model")),
-            ],
-        )
+        ],
     )
 
     include_velocity_controller = launch.actions.IncludeLaunchDescription(
@@ -36,12 +46,22 @@ def generate_launch_description():
                     "launch",
                     "velocity_controller.launch.py",
                 ]
+            )
+        ),
+        launch_arguments=[
+            ("vessel_name", launch.substitutions.LaunchConfiguration("vessel_name")),
+            ("vessel_model", launch.substitutions.LaunchConfiguration("vessel_model")),
+            (
+                "param_file",
+                launch.substitutions.PathJoinSubstitution(
+                    [
+                        launch_ros.substitutions.FindPackageShare("cybership_dp"),
+                        "config",
+                        "velocity_controller.yaml",
+                    ]
+                ),
             ),
-            launch_arguments=[
-                ("vessel_name", launch.substitutions.LaunchConfiguration("vessel_name")),
-                ("vessel_model", launch.substitutions.LaunchConfiguration("vessel_model")),
-            ],
-        )
+        ],
     )
 
     ld.add_action(include_force_controller)

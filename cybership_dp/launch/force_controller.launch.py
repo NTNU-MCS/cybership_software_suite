@@ -5,13 +5,18 @@ import launch_ros.actions
 from cybership_utilities.launch import anon
 from cybership_utilities.launch import COMMON_ARGUMENTS as ARGUMENTS
 
+
 def generate_launch_description():
 
     ld = launch.LaunchDescription()
     arg_param_file = launch.actions.DeclareLaunchArgument(
         name="param_file",
-        default_value=launch.substitutions.PathJoinSubstitution([
-            launch_ros.substitutions.FindPackageShare("cybership_dp"),"config","force_controller.yaml"]
+        default_value=launch.substitutions.PathJoinSubstitution(
+            [
+                launch_ros.substitutions.FindPackageShare("cybership_dp"),
+                "config",
+                "force_controller.yaml",
+            ]
         ),
     )
     ld.add_action(arg_param_file)
@@ -26,14 +31,18 @@ def generate_launch_description():
         executable="force_controller.py",
         name=f"force_controller_{anon()}",
         parameters=[
-            launch.substitutions.LaunchConfiguration('param_file'),
+            launch.substitutions.LaunchConfiguration("param_file"),
             {
-                "vessel_model": launch.substitutions.LaunchConfiguration("vessel_model"),
+                "vessel_model": launch.substitutions.LaunchConfiguration(
+                    "vessel_model"
+                ),
             },
         ],
         arguments=[
-            "--vessel-model", launch.substitutions.LaunchConfiguration("vessel_model"),
-            "--vessel-name", launch.substitutions.LaunchConfiguration("vessel_name"),
+            "--vessel-model",
+            launch.substitutions.LaunchConfiguration("vessel_model"),
+            "--vessel-name",
+            launch.substitutions.LaunchConfiguration("vessel_name"),
         ],
         output="screen",
         respawn=True,
