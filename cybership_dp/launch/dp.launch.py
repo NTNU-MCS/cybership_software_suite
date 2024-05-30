@@ -15,16 +15,32 @@ def generate_launch_description():
     include_force_controller = launch.actions.IncludeLaunchDescription(
         launch.launch_description_sources.PythonLaunchDescriptionSource(
             launch.substitutions.PathJoinSubstitution(
-                [launch_ros.substitutions.FindPackageShare("cybership_dp"), "launch", "force_controller.launch.py"]
-            )
+                [
+                    launch_ros.substitutions.FindPackageShare("cybership_dp"),
+                    "launch",
+                    "force_controller.launch.py",
+                ]
+            ),
+            launch_arguments=[
+                ("vessel_name", launch.substitutions.LaunchConfiguration("vessel_name")),
+                ("vessel_model", launch.substitutions.LaunchConfiguration("vessel_model")),
+            ],
         )
     )
 
     include_velocity_controller = launch.actions.IncludeLaunchDescription(
         launch.launch_description_sources.PythonLaunchDescriptionSource(
             launch.substitutions.PathJoinSubstitution(
-                [launch_ros.substitutions.FindPackageShare("cybership_dp"), "launch", "velocity_controller.launch.py"]
-            )
+                [
+                    launch_ros.substitutions.FindPackageShare("cybership_dp"),
+                    "launch",
+                    "velocity_controller.launch.py",
+                ]
+            ),
+            launch_arguments=[
+                ("vessel_name", launch.substitutions.LaunchConfiguration("vessel_name")),
+                ("vessel_model", launch.substitutions.LaunchConfiguration("vessel_model")),
+            ],
         )
     )
 
