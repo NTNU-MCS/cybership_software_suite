@@ -98,9 +98,6 @@ class VelocityControllerROS(rclpy.node.Node):
         cmd_force.force.y = cmd[1]
         cmd_force.torque.z = cmd[2]
 
-        self.get_logger().info(f"State: {x}, control {u}, Error: {e}")
-        self.get_logger().info(f"k_pid: {self._k_pid}   ")
-
         self._pubs["force"].publish(cmd_force)
         self._previous_error = e
 
