@@ -52,7 +52,7 @@ source $ROS_WORKSPACE/install/setup.bash
 To launch the simulation, run the following command:
 
 ```bash
-ros2 launch cybership_simulator simulation.launch.py vessel_name:=voyager vessel_model:=voyager
+ros2 launch cybership_simulator simulator.launch.py vessel_name:=voyager vessel_model:=voyager
 ```
 
 ### Physical
