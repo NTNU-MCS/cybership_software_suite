@@ -44,13 +44,13 @@ colcon build --symlink-install
 Source the workspace
 ```bash
 source $ROS_WORKSPACE/install/setup.bash
-```simulation
+```
 
 ## Usage
 
 ### Simulation
-
 To launch the simulation, run the following command:
+
 ```bash
 ros2 launch cybership_simulator simulation.launch.py vessel_name:=voyager vessel_model:=voyager
 ```
