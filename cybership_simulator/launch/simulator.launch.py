@@ -7,6 +7,7 @@ from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
 
 from cybership_utilities.launch import COMMON_ARGUMENTS as ARGUMENTS
+from cybership_utilities.launch import anon
 
 
 def generate_launch_description():
@@ -32,12 +33,20 @@ def generate_launch_description():
         ],
     )
 
-    # Define the node
     sim_node = Node(
         namespace=launch.substitutions.LaunchConfiguration("vessel_name"),
         package="cybership_simulator",
-        executable="cybership_enterprise.py",
-        name="sim",
+        executable="cybership_common.py",
+        parameters=[
+            launch.substitutions.PathJoinSubstitution(
+                [
+                    launch_ros.substitutions.FindPackageShare("cybership_simulator"),
+                    "config",
+                    "simulation.yaml",
+                ]
+            )
+        ],
+        name=f"sim_{anon()}",
     )
 
     # Include the viz launch file

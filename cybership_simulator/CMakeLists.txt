@@ -12,14 +12,13 @@ ament_python_install_package(${PROJECT_NAME})
 ament_cmake_symlink_install_directory(DIRECTORY ${PROJECT_SOURCE_DIR})
 
 install(
-  DIRECTORY launch
+  DIRECTORY launch config
   DESTINATION share/${PROJECT_NAME}
 )
 
 install(
   PROGRAMS
     ${PROJECT_NAME}/cybership_common.py
-    ${PROJECT_NAME}/cybership_enterprise.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

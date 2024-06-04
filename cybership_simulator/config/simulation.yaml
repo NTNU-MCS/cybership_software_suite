@@ -1,0 +1,11 @@
+/**:
+  ros__parameters:
+    initial_conditions:
+      position:
+        x: 2.0
+        y: 2.0
+        yaw: 2.0
+      velocity:
+        surge: 0.4
+        sway: 0.0
+        yaw_rate: 0.0
