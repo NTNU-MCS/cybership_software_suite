@@ -17,7 +17,7 @@ git submodule update --init --recursive
 Build a virtual environment
 ```bash
 cd $ROS_WORKSPACE
-python3 -m venv venv
+python3 -m venv venv --system-site-packages --symlinks
 source venv/bin/activate
 touch venv/COLCON_IGNORE
 ```
@@ -43,6 +43,7 @@ colcon build --symlink-install
 
 Source the workspace
 ```bash
+source $ROS_WORKSPACE/venv/bin/activate
 source $ROS_WORKSPACE/install/setup.bash
 ```
 
