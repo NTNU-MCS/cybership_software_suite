@@ -1,6 +1,6 @@
 /**:
   ros__parameters:
-    frequency: 50.0
+    frequency: 40.0
     channels:
       # Tunnel thruster
       esc_0:
@@ -21,9 +21,9 @@
         scaled_topic: hardware/prop/esc_1/scaled
         channel: 1
         pulse_duration:
-          center: 1.5
-          min: 1.35
-          max: 1.65
+          center: 1.575
+          max: 1.675
+          min: 1.475
         scale:
           center: 0.0
           min: -1.0
@@ -34,9 +34,9 @@
         scaled_topic: hardware/prop/esc_2/scaled
         channel: 2
         pulse_duration:
-          center: 1.5
-          min: 1.35
-          max: 1.65
+          center: 1.575
+          max: 1.675
+          min: 1.475
         scale:
           center: 0.0
           min: -1.0
