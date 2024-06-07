@@ -1,12 +1,12 @@
-version: '3'
-
 services:
-  cybership:
+  voyager:
     build:
       context: .
       dockerfile: Dockerfile.raspi
-    command: /bin/bash -c 'source /ros/install/setup.bash ; ros2 launch cybership_bringup enterprise.launch.py'
+    command: /bin/bash -c 'source /ros/install/setup.bash ; ros2 launch cybership_bringup voyager.launch.py'
     network_mode: host
     volumes:
       - /dev:/dev
+      - ./cybership_config/config/voyager:/ros/install/cybership_config/share/cybership_config/config/voyager
     privileged: true
+    restart: always

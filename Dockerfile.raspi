@@ -1,12 +1,19 @@
 FROM ros:humble
 
+RUN mkdir -p /ros/src
+
+COPY . /ros/src/cybership_common
+
+COPY .git/ /ros/src/cybership_common/.git/
+
+
 RUN \
-    mkdir -p /ros/src && cd /ros/src && \
+    cd /ros/src && \
     apt-get update && \
     apt-get install -y git ros-dev-tools && \
-    git clone https://github.com/incebellipipo/cybership_common.git && \
     cd cybership_common && \
     git submodule update --init --recursive
+
 RUN \
     cd /ros && \
     rosdep install --from-paths src --ignore-src -r -y
