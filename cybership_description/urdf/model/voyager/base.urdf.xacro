@@ -14,7 +14,7 @@
     <joint name="imu_joint" type="fixed">
         <parent link="base_link"/>
         <child link="imu_link"/>
-        <origin xyz="-0.1 0 0.1" rpy="0 0 3.14159265358979"/>
+        <origin xyz="-0.1 0 0.1" rpy="3.14159265358979 0.0 0.0"/>
     </joint>
 
     <link name="stern_port_thruster_link"/>
