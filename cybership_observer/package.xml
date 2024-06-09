@@ -6,7 +6,6 @@
   <description>TODO: Package description</description>
   <maintainer email="emircem.gezer@gmail.com">cem</maintainer>
   <license>GPL-3.0-only</license>
-
   <depend>geometry_msgs</depend>
   <depend>rclcpp</depend>
   <depend>std_msgs</depend>
