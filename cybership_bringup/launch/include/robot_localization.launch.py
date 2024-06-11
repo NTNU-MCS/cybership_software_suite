@@ -16,7 +16,10 @@ def generate_launch_description():
         parameters=[launch.substitutions.LaunchConfiguration('param_file')],
         output='screen',
         respawn=True,
-        respawn_delay=5
+        respawn_delay=5,
+        remappings=[
+            ('odometry/filtered', 'measurement/odom'),
+        ]
     )
 
     ld = launch.LaunchDescription()

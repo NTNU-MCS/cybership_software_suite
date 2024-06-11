@@ -25,6 +25,8 @@ ament_target_dependencies(ned_to_enu_transformer
 
 install(
   PROGRAMS
+    nodes/enu_to_ned_twist.py
+    nodes/enu_to_ned_odom.py
     nodes/ned_to_enu_transformer.py
   DESTINATION lib/${PROJECT_NAME}
 )
