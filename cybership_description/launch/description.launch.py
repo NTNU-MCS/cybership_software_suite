@@ -38,26 +38,11 @@ def generate_launch_description():
         ]
     )
 
-    node_static_transform_publisher_world = launch_ros.actions.Node(
-        package='tf2_ros',
-        executable='static_transform_publisher',
-        name=f'static_transform_publisher_{anon()}',
-        output='screen',
-        arguments=[
-            "--yaw", "1.5707963267948966",
-            "--pitch", "3.141592653589793",
-            "--roll", "0.0",
-            "--frame-id",  "world",
-            "--child-frame-id", "world_ned"
-        ]
-    )
-
     ld = launch.LaunchDescription()
 
     for args in ARGUMENTS:
         ld.add_action(args)
 
     ld.add_action(node_robot_state_publisher)
-    ld.add_action(node_static_transform_publisher_world)
 
     return ld

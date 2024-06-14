@@ -5,7 +5,7 @@
 Clone the repositor under ROS workspace
 ```bash
 cd $ROS_WORKSPACE/src
-git clone https://github.com/incebellipipo/cybership_common
+git clone https://github.com/NTNU-MCS/cybership_software_suite
 ```
 
 Get all the submodules

@@ -7,17 +7,19 @@ from launch_ros.actions import Node
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
 
+
 def generate_launch_description():
-    return LaunchDescription([
-        DeclareLaunchArgument('frame_id', default_value='world'),
-        Node(
-            package='cybership_observer',
-            executable='ned_to_enu_transformer.py',
-            name='ned_to_enu_transformer',
-            remappings=[
-                ('in_pose', '/voyager/measurement/pose'),
-                ('out_pose', '/voyager/measurement/pose/enu')
-            ],
-            parameters=[{'frame_id': LaunchConfiguration('frame_id')}]
-        )
-    ])
+    arg_frame_id = (DeclareLaunchArgument("frame_id", default_value="world"),)
+
+    node_ned2enu = Node(
+        package="cybership_observer",
+        executable="ned_to_enu_transformer.py",
+        name="ned_to_enu_transformer",
+        remappings=[
+            ("in_pose", "/voyager/measurement/pose"),
+            ("out_pose", "/voyager/measurement/pose/enu"),
+        ],
+        parameters=[{"frame_id": LaunchConfiguration("frame_id")}],
+    )
+
+    return LaunchDescription([arg_frame_id, node_ned2enu])
