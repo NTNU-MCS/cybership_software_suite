@@ -106,7 +106,7 @@ class ForceControllerROS(rclpy.node.Node):
             position=skadipy.toolbox.Point([-0.4574, -0.055, 0.0]),
             extra_attributes={
                 "rate_limit": 0.1,
-                "saturation_limit": 5.0,
+                "saturation_limit": 3.0,
                 "reference_angle": -np.pi / 2.0,
                 "name": "port_azimuth",
             },
@@ -115,7 +115,7 @@ class ForceControllerROS(rclpy.node.Node):
             position=skadipy.toolbox.Point([-0.4547, 0.055, 0.0]),
             extra_attributes={
                 "rate_limit": 0.1,
-                "saturation_limit": 5.0,
+                "saturation_limit": 3.0,
                 "reference_angle": np.pi / 2.0,
                 "name": "starboard_azimuth",
             },
@@ -137,9 +137,9 @@ class ForceControllerROS(rclpy.node.Node):
         self.allocator = skadipy.allocator.reference_filters.MinimumMagnitudeAndAzimuth(
             actuators=self.actuators,
             force_torque_components=dofs,
-            gamma=0.01,
-            mu=0.5,
-            rho=10,
+            gamma=0.001,
+            mu=0.01,
+            rho=1,
             time_step=(1.0 /self.freq ),
             control_barrier_function=skadipy.safety.ControlBarrierFunctionType.SUMSQUARE,
         )
