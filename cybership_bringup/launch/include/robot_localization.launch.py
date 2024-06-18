@@ -8,6 +8,8 @@ from cybership_utilities.launch import COMMON_ARGUMENTS as ARGUMENTS
 
 def generate_launch_description():
 
+    ld = launch.LaunchDescription()
+
     node_robot_localization = launch_ros.actions.Node(
         namespace=launch.substitutions.LaunchConfiguration('vessel_name'),
         package='robot_localization',
@@ -22,7 +24,18 @@ def generate_launch_description():
         ]
     )
 
-    ld = launch.LaunchDescription()
+    observer_pkg_dir = launch_ros.substitutions.FindPackageShare(
+        'cybership_observer')
+
+    ned_world_include = launch.actions.IncludeLaunchDescription(
+        launch.launch_description_sources.PythonLaunchDescriptionSource(
+            launch.substitutions.PathJoinSubstitution(
+                [observer_pkg_dir, 'launch', 'ned_world_tf.launch.py']
+            )
+        ),
+    )
+    ld.add_action(ned_world_include)
+
 
     for arg in ARGUMENTS:
         ld.add_action(arg)

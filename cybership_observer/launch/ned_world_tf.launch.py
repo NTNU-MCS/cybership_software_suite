@@ -11,7 +11,7 @@ from cybership_utilities.launch import anon
 
 def generate_launch_description():
 
-    node_ned2enu =   Node(
+    node_ned2enu = Node(
         package='tf2_ros',
         executable='static_transform_publisher',
         name=f'static_transform_publisher_{anon()}',
