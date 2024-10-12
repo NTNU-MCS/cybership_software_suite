@@ -7,6 +7,7 @@ endif()
 
 find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_python REQUIRED)
+find_package(cybership_interfaces REQUIRED)
 
 ament_python_install_package(${PROJECT_NAME})
 ament_cmake_symlink_install_directory(DIRECTORY ${PROJECT_SOURCE_DIR})

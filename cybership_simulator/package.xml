@@ -7,6 +7,9 @@
   <maintainer email="emircem.gezer@gmail.com">cem</maintainer>
   <license>GPL-3.0-only</license>
 
+  <depend>cybership_interfaces</depend>
+  <depend>geometry_msgs</depend>
+  <depend>nav_msgs</depend>
   <buildtool_depend>ament_cmake_python</buildtool_depend>
 
   <export>

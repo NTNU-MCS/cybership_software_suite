@@ -8,6 +8,8 @@ import rclpy.clock
 import rclpy.logging
 import rcl_interfaces
 
+import cybership_interfaces.srv
+
 from std_srvs.srv import Empty
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Float64MultiArray
@@ -112,6 +114,10 @@ class Simulator(Node):
 
         self.reset_service = self.create_service(Empty, "simulator/reset", self.reset_simulation)
 
+        self.reset_service2 = self.create_service(
+            cybership_interfaces.srv.ResetSimulator, "simulator/reset_pose", self.reset_simulator2
+        )
+
         self.dt = 0.01
 
         self._loop_rate = self.create_rate((1.0 / self.dt), self.get_clock())
@@ -131,6 +137,26 @@ class Simulator(Node):
 
         self._read_parameters()
 
+        return response
+
+    def reset_simulator2(self, request, response):
+        x = request.pose.x
+        y = request.pose.y
+        yaw = request.pose.theta
+
+        self.eta = np.array([[x], [y], [yaw]], dtype=float)
+        self.nu = np.zeros((3, 1), dtype=float)
+        self.tau = np.zeros((3, 1), dtype=float)
+        self.nu_dot = np.zeros((3, 1), dtype=float)
+        self.eta_dot = np.zeros((3, 1), dtype=float)
+        self.u = np.zeros(5, dtype=float)
+
+        self.D = np.zeros((3, 3), dtype=float)
+        self.C = np.zeros((3, 3), dtype=float)
+
+        # self._read_parameters()
+
+        response.success = True
         return response
 
     def _declare_parameters(self):
