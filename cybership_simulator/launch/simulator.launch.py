@@ -1,5 +1,6 @@
 import launch
 import launch_ros
+import launch_ros.actions
 from launch import LaunchDescription
 from launch.actions import IncludeLaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
@@ -63,8 +64,13 @@ def generate_launch_description():
         ],
     )
 
+    group_gui = launch.actions.GroupAction(
+        condition=launch.conditions.IfCondition(launch.substitutions.LaunchConfiguration('use_gui', default='false')),
+        actions=[viz_launch]
+    )
+
     # Add the actions to the launch description
-    ld.add_action(viz_launch)
+    ld.add_action(group_gui)
     ld.add_action(description_launch)
     ld.add_action(sim_node)
 

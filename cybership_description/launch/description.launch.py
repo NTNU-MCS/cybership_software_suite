@@ -23,6 +23,7 @@ def generate_launch_description():
         package='robot_state_publisher',
         executable='robot_state_publisher',
         name=f'robot_state_publisher_{anon()}',
+        namespace=launch.substitutions.LaunchConfiguration('vessel_name'),
         output='screen',
         parameters=[
             {'use_sim_time': launch.substitutions.LaunchConfiguration(
@@ -33,8 +34,8 @@ def generate_launch_description():
                 'namespace:=', launch.substitutions.LaunchConfiguration('vessel_name')])}
         ],
         remappings=[
-            ('/tf', 'tf'),
-            ('/tf_static', 'tf_static')
+            # ('/tf', 'tf'),
+            # ('/tf_static', 'tf_static'),
         ]
     )
 
