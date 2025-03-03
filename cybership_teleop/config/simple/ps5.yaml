@@ -4,7 +4,7 @@
       type: topic
       interface_type: geometry_msgs/msg/Wrench
       topic_name: thruster/port/command
-      deadman_buttons: [9]
+      deadman_buttons: [4]
       axis_mappings:
         force-x:
           axis: 1
@@ -19,14 +19,14 @@
       type: topic
       interface_type: geometry_msgs/msg/Wrench
       topic_name: thruster/starboard/command
-      deadman_buttons: [9]
+      deadman_buttons: [4]
       axis_mappings:
         force-x:
-          axis: 3
+          axis: 4
           scale: 1.0
           offset: 0.0
         force-y:
-          axis: 2
+          axis: 3
           scale: 1.0
           offset: 0.0
 

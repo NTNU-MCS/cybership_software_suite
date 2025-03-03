@@ -52,6 +52,7 @@ def generate_launch_description():
         executable="tunnel.py",
         name=f"vessel_tunnel_thruster_{anon()}",
         output="screen",
+        parameters=[{"axis1": 5, "axis2": 2}],
     )
 
     ld.add_action(arg_joy_config)

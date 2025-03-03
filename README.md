@@ -62,3 +62,9 @@ To launch the physical, run the following command:
 ```bash
 ros2 launch cybership_bringup voyager.launch.py vessel_name:=voyager vessel_model:=voyager
 ```
+
+## Docker
+
+```bash
+docker compose --profile voyager up
+```
