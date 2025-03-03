@@ -1,14 +1,14 @@
 services:
   voyager:
-    image: docker.io/incebellipipo/cybership:voyager
+    image: docker.io/incebellipipo/cybership-voyager:humble
     profiles: ["voyager"]
     build:
       args:
-        - ROS_DISTRO=jazzy
+        - ROS_DISTRO=humble
         - VESSEL_MODEL=voyager
       context: .
       dockerfile: dockerfile
-    # command: /bin/bash -c 'source /ros/install/setup.bash ; ros2 launch cybership_bringup voyager.launch.py'
+    command: /bin/bash -c 'source /ros/install/setup.bash ; ros2 launch cybership_bringup voyager.launch.py'
     network_mode: host
     volumes:
       - /dev:/dev
@@ -17,7 +17,7 @@ services:
     restart: always
 
   enterprise:
-    image: docker.io/incebellipipo/cybership:enterprise
+    image: docker.io/incebellipipo/cybership-enterprise:humble
     profiles: ["enterprise"]
     build:
       context: .
@@ -25,7 +25,7 @@ services:
       args:
         - ROS_DISTRO=humble
         - VESSEL_MODEL=enterprise
-    # command: /bin/bash -c 'source /ros/install/setup.bash ; ros2 launch cybership_bringup voyager.launch.py'
+    command: /bin/bash -c 'source /ros/install/setup.bash ; ros2 launch cybership_bringup voyager.launch.py'
     network_mode: host
     volumes:
       - /dev:/dev

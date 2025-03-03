@@ -25,6 +25,12 @@ jobs:
           - vessel_model: enterprise
             ros_distro: humble
 
+          - vessel_model: arctic-drillship
+            ros_distro: jazzy
+
+          - vessel_model: arctic-drillship
+            ros_distro: humble
+
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -54,4 +60,4 @@ jobs:
             ROS_DISTRO=${{ matrix.configurations.ros_distro }}
           push: true
           platforms: linux/amd64,linux/arm64
-          tags: incebellipipo/cybership:${{ matrix.configurations.vessel_model }}
+          tags: incebellipipo/cybership-${{ matrix.configurations.vessel_model }}:${{ matrix.configurations.ros_distro }}
