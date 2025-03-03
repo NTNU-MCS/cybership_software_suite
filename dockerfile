@@ -38,7 +38,7 @@ RUN \
 
 
 # Build the ROS workspace
-RUN /bin/bash -c "source /opt/ros/${ROS_DISTRO}/setup.sh && colcon build --symlink-install"
+RUN /bin/bash -c "source /opt/ros/${ROS_DISTRO}/setup.sh && colcon build"
 
 # Set the entry point to your launch file
 ENTRYPOINT ["ros2", "launch", "cybership_bringup", "${VESSEL_MODEL}.launch.py"]

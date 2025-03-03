@@ -7,7 +7,7 @@ services:
         - ROS_DISTRO=jazzy
         - VESSEL_MODEL=voyager
       context: .
-      dockerfile: raspi.dockerfile
+      dockerfile: dockerfile
     # command: /bin/bash -c 'source /ros/install/setup.bash ; ros2 launch cybership_bringup voyager.launch.py'
     network_mode: host
     volumes:
@@ -21,7 +21,7 @@ services:
     profiles: ["enterprise"]
     build:
       context: .
-      dockerfile: raspi.dockerfile
+      dockerfile: dockerfile
       args:
         - ROS_DISTRO=humble
         - VESSEL_MODEL=enterprise
