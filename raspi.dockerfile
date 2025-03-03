@@ -1,5 +1,5 @@
 # Set default values for build arguments
-ARG VESSEL_NAME=voyager
+ARG VESSEL_MODEL=voyager
 ARG ROS_DISTRO=latest
 
 # Use the specified ROS distribution as the base image
