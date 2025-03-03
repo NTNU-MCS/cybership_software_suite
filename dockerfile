@@ -1,6 +1,7 @@
 # Set default values for build arguments
 ARG VESSEL_MODEL=voyager
 ARG ROS_DISTRO=humble
+ARG RMW_IMPLEMENTATION=rmw_fastrtps_cpp
 
 # Use the specified ROS distribution as the base image
 FROM ros:$ROS_DISTRO
@@ -11,6 +12,9 @@ ENV ROS_DISTRO=${ROS_DISTRO}
 
 ARG VESSEL_MODEL
 ENV VESSEL_MODEL=${VESSEL_MODEL}
+
+ARG RMW_IMPLEMENTATION
+ENV RMW_IMPLEMENTATION=${RMW_IMPLEMENTATION}
 
 # Create the directory for ROS workspace
 RUN mkdir -p /ros/src
