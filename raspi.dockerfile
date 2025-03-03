@@ -1,6 +1,6 @@
 # Set default values for build arguments
 ARG VESSEL_MODEL=voyager
-ARG ROS_DISTRO=latest
+ARG ROS_DISTRO=humble
 
 # Use the specified ROS distribution as the base image
 FROM ros:$ROS_DISTRO
