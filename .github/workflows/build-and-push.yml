@@ -54,7 +54,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: raspi.dockerfile
+          file: dockerfile
           build-args: |
             VESSEL_MODEL=${{ matrix.configurations.vessel_model }}
             ROS_DISTRO=${{ matrix.configurations.ros_distro }}
