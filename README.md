@@ -10,7 +10,7 @@ git clone https://github.com/NTNU-MCS/cybership_software_suite
 
 Get all the submodules
 ```bash
-cd $ROS_WORKSPACE/src/cybership_common
+cd $ROS_WORKSPACE/src/cybership_software_suite
 git submodule update --init --recursive
 ```
 
@@ -26,7 +26,7 @@ Install python dependencies to virtual environment
 ```bash
 cd $ROS_WORKSPACE
 source venv/bin/activate
-find src/cybership_common -name "requirements*txt" -exec pip install -r {} \;
+find src/cybership_software_suite -name "requirements*txt" -exec pip install -r {} \;
 ```
 
 Install dependencies
