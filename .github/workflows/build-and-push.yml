@@ -23,8 +23,6 @@ jobs:
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
-        with:
-          image: tonistiigi/binfmt:latest
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -44,4 +42,4 @@ jobs:
             ROS_DISTRO=${{ matrix.configurations.ros_distro }}
           push: true
           platforms: linux/amd64,linux/arm64
-          tags: incebellipipo/cybership-${{ matrix.configurations.vessel_model }}:${{ matrix.configurations.ros_distro }}
+          tags: incebellipipo/cybership:${{ matrix.configurations.ros_distro }}
