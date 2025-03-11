@@ -14,8 +14,8 @@ ENV DEBIAN_FRONTEND=teletype
 
 RUN apt-get update && apt-get install -y sudo
 
-RUN useradd --uid "${UID}" --gid "${GID}" -m ros_user \
-    && groupadd --gid "${GID}" ros_user \
+RUN groupadd --gid "${GID}" ros_user \
+    && useradd --uid "${UID}" --gid "${GID}" -m ros_user \
     && usermod -aG sudo ros_user \
     && echo "ros_user ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
