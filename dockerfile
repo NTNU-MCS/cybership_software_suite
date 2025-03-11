@@ -1,4 +1,4 @@
-ARG ROS_DISTRO=humble
+ARG ROS_DISTRO=jazzy
 ARG UID=1000
 ARG GID=1000
 
@@ -13,6 +13,12 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV DEBIAN_FRONTEND=teletype
 
 RUN apt-get update && apt-get install -y sudo
+
+RUN uid=${UID} && \
+    if getent passwd $uid > /dev/null; then \
+        username=$(getent passwd $uid | cut -d: -f1); \
+        userdel -r $username; \
+    fi
 
 RUN groupadd --gid "${GID}" ros_user \
     && useradd --uid "${UID}" --gid "${GID}" -m ros_user \

@@ -1,12 +1,12 @@
 services:
-  
+
 
   voyager:
-    image: docker.io/incebellipipo/cybership:humble
+    image: docker.io/incebellipipo/cybership:jazzy
     profiles: ["voyager"]
     build:
       args:
-        ROS_DISTRO: humble
+        ROS_DISTRO: jazzy
       context: .
       dockerfile: dockerfile
     command: ros2 launch cybership_bringup voyager.launch.py vessel_name:=voyager
