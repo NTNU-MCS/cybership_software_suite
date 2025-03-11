@@ -1,15 +1,19 @@
 services:
+
+
   voyager:
-    image: docker.io/incebellipipo/cybership:voyager
+    image: docker.io/incebellipipo/cybership:jazzy
     profiles: ["voyager"]
     build:
       args:
-        - ROS_DISTRO=jazzy
-        - VESSEL_MODEL=voyager
+        ROS_DISTRO: jazzy
       context: .
-      dockerfile: raspi.dockerfile
-    # command: /bin/bash -c 'source /ros/install/setup.bash ; ros2 launch cybership_bringup voyager.launch.py'
+      dockerfile: dockerfile
+    command: ros2 launch cybership_bringup voyager.launch.py vessel_name:=voyager
     network_mode: host
+    group_add: [dialout, plugdev, users, input, i2c]
+    ipc: host
+    pid: host
     volumes:
       - /dev:/dev
       - ./cybership_config/config:/ros/install/cybership_config/share/cybership_config/config
@@ -17,16 +21,18 @@ services:
     restart: always
 
   enterprise:
-    image: docker.io/incebellipipo/cybership:enterprise
+    image: docker.io/incebellipipo/cybership:humble
     profiles: ["enterprise"]
     build:
       context: .
-      dockerfile: raspi.dockerfile
+      dockerfile: dockerfile
       args:
-        - ROS_DISTRO=jazzy
-        - VESSEL_MODEL=enterprise
-    # command: /bin/bash -c 'source /ros/install/setup.bash ; ros2 launch cybership_bringup voyager.launch.py'
+        ROS_DISTRO: humble
+    command: ros2 launch cybership_bringup enterprise.launch.py vessel_name:=enterprise
     network_mode: host
+    ipc: host
+    pid: host
+    group_add: [dialout, plugdev, users, input, i2c]
     volumes:
       - /dev:/dev
       - ./cybership_config/config/enterprise:/ros/install/cybership_config/share/cybership_config/config/enterprise
