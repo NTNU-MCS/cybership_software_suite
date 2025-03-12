@@ -6,7 +6,7 @@
       esc_1:
         pwm_topic: hardware/prop/esc_1/pwm
         scaled_topic: hardware/prop/esc_1/scaled
-        channel: 1
+        channel: 0
         pulse_duration:
           center: 1.575
           max: 1.675
@@ -19,7 +19,7 @@
       esc_2:
         pwm_topic: hardware/prop/esc_2/pwm
         scaled_topic: hardware/prop/esc_2/scaled
-        channel: 2
+        channel: 1
         pulse_duration:
           center: 1.575
           max: 1.675
@@ -32,7 +32,7 @@
       esc_3:
         pwm_topic: hardware/prop/esc_3/pwm
         scaled_topic: hardware/prop/esc_3/scaled
-        channel: 0
+        channel: 3
         pulse_duration:
           center: 1.5
           min: 1.25
@@ -45,7 +45,7 @@
       esc_4:
         pwm_topic: hardware/prop/esc_4/pwm
         scaled_topic: hardware/prop/esc_4/scaled
-        channel: 1
+        channel: 5
         pulse_duration:
           center: 1.575
           max: 1.675
@@ -58,7 +58,7 @@
       esc_5:
         pwm_topic: hardware/prop/esc_5/pwm
         scaled_topic: hardware/prop/esc_5/scaled
-        channel: 2
+        channel: 4
         pulse_duration:
           center: 1.575
           max: 1.675
@@ -71,7 +71,7 @@
       esc_6:
         pwm_topic: hardware/prop/esc_6/pwm
         scaled_topic: hardware/prop/esc_6/scaled
-        channel: 0
+        channel: 3
         pulse_duration:
           center: 1.5
           min: 1.25

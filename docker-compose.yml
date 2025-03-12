@@ -38,3 +38,23 @@ services:
       - ./cybership_config/config/enterprise:/ros/install/cybership_config/share/cybership_config/config/enterprise
     privileged: true
     restart: always
+
+  drillship:
+    image: docker.io/incebellipipo/cybership:humble
+    profiles: ["drillship"]
+    build:
+      context: .
+      dockerfile: dockerfile
+      args:
+        ROS_DISTRO: humble
+    command: ros2 launch cybership_bringup drillship.launch.py vessel_name:=drillship
+    network_mode: host
+    ipc: host
+    pid: host
+    group_add: [dialout, plugdev, users, input, i2c]
+    volumes:
+      - /dev:/dev
+      - ./cybership_config/config/drillship:/ros/install/cybership_config/share/cybership_config/config/drillship
+    privileged: true
+    restart: always
+
