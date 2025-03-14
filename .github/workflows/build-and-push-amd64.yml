@@ -1,4 +1,4 @@
-name: Docker Hub
+name: Docker Hub for AMD64
 
 on:
   push:
@@ -16,9 +16,9 @@ jobs:
           - ros_distro: 'humble'
           - ros_distro: 'jazzy'
 
-    # runs-on: ubuntu-latest
-    runs-on: ubuntu-22.04
-    
+    runs-on: ubuntu-latest
+    # runs-on: ubuntu-22.04
+
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -43,5 +43,5 @@ jobs:
           build-args: |
             ROS_DISTRO=${{ matrix.configurations.ros_distro }}
           push: true
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           tags: incebellipipo/cybership:${{ matrix.configurations.ros_distro }}
