@@ -8,7 +8,7 @@
       servo_1:
         frame_id: servo_1_link
         control_topic: hardware/joint/servo_1/angle
-        device_id: 1
+        device_id: 3
         gain: 100.0
         delta: 45.0
         offset: -2.6
@@ -16,7 +16,7 @@
       servo_2:
         frame_id: servo_2_link
         control_topic: hardware/joint/servo_2/angle
-        device_id: 2
+        device_id: 1
         gain: 100.0
         delta: 45.0
         offset: -0.18
@@ -24,7 +24,7 @@
       servo_3:
         frame_id: servo_3_link
         control_topic: hardware/joint/servo_3/angle
-        device_id: 1
+        device_id: 2
         gain: 100.0
         delta: 45.0
         offset: -2.6
@@ -32,7 +32,7 @@
       servo_4:
         frame_id: servo_4_link
         control_topic: hardware/joint/servo_4/angle
-        device_id: 2
+        device_id: 6
         gain: 100.0
         delta: 45.0
         offset: -0.18
@@ -40,7 +40,7 @@
       servo_5:
         frame_id: servo_5_link
         control_topic: hardware/joint/servo_5/angle
-        device_id: 1
+        device_id: 4
         gain: 100.0
         delta: 45.0
         offset: -2.6
@@ -48,7 +48,7 @@
       servo_6:
         frame_id: servo_6_link
         control_topic: hardware/joint/servo_6_/angle
-        device_id: 2
+        device_id: 5
         gain: 100.0
         delta: 45.0
         offset: -0.18
