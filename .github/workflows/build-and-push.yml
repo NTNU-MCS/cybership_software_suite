@@ -1,4 +1,4 @@
-name: Docker Hub for AMD64
+name: Docker Hub
 
 on:
   push:
@@ -43,5 +43,5 @@ jobs:
           build-args: |
             ROS_DISTRO=${{ matrix.configurations.ros_distro }}
           push: true
-          platforms: linux/amd64
+          platforms: linux/amd64, linux/arm64
           tags: incebellipipo/cybership:${{ matrix.configurations.ros_distro }}
