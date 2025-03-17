@@ -14,7 +14,13 @@ jobs:
       matrix:
         configurations:
           - ros_distro: 'humble'
+            arch: 'amd64'
           - ros_distro: 'jazzy'
+            arch: 'amd64'
+          - ros_distro: 'humble'
+            arch: 'arm64'
+          - ros_distro: 'jazzy'
+            arch: 'arm64'
 
     runs-on: ubuntu-latest
     # runs-on: ubuntu-22.04
@@ -43,5 +49,5 @@ jobs:
           build-args: |
             ROS_DISTRO=${{ matrix.configurations.ros_distro }}
           push: true
-          platforms: linux/amd64, linux/arm64
+          platforms: linux/${{ matrix.configurations.arch }}
           tags: incebellipipo/cybership:${{ matrix.configurations.ros_distro }}
