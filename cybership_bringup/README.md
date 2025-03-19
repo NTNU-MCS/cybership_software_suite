@@ -21,16 +21,16 @@ This package is part of the Cybership Software Suite and provides launch files f
 ## Usage
 To launch the bringup for a specific vessel, use one of the provided launch files. For example, to launch the voyager bringup:
 ```bash
-ros2 launch cybership_bringup [voyager.launch.py](./launch/voyager.launch.py)
+ros2 launch cybership_bringup voyager.launch.py
 ```
 
 For enterprise
 ```bash
-ros2 launch cybership_bringup [enterprise.launch.py](./launch/enterprise.launch.py)
+ros2 launch cybership_bringup enterprise.launch.py
 ```
 For drillship
 ```bash
-ros2 launch cybership_bringup [drillship.launch.py](./launch/drillship.launch.py)
+ros2 launch cybership_bringup drillship.launch.py
 ```
 
 This will start the necessary nodes and configurations for the vessels.
