@@ -1,6 +1,16 @@
-/**:
+cybership_mocap_node:
   ros__parameters:
-    world_frame: world
-    base_frame: cybership/base_link
-    rigid_body_name: "0"
-    topic_name: /enterprise/measurement/base
+    # The name of the world/global reference frame
+    world_frame: "mocap"
+
+    # The name of the robot's base frame
+    base_frame: "cybership/base_link"
+
+    # The name of the rigid body in the mocap system
+    rigid_body_name: "cybership"
+
+    # Topic name to which the pose will be published
+    topic_name: "cybership/pose"
+
+    # Whether to publish the transform to TF
+    publish_tf: true
