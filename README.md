@@ -17,6 +17,12 @@ This repository is the home of the CyberShip Software Suite – a collection of 
 ### 1. Installation
 
 Follow these steps to set up your ROS 2 workspace with the CyberShip Software Suite:
+ > [!IMPORTANT]
+ > Make sure that you have sourced the ROS 2 installation
+ > ```bash
+ > source /opt/ros/<distro>/setup.bash
+ > ```
+ > Replace `<distro>` with your ROS 2 distribution (e.g., `humble`, `jazzy`, etc.).
 
 1. **Clone the Repository and Submodules**
    ```bash
@@ -46,16 +52,15 @@ Follow these steps to set up your ROS 2 workspace with the CyberShip Software Su
     rosdep install --from-paths src -i
     colcon build --symlink-install
     ```
-
-    > [!WARNING]
-    > Make sure that you have initialized rosdep and sourced the ROS 2 environment before running the above command. You can do this by running:
-    > ```bash
-    > sudo rosdep init
-    > rosdep update
-    > source /opt/ros/<distro>/setup.bash
-    > ```
-    > Replace `<distro>` with your ROS 2 distribution (e.g., `humble`, `jazzy`, etc.).
-    > If you encounter any issues with dependencies, please refer to the documentation of the specific package for additional instructions.
+ > [!WARNING]
+ > Make sure that you have initialized rosdep and sourced the ROS 2 environment before running the above command. You can do this by running:
+ > ```bash
+ > source /opt/ros/<distro>/setup.bash
+ > sudo rosdep init
+ > rosdep update
+ > ```
+ > Replace `<distro>` with your ROS 2 distribution (e.g., `humble`, `jazzy`, etc.).
+ > If you encounter any issues with dependencies, please refer to the documentation of the specific package for additional instructions.
 
 5. Source the Environment
 
