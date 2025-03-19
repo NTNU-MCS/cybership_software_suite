@@ -8,6 +8,7 @@ import uuid
 import socket
 import re
 
+import cybership_utilities.utilities
 
 def sanitize_hostname_for_ros2(hostname: str) -> str:
     """ """
@@ -53,7 +54,7 @@ COMMON_ARGUMENTS = [
     launch.actions.DeclareLaunchArgument(
         "vessel_model",
         default_value="any",
-        choices=["enterprise", "voyager", "any"],
+        choices=cybership_utilities.utilities.VESSEL_MODELS,
         description="Vessel model",
     ),
     launch.actions.DeclareLaunchArgument(
