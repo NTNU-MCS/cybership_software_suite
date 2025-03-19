@@ -24,24 +24,23 @@ import cybership_dp.enterprise
 
 class VelocityControllerManager():
 
-    VESSEL_MODEL_VOYAGER = cybership_utilities.utilities.VESSEL_MODEL_VOYAGER
-    VESSEL_MODEL_ENTERPRISE = cybership_utilities.utilities.VESSEL_MODEL_ENTERPRISE
-    VESSEL_MODELS = [VESSEL_MODEL_VOYAGER, VESSEL_MODEL_ENTERPRISE]
-
     def __init__(self):
 
         self.vessel_model: str = None
 
         parser = argparse.ArgumentParser()
-        parser.add_argument("--vessel-model", type=str, choices=VelocityControllerManager.VESSEL_MODELS, required=True)
+        parser.add_argument("--vessel-model", type=str, choices=cybership_utilities.utilities.VESSEL_MODELS, required=True)
         self.args, _ = parser.parse_known_args()
 
     def initialize(self) -> rclpy.node.Node:
 
-        if self.args.vessel_model == VelocityControllerManager.VESSEL_MODEL_VOYAGER:
+        if self.args.vessel_model == cybership_utilities.utilities.VESSEL_MODEL_VOYAGER:
             return cybership_dp.voyager.velocity_controller.VelocityControllerROS()
 
-        elif self.args.vessel_model == VelocityControllerManager.VESSEL_MODEL_ENTERPRISE:
+        elif self.args.vessel_model == cybership_utilities.utilities.VESSEL_MODEL_ENTERPRISE:
+            print("Force controller for C/S Enterprise is not implemented yet.")
+
+        elif self.args.vessel_model == cybership_utilities.utilities.VESSEL_MODEL_DRILLSHIP:
             print("Force controller for C/S Enterprise is not implemented yet.")
 
             return None
