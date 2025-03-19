@@ -17,9 +17,16 @@
 #
 # Maintainer: Emir Cem Gezer
 # Email: emir.cem.gezer@ntnu.no, emircem.gezer@gmail.com, me@emircem.com
-# Year: 2024
-# Copyright (C) 2024 NTNU Marine Cybernetics Laboratory
+# Year: 2025
+# Copyright (C) 2025 NTNU Marine Cybernetics Laboratory
 
-VESSEL_MODEL_VOYAGER = 'voyager'
-VESSEL_MODEL_ENTERPRISE = 'enterprise'
-VESSEL_MODELS = [VESSEL_MODEL_VOYAGER, VESSEL_MODEL_ENTERPRISE]
+VESSEL_MODEL_VOYAGER = "voyager"
+VESSEL_MODEL_ENTERPRISE = "enterprise"
+VESSEL_MODEL_DRILLSHIP = "drillship"
+VESSEL_MODEL_ANY = "any"
+VESSEL_MODELS = [
+    VESSEL_MODEL_VOYAGER,
+    VESSEL_MODEL_ENTERPRISE,
+    VESSEL_MODEL_DRILLSHIP,
+    VESSEL_MODEL_ANY,
+]
