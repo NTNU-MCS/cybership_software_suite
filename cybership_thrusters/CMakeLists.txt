@@ -43,14 +43,6 @@ target_link_libraries(${PROJECT_NAME}_node
 )
 
 install(
-  DIRECTORY
-    launch
-    param
-  DESTINATION
-    share/${PROJECT_NAME}
-)
-
-install(
   TARGETS
     ${PROJECT_NAME}
     ${PROJECT_NAME}_node
