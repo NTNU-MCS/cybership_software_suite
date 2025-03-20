@@ -12,6 +12,25 @@ The package offers:
   - **Azimuth:** Computes rotational angle and RPM from the input force vector.
 - A ROS2 node (executable) that reads the thruster configuration parameters and instantiates the corresponding controllers. See `cybership_thrusters_node.cpp`.
 
+## Services
+
+> [!IMPORTANT]
+> Thrusters are disabled by default. To enable them, you need to call `~/thruster/enable` service.
+
+Thrusters are enabled using `~/thruster/enable` and disabled using `~/thruster/disable`.
+These services are `std_srvs/srv/Empty` services that can be called to enable or disable the thrusters.
+
+To enable
+```bash
+ros2 service call <vessel_name>/thruster/enable std_srvs/srv/Empty {}
+```
+
+To disable
+```bash
+ros2 service call <vessel_name>/thruster/disable std_srvs/srv/Empty {}
+```
+
+
 ## Parameters and Their Definitions
 
 The ROS2 parameters for configuring each thruster are defined under the `thrusters` namespace. Each thruster is represented by a unique name with its parameters specified as follows:
