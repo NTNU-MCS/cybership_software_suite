@@ -8,14 +8,14 @@ import skadipy
 import rclpy
 import geometry_msgs.msg
 
-class VoyagerSimulator(BaseSimulator):
+class EnterpriseSimulator(BaseSimulator):
     """
-    Concrete simulator for the Voyager vessel.
+    Concrete simulator for the Enterprise vessel.
     Defines vessel geometry, thruster configuration, and topic handling for thruster commands.
     """
 
     def __init__(self):
-        super().__init__(node_name="voyager_simulator")
+        super().__init__(node_name="enterprise_simulator")
 
     def _create_vessel(self):
         return shoeboxpy.model6dof.Shoebox(
@@ -49,7 +49,7 @@ class VoyagerSimulator(BaseSimulator):
 
     def setup_thrusters(self):
         """
-        Sets up thruster publishers/subscriptions for Voyager.
+        Sets up thruster publishers/subscriptions for Enterprise.
         In this example, Voyager uses three thruster groups with a combined command vector of dimension 5.
         """
         # Initialize the thruster command vector (5 elements)
@@ -112,7 +112,7 @@ class VoyagerSimulator(BaseSimulator):
 
 def main(args=None):
     rclpy.init(args=args)
-    simulator = VoyagerSimulator()
+    simulator = EnterpriseSimulator()
     rclpy.spin(simulator)
     rclpy.shutdown()
 
