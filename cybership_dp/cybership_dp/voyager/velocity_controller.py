@@ -213,7 +213,7 @@ class BacksteppingVelocityControllerROS(rclpy.node.Node):
         self.controller = BacksteppingController(
             mass=self.vessel.M_eff,
             damping=self.vessel.D,
-            k_gain=np.array([5.0, 15.0, 1.0, 1.0, 1.0, 2.0]),
+            k_gain=np.array([10.0, 15.0, 0.0, 0.0, 0.0, 2.0]),
         )
 
         self._freq = 10.0

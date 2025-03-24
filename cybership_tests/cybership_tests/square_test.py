@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Wrench
@@ -45,8 +46,8 @@ class SquareMoveController(Node):
         self.tol = 0.5  # Position tolerance in meters
 
         # Controller gains (tune as needed)
-        self.Kp_pos = 1.0  # Gain for position control (x-y)
-        self.Kp_yaw = 1.0   # Gain for yaw control
+        self.Kp_pos = 2.0  # Gain for position control (x-y)
+        self.Kp_yaw = 2.0   # Gain for yaw control
 
         # Desired yaw: maintain north (0 radians)
         self.desired_yaw = 0.0
