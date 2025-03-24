@@ -33,24 +33,30 @@ class SquareMoveController(Node):
         self.latest_odom = None
 
         # Square path parameters (in meters)
-        self.side_length = 3.0
+        self.side_length = 2.0
         # Define corners: starting at (0,0), then (10,0), (10,10), (0,10), and back to (0,0)
         self.corners = [(0.0, 0.0),
                         (self.side_length, 0.0),
                         (self.side_length, self.side_length),
                         (0.0, self.side_length),
                         (0.0, 0.0)]
+
+        for i in range(len(self.corners)):
+            # Convert to numpy array for easier manipulation
+            self.corners[i] = (self.corners[i][0] - 1, self.corners[i][1] - 1)
+
+
         # Start with the first target (moving from (0,0) to (10,0))
         self.target_index = 1
         self.current_target = self.corners[self.target_index]
-        self.tol = 0.5  # Position tolerance in meters
+        self.tol = 0.2 # Position tolerance in meters
 
         # Controller gains (tune as needed)
-        self.Kp_pos = 2.0  # Gain for position control (x-y)
-        self.Kp_yaw = 2.0   # Gain for yaw control
+        self.Kp_pos = 1.2 # Gain for position control (x-y)
+        self.Kp_yaw = 0.8  # Gain for yaw control
 
         # Desired yaw: maintain north (0 radians)
-        self.desired_yaw = 0.0
+        self.desired_yaw = 0.0 # np.pi / 4.0
 
         self.get_logger().info("Square Move Controller Initialized.")
 
@@ -95,8 +101,8 @@ class SquareMoveController(Node):
             self.get_logger().info(f"New target: {self.current_target}")
 
         # Compute control forces for position (global frame)
-        tau_x = np.clip(self.Kp_pos * error_x, -1.0, 1.0)
-        tau_y = np.clip(self.Kp_pos * error_y, -1.0, 1.0)
+        tau_x = np.clip(self.Kp_pos * error_x, -2.0, 2.0)
+        tau_y = np.clip(self.Kp_pos * error_y, -2.0, 2.0)
 
 
 
