@@ -35,7 +35,7 @@ class VelocityControllerManager():
     def initialize(self) -> rclpy.node.Node:
 
         if self.args.vessel_model == cybership_utilities.utilities.VESSEL_MODEL_VOYAGER:
-            return cybership_dp.voyager.velocity_controller.VelocityControllerROS()
+            return cybership_dp.voyager.velocity_controller.BacksteppingVelocityControllerROS()
 
         elif self.args.vessel_model == cybership_utilities.utilities.VESSEL_MODEL_ENTERPRISE:
             print("Force controller for C/S Enterprise is not implemented yet.")

@@ -176,6 +176,9 @@ class BaseSimulator(Node, ABC):
         Assumes that self.u has been initialized by the subclass.
         """
         tau = (self.allocator._b_matrix @ self.u).flatten()
+
+        self.vessel.eta[2] = 0.0
+
         self.vessel.step(tau=tau, dt=self.dt)
         self.publish_odom()
         self.publish_tf()

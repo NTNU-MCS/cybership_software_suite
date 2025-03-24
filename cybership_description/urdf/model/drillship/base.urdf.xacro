@@ -28,14 +28,14 @@
 
     <xacro:thruster thruster_name="bow_port_azimuth" origin_xyz="0.9344 -0.11 -0.1"
         origin_rpy="0 0 0" />
-    <xacro:thruster thruster_name="bow_center_azimuth" origin_xyz="1.0678 0.0 -0.01"
+    <xacro:thruster thruster_name="bow_center_azimuth" origin_xyz="1.0678 0.0 -0.1"
         origin_rpy="0 0 0" />
     <xacro:thruster thruster_name="bow_starboard_azimuth" origin_xyz="0.9344 0.11 -0.1"
         origin_rpy="0 0 0" />
 
     <xacro:thruster thruster_name="aft_port_azimuth" origin_xyz="-0.9911 -0.1644 -0.1"
         origin_rpy="0 0 0" />
-    <xacro:thruster thruster_name="aft_center_azimuth" origin_xyz="-1.1644 0.0 -0.01"
+    <xacro:thruster thruster_name="aft_center_azimuth" origin_xyz="-1.1644 0.0 -0.1"
         origin_rpy="0 0 0" />
     <xacro:thruster thruster_name="aft_starboard_azimuth" origin_xyz="-0.9911 0.1644 -0.1"
         origin_rpy="0 0 0" />

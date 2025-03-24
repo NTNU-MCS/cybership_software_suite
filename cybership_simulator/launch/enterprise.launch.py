@@ -29,7 +29,7 @@ def generate_launch_description():
             )
         ),
         launch_arguments=[
-            ("vessel_model", launch.substitutions.LaunchConfiguration("vessel_model")),
+            ("vessel_model", "enterprise"),
             ("vessel_name", launch.substitutions.LaunchConfiguration("vessel_name")),
         ],
     )
@@ -59,7 +59,7 @@ def generate_launch_description():
             ]
         ),
         launch_arguments=[
-            ("vessel_model", launch.substitutions.LaunchConfiguration("vessel_model")),
+            ("vessel_model", "enterprise"),
             ("vessel_name", launch.substitutions.LaunchConfiguration("vessel_name")),
         ],
     )

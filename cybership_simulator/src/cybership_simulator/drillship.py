@@ -20,7 +20,7 @@ class DrillshipSimulator(BaseSimulator):
     def _create_vessel(self):
         return shoeboxpy.model6dof.Shoebox(
             L=3.0, B=0.4, T=0.10, GM_theta=0.02, GM_phi=0.02,
-            eta0=np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
+            eta0=np.array([0.0, 0.0, 0.0, 0.2, 0.2, 0.0]),
         )
 
     def _init_allocator(self):
