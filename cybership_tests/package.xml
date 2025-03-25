@@ -13,6 +13,8 @@
   <depend>sensor_msgs</depend>
   <depend>rclpy</depend>
   <depend>geometry_msgs</depend>
+  <depend>nav2_msgs</depend>
+  <depend>nav_msgs</depend>
   <depend>tf2_ros</depend>
   <depend>ros_base</depend>
   <buildtool_depend>ament_cmake_python</buildtool_depend>

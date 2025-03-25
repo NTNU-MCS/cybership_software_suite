@@ -47,7 +47,6 @@ class GotoPointController(Node):
         self.latest_odom = None
 
         # --- Target state ---
-        # Set desired target position and orientation here.
         self.target_x = 0.0  # target x position (meters)
         self.target_y = 0.0  # target y position (meters)
         self.target_yaw = 0.0  # target yaw (radians)
@@ -65,7 +64,7 @@ class GotoPointController(Node):
         self.Kd_yaw = 0.4  # derivative gain for yaw
         self.Ki_yaw = 0.0  # integral gain for yaw
 
-        # Saturation parameter for the controller (tune as needed)
+        # Saturation parameters and upper limits for the controller
         self.saturation_x = 0.5
         self.saturation_y = 0.5
         self.saturation_yaw = 0.5
@@ -73,6 +72,10 @@ class GotoPointController(Node):
         self.upper_limit_x = 1.2
         self.upper_limit_y = 1.2
         self.upper_limit_yaw = 1.2
+
+        # Maximum allowed velocities (in m/s) for the vessel
+        self.max_surge_velocity = 0.07
+        self.max_sway_velocity = 0.1
 
         # Integral error initialization
         self.integral_x = 0.0
@@ -101,29 +104,16 @@ class GotoPointController(Node):
         """
         self.latest_odom = msg
 
-    def control_loop2(self):
-        """
-        Control loop that computes and publishes the control command.
-        This is a placeholder for any additional control logic.
-        """
-        if self.latest_odom is None:
-            self.get_logger().warn("Latest odometry not received yet.")
-            return
-
-        # Here you can add any additional control logic if needed
-        # For now, it just logs the current position
-        pos = self.latest_odom.pose.pose.position
-        self.get_logger().info(f"Current position: ({pos.x}, {pos.y})")
-
     def control_loop(self):
         """
         Control loop that computes and publishes the control command.
+        This loop limits the surge and sway forces if the vessel's velocities exceed set thresholds.
         """
         if self.latest_odom is None:
             self.get_logger().warn("Latest odometry not received yet.")
             return
 
-        # Extract current position from odometry (global frame)
+        # Get current position from odometry (global frame)
         pos = self.latest_odom.pose.pose.position
         current_x = pos.x
         current_y = pos.y
@@ -138,12 +128,13 @@ class GotoPointController(Node):
         error_y = self.target_y - current_y
         error_norm = math.sqrt(error_x**2 + error_y**2)
 
+        # Reset integral errors if error is large to prevent windup
         if error_norm > 0.5:
             self.integral_x = 0.0
             self.integral_y = 0.0
             self.integral_yaw = 0.0
 
-        # Compute yaw error (wrap to [-pi, pi])
+        # Compute yaw error (wrapped to [-pi, pi])
         error_yaw = wrap_to_pi(self.target_yaw - current_yaw)
 
         # Update integral error terms
@@ -151,8 +142,7 @@ class GotoPointController(Node):
         self.integral_y += error_y * self.dt
         self.integral_yaw += error_yaw * self.dt
 
-        # Compute control commands with integral action using the saturation function
-        # Control law: u = saturate(Kp*error + Ki*integral, sat_z)
+        # Compute control commands with integral and derivative actions using saturation
         control_x = self.upper_limit_x * saturate(
             self.Kp_pos * error_x
             + self.Ki_pos * self.integral_x
@@ -172,6 +162,7 @@ class GotoPointController(Node):
             self.saturation_yaw,
         )
 
+        # Update last error values
         self.last_error_x = error_x
         self.last_error_y = error_y
         self.last_error_yaw = wrap_to_pi(self.target_yaw - current_yaw)
@@ -183,7 +174,28 @@ class GotoPointController(Node):
         if abs(error_yaw) < self.yaw_tol:
             control_yaw = 0.0
 
-        # Create and populate the Wrench message
+        # --- Velocity Limiting ---
+        # Assume the odometry twist is expressed in the vessel's body frame.
+        current_surge_velocity = self.latest_odom.twist.twist.linear.x
+        current_sway_velocity = self.latest_odom.twist.twist.linear.y
+
+        # Limit surge force
+        if abs(current_surge_velocity) > self.max_surge_velocity:
+            scaling_factor = self.max_surge_velocity / abs(current_surge_velocity)
+            self.get_logger().debug(
+                f"Surge velocity ({current_surge_velocity:.2f} m/s) exceeds max. Scaling force_x by {scaling_factor:.2f}"
+            )
+            control_x *= scaling_factor
+
+        # Limit sway force
+        if abs(current_sway_velocity) > self.max_sway_velocity:
+            scaling_factor = self.max_sway_velocity / abs(current_sway_velocity)
+            self.get_logger().debug(
+                f"Sway velocity ({current_sway_velocity:.2f} m/s) exceeds max. Scaling force_y by {scaling_factor:.2f}"
+            )
+            control_y *= scaling_factor
+
+        # Create and publish the Wrench message
         wrench_msg = Wrench()
         wrench_msg.force.x = control_x
         wrench_msg.force.y = control_y
@@ -192,13 +204,18 @@ class GotoPointController(Node):
         wrench_msg.torque.y = 0.0
         wrench_msg.torque.z = control_yaw
 
-        # Publish the control command
         self.control_pub.publish(wrench_msg)
 
         self.get_logger().info(
             f"Current pos: ({current_x:.2f}, {current_y:.2f}), Target: ({self.target_x:.2f}, {self.target_y:.2f}), "
-            f"Errors: ({error_x:.2f}, {error_y:.2f}), Yaw error: {error_yaw:.2f}"
+            f"Errors: ({error_x:.2f}, {error_y:.2f}), Yaw error: {error_yaw:.2f}, "
+            f"Control: (x: {control_x:.2f}, y: {control_y:.2f}, yaw: {control_yaw:.2f}), "
+            f"Surge vel: {current_surge_velocity:.2f}, Sway vel: {current_sway_velocity:.2f}"
         )
+
+        if abs(control_x) < 0.01 and abs(control_y) < 0.01 and abs(control_yaw) < 0.01:
+            self.get_logger().info("Control command is close to zero, stopping timer.")
+            self.timer.cancel()
 
     # --- Action Server Callbacks ---
     def action_goal_callback(self, goal_request):
@@ -211,6 +228,9 @@ class GotoPointController(Node):
 
     def execute_callback(self, goal_handle):
         self.get_logger().info("Executing NavigateToPose goal...")
+
+        self.timer.cancel()  # Stop the timer during goal execution
+        self.timer = self.create_timer(self.dt, self.control_loop)
 
         # Extract target pose from the goal message
         target_pose: PoseStamped = goal_handle.request.pose
@@ -229,7 +249,6 @@ class GotoPointController(Node):
 
         # Loop until the robot reaches the target (within tolerance) or the goal is canceled.
         while rclpy.ok():
-
             if goal_handle.is_cancel_requested:
                 goal_handle.canceled()
                 self.get_logger().info("NavigateToPose goal canceled")
@@ -245,7 +264,7 @@ class GotoPointController(Node):
             # Extract current pose from odometry
             current_odom = self.latest_odom.pose.pose
             current_feedback_pose.header.stamp = self.get_clock().now().to_msg()
-            current_feedback_pose.header.frame_id = "odom"  # or use your fixed frame
+            current_feedback_pose.header.frame_id = "odom"
 
             current_feedback_pose.pose.position = current_odom.position
             current_feedback_pose.pose.orientation = current_odom.orientation
@@ -261,6 +280,7 @@ class GotoPointController(Node):
             goal_handle.publish_feedback(feedback_msg)
             self.get_logger().debug(f"Distance remaining: {error_norm:.2f}")
 
+            # Check if target is reached (both position and yaw)
             if error_norm < self.pos_tol and abs(self.last_error_yaw) < self.yaw_tol:
                 break
 
@@ -268,7 +288,6 @@ class GotoPointController(Node):
 
         goal_handle.succeed()
         result = NavigateToPose.Result()
-        # result.result = 1  # You can define result codes as needed
         self.get_logger().info("NavigateToPose goal succeeded")
         return result
 

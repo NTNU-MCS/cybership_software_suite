@@ -2,17 +2,19 @@
 
 import rclpy
 from rclpy.node import Node
-from geometry_msgs.msg import Wrench, Pose2D
+from geometry_msgs.msg import Wrench, Pose2D, PoseStamped
 from nav_msgs.msg import Odometry
 import math
 import numpy as np
 from scipy.spatial.transform import Rotation as R
+
 
 def wrap_to_pi(angle):
     """
     Wrap an angle in radians to the interval [-pi, pi].
     """
     return (angle + math.pi) % (2 * math.pi) - math.pi
+
 
 def saturate(x, z):
     """
@@ -21,17 +23,23 @@ def saturate(x, z):
     """
     return x / (np.abs(x) + z)
 
+
 class GotoPointController(Node):
     def __init__(self):
-        super().__init__('goto_point_controller', namespace='voyager')
+        super().__init__("goto_point_controller", namespace="voyager")
 
         # Publisher to send control commands (force and torque)
-        self.control_pub = self.create_publisher(Wrench, 'control/force/command', 10)
+        self.control_pub = self.create_publisher(Wrench, "control/force/command", 10)
 
         # Subscriber to receive odometry measurements
-        self.create_subscription(Pose2D, 'guidance/position/command', self.pose_callback, 10)
+        self.create_subscription(
+            Pose2D, "guidance/position/command", self.pose_callback, 10
+        )
 
-        self.create_subscription(Odometry, 'measurement/odom', self.odom_callback, 10)
+        self.create_subscription(PoseStamped, "/goal_pose", self.goal_pose_callback, 10)
+
+        self.create_subscription(Odometry, "measurement/odom", self.odom_callback, 10)
+
         # Timer for periodic control updates
         self.dt = 0.01  # seconds
         self.timer = self.create_timer(self.dt, self.control_loop)
@@ -41,8 +49,8 @@ class GotoPointController(Node):
 
         # --- Target state ---
         # Set desired target position and orientation here.
-        self.target_x = 0.0  # target x position (meters)
-        self.target_y = 0.0  # target y position (meters)
+        self.target_x = -1.5  # target x position (meters)
+        self.target_y = -1.5  # target y position (meters)
         self.target_yaw = 0.0  # target yaw (radians)
 
         self.last_error_x = 0.0
@@ -51,13 +59,19 @@ class GotoPointController(Node):
 
         # --- Controller gains ---
         self.Kp_pos = 1.0  # proportional gain for position
+        self.Kd_pos = 0.0  # derivative gain for position
         self.Ki_pos = 0.01  # integral gain for position
+
         self.Kp_yaw = 1.0  # proportional gain for yaw
         self.Kd_yaw = 0.4  # derivative gain for yaw
         self.Ki_yaw = 0.0  # integral gain for yaw
 
         # Saturation parameter for the controller (tune as needed)
         self.sat_z = 0.5
+
+        self.saturation_x = 0.5
+        self.saturation_y = 0.5
+        self.saturation_yaw = 0.5
 
         # Integral error initialization
         self.integral_x = 0.0
@@ -91,13 +105,12 @@ class GotoPointController(Node):
         # Extract yaw (heading) from quaternion orientation
         orientation = self.latest_odom.pose.pose.orientation
         rot = R.from_quat([orientation.x, orientation.y, orientation.z, orientation.w])
-        _, _, current_yaw = rot.as_euler('xyz', degrees=False)
+        _, _, current_yaw = rot.as_euler("xyz", degrees=False)
 
         # Compute position errors (global frame)
         error_x = self.target_x - current_x
         error_y = self.target_y - current_y
         error_norm = math.sqrt(error_x**2 + error_y**2)
-
 
         if error_norm > 0.5:
             self.integral_x = 0.0
@@ -114,10 +127,24 @@ class GotoPointController(Node):
 
         # Compute control commands with integral action using the saturation function
         # Control law: u = saturate(Kp*error + Ki*integral, sat_z)
-        control_x = saturate(self.Kp_pos * error_x + self.Ki_pos * self.integral_x, self.sat_z)
-        control_y = saturate(self.Kp_pos * error_y + self.Ki_pos * self.integral_y, self.sat_z)
-        control_yaw = saturate(self.Kp_yaw * error_yaw + self.Kd_yaw * ((error_yaw - self.last_error_yaw) / self.dt) +
-                                  self.Ki_yaw * self.integral_yaw, self.sat_z)
+        control_x = saturate(
+            self.Kp_pos * error_x
+            + self.Ki_pos * self.integral_x
+            + self.Kd_pos * ((error_x - self.last_error_x) / self.dt),
+            self.saturation_x,
+        )
+        control_y = saturate(
+            self.Kp_pos * error_y
+            + self.Ki_pos * self.integral_y
+            + self.Kd_pos * ((error_y - self.last_error_y) / self.dt),
+            self.saturation_y,
+        )
+        control_yaw = saturate(
+            self.Kp_yaw * error_yaw
+            + self.Kd_yaw * ((error_yaw - self.last_error_yaw) / self.dt)
+            + self.Ki_yaw * self.integral_yaw,
+            self.saturation_yaw,
+        )
 
         self.last_error_x = error_x
         self.last_error_y = error_y
@@ -156,7 +183,23 @@ class GotoPointController(Node):
         self.target_y = msg.y
         self.target_yaw = msg.theta
 
+    def goal_pose_callback(self, msg: PoseStamped):
+        """
+        Callback to update the target position and yaw from a PoseStamped message.
 
+        This is useful for receiving target poses from RViZ.
+        """
+        self.target_x = msg.pose.position.x
+        self.target_y = msg.pose.position.y
+
+        # Convert quaternion to yaw angle
+        orientation = msg.pose.orientation
+        rot = R.from_quat([orientation.x, orientation.y, orientation.z, orientation.w])
+        _, _, self.target_yaw = rot.as_euler("xyz", degrees=False)
+
+        self.get_logger().info(
+            f"New target pose received: ({self.target_x}, {self.target_y}, {self.target_yaw})"
+        )
 
 
 def main(args=None):
@@ -170,5 +213,6 @@ def main(args=None):
         node.destroy_node()
         rclpy.shutdown()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

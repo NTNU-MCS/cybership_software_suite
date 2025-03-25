@@ -80,6 +80,10 @@ class VoyagerSimulator(BaseSimulator):
     # Thruster command callbacks
     def cb_tunnel_thruster(self, msg: geometry_msgs.msg.Wrench):
         self.u[0] = msg.force.x
+
+        if np.linalg.norm(self.u[0]) < 0.1:
+            self.u[0] = 0.0
+
         issued = geometry_msgs.msg.WrenchStamped()
         issued.header.frame_id = "bow_tunnel_thruster_link"
         issued.header.stamp = self.get_clock().now().to_msg()
@@ -89,6 +93,12 @@ class VoyagerSimulator(BaseSimulator):
     def cb_starboard_thruster(self, msg: geometry_msgs.msg.Wrench):
         self.u[1] = np.clip(msg.force.x, -1.0, 1.0)
         self.u[2] = np.clip(msg.force.y, -1.0, 1.0)
+
+        # Apply a deadband to the thruster commands
+        if np.linalg.norm(self.u[1:3]) < 0.1:
+            self.u[1] = 0.0
+            self.u[2] = 0.0
+
         issued = geometry_msgs.msg.WrenchStamped()
         issued.header.frame_id = "stern_starboard_thruster_link"
         issued.header.stamp = self.get_clock().now().to_msg()
@@ -99,6 +109,11 @@ class VoyagerSimulator(BaseSimulator):
     def cb_port_thruster(self, msg: geometry_msgs.msg.Wrench):
         self.u[3] = np.clip(msg.force.x, -1.0, 1.0)
         self.u[4] = np.clip(msg.force.y, -1.0, 1.0)
+
+        if np.linalg.norm(self.u[3:5]) < 0.1:
+            self.u[3] = 0.0
+            self.u[4] = 0.0
+
         issued = geometry_msgs.msg.WrenchStamped()
         issued.header.frame_id = "stern_port_thruster_link"
         issued.header.stamp = self.get_clock().now().to_msg()

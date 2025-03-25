@@ -13,7 +13,19 @@ find_package(sensor_msgs REQUIRED)
 find_package(rclpy REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
+find_package(nav2_msgs REQUIRED)
+find_package(nav_msgs REQUIRED)
+
 
 ament_python_install_package(${PROJECT_NAME})
+
+install(
+  PROGRAMS
+    ${PROJECT_NAME}/four_corner_client.py
+    ${PROJECT_NAME}/four_corner_line_of_sight.py
+    ${PROJECT_NAME}/go_to_server.py
+    ${PROJECT_NAME}/go_to.py
+  DESTINATION lib/${PROJECT_NAME}
+)
 
 ament_package()
