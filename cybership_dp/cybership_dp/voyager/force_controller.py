@@ -98,7 +98,7 @@ class ForceControllerROS(rclpy.node.Node):
             ),
             extra_attributes={
                 "rate_limit": 0.1,
-                "saturation_limit": 1.0,
+                "saturation_limit": 0.7,
                 "name": "tunnel",
             },
         )
@@ -106,7 +106,7 @@ class ForceControllerROS(rclpy.node.Node):
             position=skadipy.toolbox.Point([-0.4574, -0.055, 0.0]),
             extra_attributes={
                 "rate_limit": 0.1,
-                "saturation_limit": 3.0,
+                "saturation_limit": 1.0,
                 "reference_angle": -np.pi / 2.0,
                 "name": "port_azimuth",
             },
@@ -115,7 +115,7 @@ class ForceControllerROS(rclpy.node.Node):
             position=skadipy.toolbox.Point([-0.4547, 0.055, 0.0]),
             extra_attributes={
                 "rate_limit": 0.1,
-                "saturation_limit": 3.0,
+                "saturation_limit": 1.0,
                 "reference_angle": np.pi / 2.0,
                 "name": "starboard_azimuth",
             },

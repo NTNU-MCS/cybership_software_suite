@@ -7,8 +7,11 @@ import rcl_interfaces.msg
 
 import numpy as np
 
+from cybership_dp.velocity_control.backstepping import BacksteppingController
+import shoeboxpy.model6dof as box
 
-class VelocityControllerROS(rclpy.node.Node):
+
+class PIDVelocityControllerROS(rclpy.node.Node):
     def __init__(self, *args, **kwargs):
         super().__init__(
             node_name="voyager_velocity_controller",
@@ -195,9 +198,105 @@ class VelocityControllerROS(rclpy.node.Node):
         )
 
 
+class BacksteppingVelocityControllerROS(rclpy.node.Node):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(
+            node_name="voyager_velocity_controller",
+            allow_undeclared_parameters=True,
+            automatically_declare_parameters_from_overrides=False,
+        )
+        # Define the reference model matrices (example values)
+        self.vessel = box.Shoebox(L=1.0, B=0.3, T=0.05)
+
+        # Create an instance of the controller
+        self.controller = BacksteppingController(
+            mass=self.vessel.M_eff,
+            damping=self.vessel.D,
+            k_gain=np.array([10.0, 15.0, 0.0, 0.0, 0.0, 2.0]),
+        )
+
+        self._freq = 10.0
+
+        # Initialize messages
+        self._vel_cmd_msg = geometry_msgs.msg.Twist()
+        self._odom_msg = nav_msgs.msg.Odometry()
+
+        # Initialize subscribers and publishers
+        self._subs = {}
+        self._pubs = {}
+        self._subs["odometry"] = self.create_subscription(
+            nav_msgs.msg.Odometry, "measurement/odom", self._odom_callback, 10
+        )
+        self._subs["command"] = self.create_subscription(
+            geometry_msgs.msg.Twist,
+            "control/velocity/command",
+            self._vel_cmd_callback,
+            10,
+        )
+        self._pubs["force"] = self.create_publisher(
+            geometry_msgs.msg.Wrench, "control/force/command", 10
+        )
+
+        # Initialize timer
+        self._dt = 1.0 / self._freq
+        self.create_timer(self._dt, self.timer_callback)
+
+        # self.v_prev = np.zeros(6, dtype=np.float32)
+        # self.v_des_prev = np.zeros(6, dtype=np.float32)
+        # self.dv_des = np.zeros(6, dtype=np.float32)
+
+    def timer_callback(self):
+
+        v=np.array(
+            [
+                self._odom_msg.twist.twist.linear.x,
+                self._odom_msg.twist.twist.linear.y,
+                0.0,
+                0.0,
+                0.0,
+                self._odom_msg.twist.twist.angular.z,
+            ],
+            dtype=np.float32,
+        )
+        v_des=np.array(
+            [
+                self._vel_cmd_msg.linear.x,
+                self._vel_cmd_msg.linear.y,
+                0.0,
+                0.0,
+                0.0,
+                self._vel_cmd_msg.angular.z,
+            ],
+            dtype=np.float32,
+        )
+        dv_des = (v_des - v) / self._dt
+        tau = self.controller.update(
+            v=v,
+            v_des=v_des,
+            dv_des=dv_des,
+        )
+
+        # self.v_prev = v
+        # self.v_des_prev = v_des
+
+
+        cmd_force = geometry_msgs.msg.Wrench()
+        cmd_force.force.x = tau[0]
+        cmd_force.force.y = tau[1]
+        cmd_force.torque.z = tau[5]
+
+        self._pubs["force"].publish(cmd_force)
+
+    def _vel_cmd_callback(self, msg: geometry_msgs.msg.Twist):
+        self._vel_cmd_msg = msg
+
+    def _odom_callback(self, msg: geometry_msgs.msg.Wrench):
+        self._odom_msg = msg
+
 def main(args=None):
     rclpy.init(args=args)
-    velocity_controller = VelocityControllerROS()
+    velocity_controller = BacksteppingVelocityControllerROS()
     rclpy.spin(velocity_controller)
     velocity_controller.destroy_node()
     rclpy.shutdown()

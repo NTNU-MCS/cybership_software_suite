@@ -1,0 +1,1 @@
+shoeboxpy @ git+https://github.com/incebellipipo/shoeboxpy.git

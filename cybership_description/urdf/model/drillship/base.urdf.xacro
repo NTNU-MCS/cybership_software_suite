@@ -1,7 +1,43 @@
 <?xml version="1.0"?>
-<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="cybership_drillship">
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="cybership_voyager">
 
     <link name="base_link"></link>
 
+    <link name="mocap_link"></link>
+    <joint name="mocap_link_joint" type="fixed">
+        <parent link="base_link" />
+        <child link="mocap_link" />
+        <origin xyz="0.0 0.0 0.3" rpy="0.0 3.14159265358979 1.5707963267948966" />
+    </joint>
+
+    <link name="imu_link"></link>
+    <joint name="imu_joint" type="fixed">
+        <parent link="base_link" />
+        <child link="imu_link" />
+        <origin xyz="-0.1 0 0.1" rpy="3.14159265358979 0.0 0.0" />
+    </joint>
+
+    <xacro:macro name="thruster" params="thruster_name origin_xyz origin_rpy">
+        <link name="${thruster_name}_link" />
+        <joint name="${thruster_name}_joint" type="fixed">
+            <parent link="base_link" />
+            <child link="${thruster_name}_link" />
+            <origin xyz="${origin_xyz}" rpy="${origin_rpy}" />
+        </joint>
+    </xacro:macro>
+
+    <xacro:thruster thruster_name="bow_port_azimuth" origin_xyz="0.9344 -0.11 -0.1"
+        origin_rpy="0 0 0" />
+    <xacro:thruster thruster_name="bow_center_azimuth" origin_xyz="1.0678 0.0 -0.1"
+        origin_rpy="0 0 0" />
+    <xacro:thruster thruster_name="bow_starboard_azimuth" origin_xyz="0.9344 0.11 -0.1"
+        origin_rpy="0 0 0" />
+
+    <xacro:thruster thruster_name="aft_port_azimuth" origin_xyz="-0.9911 -0.1644 -0.1"
+        origin_rpy="0 0 0" />
+    <xacro:thruster thruster_name="aft_center_azimuth" origin_xyz="-1.1644 0.0 -0.1"
+        origin_rpy="0 0 0" />
+    <xacro:thruster thruster_name="aft_starboard_azimuth" origin_xyz="-0.9911 0.1644 -0.1"
+        origin_rpy="0 0 0" />
 
 </robot>
