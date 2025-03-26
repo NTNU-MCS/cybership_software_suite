@@ -35,7 +35,6 @@ class GotoPointController(Node):
 
         # Publisher to send control commands (force and torque)
         self.control_pub = self.create_publisher(Wrench, "control/force/command", 10)
-
         # Subscriber for odometry measurements
         self.create_subscription(Odometry, "measurement/odom", self.odom_callback, 10)
 

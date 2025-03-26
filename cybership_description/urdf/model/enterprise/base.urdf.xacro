@@ -10,47 +10,47 @@
 
             <geometry>
                 <mesh
-                    filename="package://cybership_description/meshes/cs_enterprise_1_model_lowpoly.dae"
+                    filename="package://cybership_description/meshes/enterprise/model.stl"
                     scale="0.01 0.01 0.01"
-                    />
+                />
 
             </geometry>
         </visual>
     </link>
 
 
-    <link name="stern_port_thruster_link"/>
+    <link name="stern_port_thruster_link" />
     <joint name="base_stern_port_thruster_joint" type="fixed">
-        <parent link="base_link"/>
-        <child link="stern_port_thruster_link"/>
-        <origin xyz="-0.4574 0.055 -0.1" rpy="0 0 0"/>
+        <parent link="base_link" />
+        <child link="stern_port_thruster_link" />
+        <origin xyz="-0.4574 0.055 -0.1" rpy="0 0 0" />
     </joint>
 
-    <link name="stern_starboard_thruster_link"/>
+    <link name="stern_starboard_thruster_link" />
     <joint name="stern_starboard_thruster_joint" type="fixed">
-        <parent link="base_link"/>
-        <child link="stern_starboard_thruster_link"/>
-        <origin xyz="-0.4574 -0.055 -0.1" rpy="0 0 0"/>
+        <parent link="base_link" />
+        <child link="stern_starboard_thruster_link" />
+        <origin xyz="-0.4574 -0.055 -0.1" rpy="0 0 0" />
     </joint>
 
-    <link name="bow_tunnel_thruster_link"/>
+    <link name="bow_tunnel_thruster_link" />
     <joint name="bow_tunnel_thruster_joint" type="fixed">
-        <parent link="base_link"/>
-        <child link="bow_tunnel_thruster_link"/>
-        <origin xyz="0.3875 0 -0.05" rpy="0 0 1.5707963267948966"/>
+        <parent link="base_link" />
+        <child link="bow_tunnel_thruster_link" />
+        <origin xyz="0.3875 0 -0.05" rpy="0 0 1.5707963267948966" />
     </joint>
 
     <link name="imu_link"></link>
     <joint name="imu_joint" type="fixed">
-        <parent link="base_link"/>
-        <child link="imu_link"/>
-        <origin xyz="0.4 0 0.1" rpy="0 0 0"/>
+        <parent link="base_link" />
+        <child link="imu_link" />
+        <origin xyz="0.4 0 0.1" rpy="0 0 0" />
     </joint>
 
     <link name="mocap_link"></link>
     <joint name="mocap_link_joint" type="fixed">
-        <parent link="base_link"/>
-        <child link="mocap_link"/>
-        <origin xyz="0.0 0.0 0.0" rpy="0.0 3.14159265358979 1.5707963267948966"/>
+        <parent link="base_link" />
+        <child link="mocap_link" />
+        <origin xyz="0.0 0.0 0.0" rpy="0.0 3.14159265358979 1.5707963267948966" />
     </joint>
 </robot>

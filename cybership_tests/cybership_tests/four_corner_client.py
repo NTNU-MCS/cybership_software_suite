@@ -28,21 +28,24 @@ def feedback_callback(feedback_msg):
 
 def main(args=None):
     rclpy.init(args=args)
-    node = rclpy.create_node("point_sequencer")
-    action_client = ActionClient(node, NavigateToPose, "/voyager/navigate_to_pose")
+    node = rclpy.create_node("point_sequencer", namespace="voyager")
+    action_client = ActionClient(node, NavigateToPose, "navigate_to_pose")
 
     # Define the sequence of target points as (x, y, yaw)
     target_points = np.array(
         [
-            (0, 0, 0),
-            (4, 0, 0),
-            (4, 4, 0),
-            (4, 4, math.pi / 4),
-            (0, 4, math.pi / 4),
-            (0, 0, 0),
+            [0, 0, 0],
+            [1, 0, 0],
+            [1, 1, 0],
+            [1, 1, math.pi / 4],
+            [0, 1, math.pi / 4],
+            [0, 0, 0],
         ],
         dtype=float,
     )
+    # Shift the points to the right and down by 1.5 meters and scale by 3
+    target_points[:, 0:2] *= 3
+    target_points[:, 0:2] -= 1.5
 
     node.get_logger().info("Waiting for action server...")
     if not action_client.wait_for_server(timeout_sec=10.0):
@@ -55,7 +58,7 @@ def main(args=None):
         goal_msg = NavigateToPose.Goal()
         goal_msg.pose = PoseStamped()
         goal_msg.pose.header.frame_id = (
-            "map"  # Use the correct frame for your application
+            "world"  # Use the correct frame for your application
         )
         goal_msg.pose.header.stamp = node.get_clock().now().to_msg()
         goal_msg.pose.pose.position.x = x
@@ -85,7 +88,7 @@ def main(args=None):
         result = future_result.result().result
         node.get_logger().info(f"Result: {result}")
         # Optionally wait a moment before sending the next goal.
-        time.sleep(1.0)
+        time.sleep(10.0)
 
     node.get_logger().info("All goals completed. Shutting down.")
     node.destroy_node()
