@@ -176,9 +176,8 @@ class GotoPointController(Node):
         # Initialize the 3rd order reference filter.
         # Here, we treat [x, y, yaw] as the 3D pose to be smoothed.
         initial_eta = [self.target_x, self.target_y, self.target_yaw]
-        self.ref_filter = ThrdOrderRefFilter(
-            dt=self.dt, omega=[0.2, 0.2, 0.2], initial_eta=np.zeros(3)
-        )
+        self.ref_filter = None
+
 
         self.get_logger().info(
             "Goto Point Controller (Reference Filter Version) Initialized."
@@ -202,7 +201,7 @@ class GotoPointController(Node):
         """
         Callback to update the latest odometry measurement.
         """
-        if self.target_x is None or self.target_y is None:
+        if self.ref_filter is None:
             print ("Setting target position from odometry.")
             self.target_x = msg.pose.pose.position.x
             self.target_y = msg.pose.pose.position.y
@@ -214,6 +213,9 @@ class GotoPointController(Node):
                     msg.pose.pose.orientation.w,
                 ]
             ).as_euler("xyz", degrees=False)
+            self.ref_filter = ThrdOrderRefFilter(
+                dt=self.dt, omega=[0.2, 0.2, 0.2], initial_eta=[self.target_x, self.target_y, self.target_yaw]
+            )
             self.ref_filter.eta_d = np.array(
                 [self.target_x, self.target_y, self.target_yaw]
             )
@@ -228,8 +230,7 @@ class GotoPointController(Node):
         if self.latest_odom is None:
             return
 
-        # Check if target position is set
-        if self.target_x is None or self.target_y is None:
+        if self.ref_filter is None:
             return
 
         # Extract current position from odometry (global frame)
@@ -318,6 +319,10 @@ class GotoPointController(Node):
 
     def execute_callback(self, goal_handle):
         self.get_logger().info("Executing NavigateToPose goal...")
+
+        self.ref_filter = ThrdOrderRefFilter(
+            dt=self.dt, omega=[0.2, 0.2, 0.2], initial_eta=[self.target_x, self.target_y, self.target_yaw]
+        )
 
         # Extract target pose from the goal message
         target_pose: PoseStamped = goal_handle.request.pose
