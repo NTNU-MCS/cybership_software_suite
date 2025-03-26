@@ -167,7 +167,7 @@ class GotoPointController(Node):
         self.saturation_yaw = 0.5
 
         # Tolerances for considering the target reached
-        self.pos_tol = 0.025  # meters
+        self.pos_tol = 0.25  # meters
         self.yaw_tol = 0.05  # radians
 
         self.error_pos = np.zeros(2)
