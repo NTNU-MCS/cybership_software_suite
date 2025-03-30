@@ -25,6 +25,13 @@ from rclpy.action import ActionServer, GoalResponse, CancelResponse
 from rclpy.executors import MultiThreadedExecutor
 
 
+def wrap_to_pi(angle):
+    """
+    Wrap an angle in radians to the interval [-pi, pi].
+    """
+    return (angle + math.pi) % (2 * math.pi) - math.pi
+
+
 def Rz(psi):
     """3DOF Rotation matrix about z-axis.
 
@@ -45,29 +52,22 @@ def Rz(psi):
 
 
 class ThrdOrderRefFilter:
-    """Third-order reference filter for guidance.
-
-    Attributes
-    ----------
-    eta_d : array_like
-        3D-array of desired vessel pose in NED-frame
-    eta_d_dot : array_like
-        3D-array of desired vessel velocity in NED-frame
-    eta_d_ddot : array_like
-        3D-array of desired vessel acceleration in NED-frame
-    """
+    """Third-order reference filter for guidance."""
 
     def __init__(self, dt, omega=[0.2, 0.2, 0.2], initial_eta=None):
         self._dt = dt
+        # Keep everything as a float array
         self.eta_d = (
-            np.zeros(3) if initial_eta is None else np.array(initial_eta)
-        )  # Start at given initial_eta
+            np.zeros(3) if initial_eta is None else np.array(initial_eta, dtype=float)
+        )  # [ x, y, yaw ]
         self.eta_d_dot = np.zeros(3)
         self.eta_d_ddot = np.zeros(3)
-        self._eta_r = self.eta_d.copy()
-        self._x = np.concatenate(
-            [self.eta_d, self.eta_d_dot, self.eta_d_ddot], axis=None
-        )
+        self._eta_r = self.eta_d.copy()  # reference target (unwrapped)
+
+        # State vector of 9 elements: [ eta, eta_dot, eta_ddot ]
+        self._x = np.concatenate([self.eta_d, self.eta_d_dot, self.eta_d_ddot])
+
+        # Gains
         self._delta = np.eye(3)
         self._w = np.diag(omega)
         O3x3 = np.zeros((3, 3))
@@ -85,46 +85,51 @@ class ThrdOrderRefFilter:
         self.Bd = np.block([[O3x3], [O3x3], [self._w**3]])
 
     def get_eta_d(self):
-        """Get desired pose in NED-frame."""
+        """Get desired pose: [ x, y, yaw ]."""
         return self.eta_d
 
     def get_eta_d_dot(self):
-        """Get desired velocity in NED-frame."""
+        """Get desired velocity in the inertial frame."""
         return self.eta_d_dot
 
     def get_eta_d_ddot(self):
-        """Get desired acceleration in NED-frame."""
+        """Get desired acceleration in the inertial frame."""
         return self.eta_d_ddot
 
     def get_nu_d(self):
-        """Get desired velocity in body-frame."""
-        psi = self.eta_d[-1]
+        """Get desired velocity in *body* frame (u, v, r)."""
+        psi = self.eta_d[2]
         return Rz(psi).T @ self.eta_d_dot
 
     def set_eta_r(self, eta_r):
-        """Set the reference pose.
-
-        Parameters
-        ----------
-        eta_r : array_like
-            Reference vessel pose in surge, sway and yaw.
         """
-        self._eta_r = eta_r
+        Set the reference pose. We ensure the yaw changes by at most ±π
+        so the filter sees only small changes in yaw.
+        """
+        old_yaw = self._eta_r[2]
+        new_yaw = eta_r[2]
+
+        # Wrap new yaw to [-pi, pi]
+        new_yaw = wrap_to_pi(new_yaw)
+
+        # Get minimal difference
+        diff = wrap_to_pi(new_yaw - old_yaw)
+        continuous_yaw = old_yaw + diff  # small step only
+
+        self._eta_r = np.array([eta_r[0], eta_r[1], continuous_yaw])
 
     def update(self):
-        """Update the desired position."""
+        """
+        Integrate filter for one time step. We do NOT forcibly wrap
+        'self.eta_d[2]' so the filter remains continuous in yaw.
+        """
         x_dot = self.Ad @ self._x + self.Bd @ self._eta_r
-        self._x = self._x + self._dt * x_dot
+        self._x += self._dt * x_dot
+
+        # Extract the updated states
         self.eta_d = self._x[:3]
         self.eta_d_dot = self._x[3:6]
         self.eta_d_ddot = self._x[6:]
-
-
-def wrap_to_pi(angle):
-    """
-    Wrap an angle in radians to the interval [-pi, pi].
-    """
-    return (angle + math.pi) % (2 * math.pi) - math.pi
 
 
 def saturate(x, z):
@@ -178,14 +183,12 @@ class GotoPointController(Node):
         initial_eta = [self.target_x, self.target_y, self.target_yaw]
         self.ref_filter = None
 
-
         self.get_logger().info(
             "Goto Point Controller (Reference Filter Version) Initialized."
         )
 
         # Timer for periodic control updates
         self.timer = self.create_timer(self.dt, self.control_loop)
-
 
         # --- Action Server using nav2_msgs/NavigateToPose ---
         self._action_server = ActionServer(
@@ -202,7 +205,7 @@ class GotoPointController(Node):
         Callback to update the latest odometry measurement.
         """
         if self.ref_filter is None:
-            print ("Setting target position from odometry.")
+            print("Setting target position from odometry.")
             self.target_x = msg.pose.pose.position.x
             self.target_y = msg.pose.pose.position.y
             _, _, self.target_yaw = R.from_quat(
@@ -214,7 +217,9 @@ class GotoPointController(Node):
                 ]
             ).as_euler("xyz", degrees=False)
             self.ref_filter = ThrdOrderRefFilter(
-                dt=self.dt, omega=[0.2, 0.2, 0.2], initial_eta=[self.target_x, self.target_y, self.target_yaw]
+                dt=self.dt,
+                omega=[0.2, 0.2, 0.2],
+                initial_eta=[self.target_x, self.target_y, self.target_yaw],
             )
             self.ref_filter.eta_d = np.array(
                 [self.target_x, self.target_y, self.target_yaw]
@@ -263,7 +268,6 @@ class GotoPointController(Node):
         error_pos = np.array([desired_pose[0] - current_x, desired_pose[1] - current_y])
         error_yaw = wrap_to_pi(desired_pose[2] - current_yaw)
 
-
         self.error_pos = error_pos
         self.error_yaw = error_yaw
 
@@ -290,10 +294,22 @@ class GotoPointController(Node):
         control_y = saturate(control_y, self.saturation_pos)
         control_yaw = saturate(control_yaw, self.saturation_yaw)
 
-        # Create and populate the Wrench message to send control commands.
         wrench_msg = Wrench()
-        wrench_msg.force.x = control_x
-        wrench_msg.force.y = control_y
+        cos_yaw = np.cos(current_yaw)
+        sin_yaw = np.sin(current_yaw)
+
+        # Transform from global frame to body frame
+        control_surge = cos_yaw * control_x + sin_yaw * control_y
+        control_sway = -sin_yaw * control_x + cos_yaw * control_y
+
+        # Publish these instead
+        wrench_msg.force.x = control_surge
+        wrench_msg.force.y = control_sway
+
+        # Create and populate the Wrench message to send control commands.
+
+        # wrench_msg.force.x = control_x
+        # wrench_msg.force.y = control_y
         wrench_msg.force.z = 0.0  # No vertical force
         wrench_msg.torque.x = 0.0
         wrench_msg.torque.y = 0.0
@@ -370,12 +386,13 @@ class GotoPointController(Node):
             ).as_euler("xyz", degrees=False)
             error_yaw = wrap_to_pi(self.target_yaw - current_yaw)
 
-
             feedback_msg.current_pose = current_feedback_pose
             feedback_msg.distance_remaining = float(error_norm)
 
             goal_handle.publish_feedback(feedback_msg)
-            self.get_logger().debug(f"Distance remaining: {error_norm:.2f}, angle error: {error_yaw:.2f}")
+            self.get_logger().debug(
+                f"Distance remaining: {error_norm:.2f}, angle error: {error_yaw:.2f}"
+            )
 
             # Check if target is reached (both position and yaw)
             if error_norm < self.pos_tol and abs(error_yaw) < self.yaw_tol:
@@ -390,10 +407,13 @@ class GotoPointController(Node):
         self.get_logger().info("NavigateToPose goal succeeded")
         return result
 
+
 def main(args=None):
     rclpy.init(args=args)
     node = GotoPointController()
-    executor = MultiThreadedExecutor()  # Allows processing multiple callbacks concurrently
+    executor = (
+        MultiThreadedExecutor()
+    )  # Allows processing multiple callbacks concurrently
     try:
         rclpy.spin(node, executor=executor)
     except KeyboardInterrupt:
@@ -401,6 +421,7 @@ def main(args=None):
     finally:
         node.destroy_node()
         rclpy.shutdown()
+
 
 if __name__ == "__main__":
     main()

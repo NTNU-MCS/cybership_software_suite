@@ -81,7 +81,7 @@ class VoyagerSimulator(BaseSimulator):
     def cb_tunnel_thruster(self, msg: geometry_msgs.msg.Wrench):
         self.u[0] = msg.force.x
 
-        if np.linalg.norm(self.u[0]) < 0.1:
+        if np.linalg.norm(self.u[0]) < 0.05:
             self.u[0] = 0.0
 
         issued = geometry_msgs.msg.WrenchStamped()
