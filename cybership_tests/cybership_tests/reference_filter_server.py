@@ -320,10 +320,6 @@ class GotoPointController(Node):
     def execute_callback(self, goal_handle):
         self.get_logger().info("Executing NavigateToPose goal...")
 
-        self.ref_filter = ThrdOrderRefFilter(
-            dt=self.dt, omega=[0.2, 0.2, 0.2], initial_eta=[self.target_x, self.target_y, self.target_yaw]
-        )
-
         # Extract target pose from the goal message
         target_pose: PoseStamped = goal_handle.request.pose
         self.target_x = target_pose.pose.position.x
