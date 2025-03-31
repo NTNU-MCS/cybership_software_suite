@@ -12,7 +12,7 @@ import math
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 import time
-
+from cybership_tests.go_to_client import NavigateToPoseClient
 
 def wrap_to_pi(angle):
     """
@@ -294,13 +294,18 @@ class GotoPointController(Node):
 def main(args=None):
     rclpy.init(args=args)
     executor = MultiThreadedExecutor()
-    node = GotoPointController()
+    server = GotoPointController()
+    client = NavigateToPoseClient()
+    executor.add_node(server)
+    executor.add_node(client)
     try:
-        rclpy.spin(node, executor=executor)
+        executor.spin()
     except KeyboardInterrupt:
-        node.get_logger().info("Goto Point Controller stopped by user.")
+        server.get_logger().info("Keyboard interrupt, shutting down...")
+        client.get_logger().info("Keyboard interrupt, shutting down...")
     finally:
-        node.destroy_node()
+        server.destroy_node()
+        client.destroy_node()
         rclpy.shutdown()
 
 

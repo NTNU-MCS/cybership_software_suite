@@ -26,7 +26,6 @@ class NavigateToPoseClient(Node):
 
         # Wait for the action server to be available before sending a goal
         if not self._action_client.wait_for_server(timeout_sec=1.0):
-            self._
             self.get_logger().error('Action server not available!')
             return
 

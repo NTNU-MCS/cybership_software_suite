@@ -21,9 +21,9 @@ import math
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 from nav2_msgs.action import NavigateToPose
-from rclpy.action import ActionServer, GoalResponse, CancelResponse
+from rclpy.action import ActionServer, GoalResponse, CancelResponse, ActionClient
 from rclpy.executors import MultiThreadedExecutor
-
+from cybership_tests.go_to_client import NavigateToPoseClient
 
 def wrap_to_pi(angle):
     """
@@ -54,7 +54,7 @@ def Rz(psi):
 class ThrdOrderRefFilter:
     """Third-order reference filter for guidance."""
 
-    def __init__(self, dt, omega=[0.2, 0.2, 0.2], initial_eta=None):
+    def __init__(self, dt, omega=[0.2, 0.2, 0.2], delta = [1.0, 1.0,1.0] , initial_eta=None):
         self._dt = dt
         # Keep everything as a float array
         self.eta_d = (
@@ -164,6 +164,11 @@ class GotoPointController(Node):
         # You can tune these gains as needed.
         self.Kp_pos = 1.0  # proportional gain for position
         self.Kd_pos = 0.2  # derivative gain for position
+        self.Kp_vel = 1.0  # proportional gain for velocity
+        self.Kd_vel = 0.2  # derivative gain for velocity
+        self.Kp_acc = 1.0  # proportional gain for acceleration
+
+        self.Kp_yaw_acc = 1.0  # proportional gain for yaw acceleration
         self.Kp_yaw = 1.0  # proportional gain for yaw
         self.Kd_yaw = 0.2  # derivative gain for yaw
 
@@ -279,20 +284,20 @@ class GotoPointController(Node):
         # Compute control commands.
         # For position, we use feedforward desired acceleration plus a PD correction.
         control_x = (
-            desired_acc[0] + self.Kp_pos * error_pos[0] + self.Kd_pos * error_vel[0]
+            self.Kp_acc * desired_acc[0] + self.Kp_pos * error_pos[0] + self.Kd_vel * error_vel[0]
         )
         control_y = (
-            desired_acc[1] + self.Kp_pos * error_pos[1] + self.Kd_pos * error_vel[1]
+            self.Kp_acc * desired_acc[1] + self.Kp_pos * error_pos[1] + self.Kd_vel * error_vel[1]
         )
         # For yaw, similarly.
         control_yaw = (
-            desired_acc[2] + self.Kp_yaw * error_yaw + self.Kd_yaw * error_yaw_rate
+            self.Kp_yaw_acc * desired_acc[2] + self.Kp_yaw * error_yaw + self.Kd_yaw * error_yaw_rate
         )
 
         # Optionally apply saturation.
-        control_x = saturate(control_x, self.saturation_pos)
-        control_y = saturate(control_y, self.saturation_pos)
-        control_yaw = saturate(control_yaw, self.saturation_yaw)
+        # control_x = saturate(control_x, self.saturation_pos)
+        # control_y = saturate(control_y, self.saturation_pos)
+        # control_yaw = saturate(control_yaw, self.saturation_yaw)
 
         wrench_msg = Wrench()
         cos_yaw = np.cos(current_yaw)
@@ -410,18 +415,24 @@ class GotoPointController(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    node = GotoPointController()
+    server_node = GotoPointController()
+    client_node = NavigateToPoseClient()
     executor = (
         MultiThreadedExecutor()
     )  # Allows processing multiple callbacks concurrently
+    executor.add_node(server_node)
+    executor.add_node(client_node)
     try:
-        rclpy.spin(node, executor=executor)
+        executor.spin()
     except KeyboardInterrupt:
-        node.get_logger().info("Goto Point Controller stopped by user.")
-    finally:
-        node.destroy_node()
-        rclpy.shutdown()
+        server_node.get_logger().info("Keyboard interrupt, shutting down...")
+        client_node.get_logger().info("Keyboard interrupt, shutting down...")
 
+    finally:
+        server_node.destroy_node()
+        client_node.destroy_node()
+        executor.shutdown()
+        rclpy.shutdown()
 
 if __name__ == "__main__":
     main()
