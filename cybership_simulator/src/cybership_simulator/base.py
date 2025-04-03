@@ -177,7 +177,19 @@ class BaseSimulator(Node, ABC):
         """
         tau = (self.allocator._b_matrix @ self.u).flatten()
 
-        self.vessel.eta[2] = 0.0
+        # phi = self.vessel.eta[5]
+        # Rz = np.array([
+        #     [np.cos(phi), -np.sin(phi), 0],
+        #     [np.sin(phi), np.cos(phi), 0],
+        #     [0, 0, 1]
+        # ])
+        # # World fixed constant force
+        # F = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+        # # Transform to body fixed frame
+        # F[0:3] = Rz.T @ F[0:3]
+
+
+        # self.vessel.eta[2] = 0.0
 
         self.vessel.step(tau=tau, dt=self.dt)
         self.publish_odom()

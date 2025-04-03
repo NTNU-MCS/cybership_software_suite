@@ -12,7 +12,18 @@ from cybership_utilities.launch import anon
 
 
 def generate_launch_description():
-
+    print(
+        """\n
+    **************************************
+    *  WARNING: THIS LAUNCH FILE IS OLD  *
+    *   AND WILL BE REMOVED SOON!        *
+    *   PLEASE USE THE NEW LAUNCH FILES: *
+    *   - voyager.launch.py              *
+    *   - enterprise.launch.py           *
+    *   - drillship.launch.py            *
+    **************************************
+    """
+    )
     ld = launch.LaunchDescription()
 
     for argument in ARGUMENTS:
@@ -37,7 +48,7 @@ def generate_launch_description():
     sim_node = Node(
         namespace=launch.substitutions.LaunchConfiguration("vessel_name"),
         package="cybership_simulator",
-        executable="cybership_common.py",
+        executable="voyager.py",
         parameters=[
             launch.substitutions.PathJoinSubstitution(
                 [
@@ -65,8 +76,10 @@ def generate_launch_description():
     )
 
     group_gui = launch.actions.GroupAction(
-        condition=launch.conditions.IfCondition(launch.substitutions.LaunchConfiguration('use_gui', default='false')),
-        actions=[viz_launch]
+        condition=launch.conditions.IfCondition(
+            launch.substitutions.LaunchConfiguration("use_gui", default="false")
+        ),
+        actions=[viz_launch],
     )
 
     # Add the actions to the launch description
