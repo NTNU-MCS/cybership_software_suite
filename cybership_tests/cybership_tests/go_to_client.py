@@ -4,6 +4,8 @@ from rclpy.node import Node
 from geometry_msgs.msg import PoseStamped
 from nav2_msgs.action import NavigateToPose
 from rclpy.action import ActionClient
+from visualization_msgs.msg import Marker
+
 
 class NavigateToPoseClient(Node):
     def __init__(self):
@@ -13,6 +15,8 @@ class NavigateToPoseClient(Node):
         # Subscribe to the /goal_pose topic
         self.create_subscription(PoseStamped, '/goal_pose', self.goal_pose_callback, 10)
         # Variable to hold the current goal handle
+        self.marker_pub = self.create_publisher(Marker, "visualization_marker", 10)
+
         self._goal_handle = None
 
     def goal_pose_callback(self, msg: PoseStamped):
@@ -56,6 +60,8 @@ class NavigateToPoseClient(Node):
         result = future.result().result
         self.get_logger().info(f'Action result: {result}')
         self._goal_handle = None
+
+
 
 def main(args=None):
     rclpy.init(args=args)

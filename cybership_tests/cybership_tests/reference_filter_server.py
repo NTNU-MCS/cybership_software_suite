@@ -24,6 +24,9 @@ from nav2_msgs.action import NavigateToPose
 from rclpy.action import ActionServer, GoalResponse, CancelResponse, ActionClient
 from rclpy.executors import MultiThreadedExecutor
 from cybership_tests.go_to_client import NavigateToPoseClient
+from shoeboxpy.model3dof import Shoebox
+from visualization_msgs.msg import Marker
+
 
 def wrap_to_pi(angle):
     """
@@ -150,6 +153,9 @@ class GotoPointController(Node):
         # self.create_subscription(PoseStamped, "/goal_pose", self.goal_pose_callback, 10)
         self.create_subscription(Odometry, "measurement/odom", self.odom_callback, 10)
 
+        self.marker_pub = self.create_publisher(Marker, "visualization_marker", 10)
+
+
         self.dt = 0.01  # seconds
         # Latest odometry message storage
         self.latest_odom = None
@@ -163,18 +169,25 @@ class GotoPointController(Node):
         # --- Controller gains (for the PD part) ---
         # You can tune these gains as needed.
         self.Kp_pos = 1.0  # proportional gain for position
+        self.Ki_pos = 0.2  # integral gain for position
         self.Kd_pos = 0.2  # derivative gain for position
         self.Kp_vel = 1.0  # proportional gain for velocity
+        self.Ki_vel = 0.2  # integral gain for velocity
         self.Kd_vel = 0.2  # derivative gain for velocity
-        self.Kp_acc = 1.0  # proportional gain for acceleration
 
-        self.Kp_yaw_acc = 1.0  # proportional gain for yaw acceleration
         self.Kp_yaw = 1.0  # proportional gain for yaw
+        self.Ki_yaw = 0.2  # integral gain for yaw
         self.Kd_yaw = 0.2  # derivative gain for yaw
 
+        # Track integral error
+        self.max_integral_error_pos = 1.0
+        self.max_integral_error_yaw = 1.0
+        self.integral_error_pos = np.zeros(2)
+        self.integral_error_yaw = 0.0
+
         # Saturation parameters (if needed)
-        self.saturation_pos = 0.5
-        self.saturation_yaw = 0.5
+        self.saturation_pos = 0.1
+        self.saturation_yaw = 0.1
 
         # Tolerances for considering the target reached
         self.pos_tol = 0.25  # meters
@@ -194,6 +207,12 @@ class GotoPointController(Node):
 
         # Timer for periodic control updates
         self.timer = self.create_timer(self.dt, self.control_loop)
+
+        self.shoebox = Shoebox(
+            L=1.0,
+            B=0.3,
+            T=0.02,
+        )
 
         # --- Action Server using nav2_msgs/NavigateToPose ---
         self._action_server = ActionServer(
@@ -281,18 +300,42 @@ class GotoPointController(Node):
         error_vel = np.array([desired_vel[0] - current_vx, desired_vel[1] - current_vy])
         error_yaw_rate = desired_vel[2] - current_yaw_rate
 
+        acc = self.shoebox.M_eff @ self.ref_filter.get_nu_d()
+
+        self.integral_error_pos += error_pos * self.dt
+        self.integral_error_yaw += error_yaw * self.dt
+
+        # Apply saturation to the integral error
+        self.integral_error_pos = self.max_integral_error_pos * saturate(
+            self.integral_error_pos, self.saturation_pos
+        )
+        self.integral_error_yaw = self.max_integral_error_yaw * saturate(
+            self.integral_error_yaw, self.saturation_yaw
+        )
+
+
         # Compute control commands.
-        # For position, we use feedforward desired acceleration plus a PD correction.
-        control_x = (
-            self.Kp_acc * desired_acc[0] + self.Kp_pos * error_pos[0] + self.Kd_vel * error_vel[0]
+        # For position, we use feedforward desired acceleration plus a PID correction.
+        world_x = (
+            acc[0]
+            + self.Kp_pos * error_pos[0]
+            + self.Kd_vel * error_vel[0]
+            + self.Ki_pos * self.integral_error_pos[0]
         )
-        control_y = (
-            self.Kp_acc * desired_acc[1] + self.Kp_pos * error_pos[1] + self.Kd_vel * error_vel[1]
+        world_y = (
+            acc[1]
+            + self.Kp_pos * error_pos[1]
+            + self.Kd_vel * error_vel[1]
+            + self.Ki_pos * self.integral_error_pos[1]
         )
-        # For yaw, similarly.
-        control_yaw = (
-            self.Kp_yaw_acc * desired_acc[2] + self.Kp_yaw * error_yaw + self.Kd_yaw * error_yaw_rate
+        world_yaw = (
+            acc[2]
+            + self.Kp_yaw * error_yaw
+            + self.Kd_yaw * error_yaw_rate
+            + self.Ki_yaw * self.integral_error_yaw
         )
+
+        control_x, control_y, control_yaw = Rz(current_yaw).T @ np.array([world_x, world_y, world_yaw])
 
         # Optionally apply saturation.
         # control_x = saturate(control_x, self.saturation_pos)
@@ -300,21 +343,10 @@ class GotoPointController(Node):
         # control_yaw = saturate(control_yaw, self.saturation_yaw)
 
         wrench_msg = Wrench()
-        cos_yaw = np.cos(current_yaw)
-        sin_yaw = np.sin(current_yaw)
-
-        # Transform from global frame to body frame
-        control_surge = cos_yaw * control_x + sin_yaw * control_y
-        control_sway = -sin_yaw * control_x + cos_yaw * control_y
 
         # Publish these instead
-        wrench_msg.force.x = control_surge
-        wrench_msg.force.y = control_sway
-
-        # Create and populate the Wrench message to send control commands.
-
-        # wrench_msg.force.x = control_x
-        # wrench_msg.force.y = control_y
+        wrench_msg.force.x = control_x
+        wrench_msg.force.y = control_y
         wrench_msg.force.z = 0.0  # No vertical force
         wrench_msg.torque.x = 0.0
         wrench_msg.torque.y = 0.0
@@ -355,6 +387,8 @@ class GotoPointController(Node):
 
         feedback_msg = NavigateToPose.Feedback()
         current_feedback_pose = PoseStamped()
+
+        self.publish_target_pose_marker(target_pose)
 
         # Loop until the robot reaches the target (within tolerance) or the goal is canceled.
         while rclpy.ok():
@@ -412,6 +446,33 @@ class GotoPointController(Node):
         self.get_logger().info("NavigateToPose goal succeeded")
         return result
 
+    def publish_target_pose_marker(self, pose_stamped: PoseStamped):
+        """Publish a simple marker (e.g., an arrow) in RViz to visualize the requested pose."""
+        marker = Marker()
+        marker.header = pose_stamped.header
+        marker.header.frame_id = "world"  # Adjust frame if necessary
+        marker.ns = "target_pose"
+        marker.id = 0
+        marker.type = Marker.ARROW
+        marker.action = Marker.ADD
+
+        # Pose (position/orientation)
+        marker.pose = pose_stamped.pose
+
+        # Scale and color
+        marker.scale.x = 0.5  # Arrow length
+        marker.scale.y = 0.1  # Arrow width
+        marker.scale.z = 0.1
+        marker.color.a = 1.0
+        marker.color.r = 1.0
+        marker.color.g = 0.0
+        marker.color.b = 0.0
+
+        # Lifetime (0 = forever)
+        marker.lifetime.sec = 0
+        marker.lifetime.nanosec = 0
+
+        self.marker_pub.publish(marker)
 
 def main(args=None):
     rclpy.init(args=args)
