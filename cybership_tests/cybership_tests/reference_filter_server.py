@@ -15,7 +15,7 @@ import time
 import numpy as np
 import rclpy
 from rclpy.node import Node
-from geometry_msgs.msg import Wrench, Pose2D, PoseStamped
+from geometry_msgs.msg import Wrench, Pose2D, PoseStamped, TwistStamped
 from nav_msgs.msg import Odometry
 import math
 import numpy as np
@@ -26,6 +26,13 @@ from rclpy.executors import MultiThreadedExecutor
 from cybership_tests.go_to_client import NavigateToPoseClient
 from shoeboxpy.model3dof import Shoebox
 from visualization_msgs.msg import Marker
+from std_msgs.msg import Float32MultiArray
+
+
+try:
+    from cybership_interfaces.msg import PerformanceMetrics
+except ImportError:
+    print("cybership_msgs not found. Skipping performance metrics.")
 
 
 def wrap_to_pi(angle):
@@ -50,18 +57,20 @@ def Rz(psi):
 
     """
     return np.array(
-        [[np.cos(psi), -np.sin(psi), 0], [np.sin(psi), np.cos(psi), 0], [0, 0, 1]]
+        [[np.cos(psi), -np.sin(psi), 0],
+         [np.sin(psi), np.cos(psi), 0], [0, 0, 1]]
     )
 
 
 class ThrdOrderRefFilter:
     """Third-order reference filter for guidance."""
 
-    def __init__(self, dt, omega=[0.2, 0.2, 0.2], delta = [1.0, 1.0,1.0] , initial_eta=None):
+    def __init__(self, dt, omega=[0.2, 0.2, 0.2], delta=[1.0, 1.0, 1.0], initial_eta=None):
         self._dt = dt
         # Keep everything as a float array
         self.eta_d = (
-            np.zeros(3) if initial_eta is None else np.array(initial_eta, dtype=float)
+            np.zeros(3) if initial_eta is None else np.array(
+                initial_eta, dtype=float)
         )  # [ x, y, yaw ]
         self.eta_d_dot = np.zeros(3)
         self.eta_d_ddot = np.zeros(3)
@@ -148,13 +157,31 @@ class GotoPointController(Node):
         super().__init__("goto_point_controller", namespace="voyager")
 
         # Publisher to send control commands (force and torque)
-        self.control_pub = self.create_publisher(Wrench, "control/force/command", 10)
+        self.control_pub = self.create_publisher(
+            Wrench, "control/force/command", 10)
+        # Debug publishers for tracking performance metrics
+        self.debug_pose_pub = self.create_publisher(
+            PoseStamped, "control/pose/debug/reference_pose", 10)
+        self.debug_vel_pub = self.create_publisher(
+            TwistStamped, "control/pose/debug/reference_velocity", 10)
+        self.debug_error_pose_pub = self.create_publisher(
+            Pose2D, "control/pose/debug/tracking_error_position", 10)
+        self.debug_error_vel_pub = self.create_publisher(
+            TwistStamped, "control/pose/debug/tracking_error_velocity", 10)
+
+
+        self.debug_metrics_pub = None
+        if PerformanceMetrics is not None:
+            self.debug_metrics_pub = self.create_publisher(
+                PerformanceMetrics, "control/pose/debug/performance_metrics", 10)
+
 
         # self.create_subscription(PoseStamped, "/goal_pose", self.goal_pose_callback, 10)
-        self.create_subscription(Odometry, "measurement/odom", self.odom_callback, 10)
+        self.create_subscription(
+            Odometry, "measurement/odom", self.odom_callback, 10)
 
-        self.marker_pub = self.create_publisher(Marker, "visualization_marker", 10)
-
+        self.marker_pub = self.create_publisher(
+            Marker, "visualization_marker", 10)
 
         self.dt = 0.01  # seconds
         # Latest odometry message storage
@@ -168,16 +195,28 @@ class GotoPointController(Node):
 
         # --- Controller gains (for the PD part) ---
         # You can tune these gains as needed.
-        self.Kp_pos = 1.0  # proportional gain for position
+        self.Kp_pos = 2.0  # proportional gain for position
         self.Ki_pos = 0.2  # integral gain for position
         self.Kd_pos = 0.2  # derivative gain for position
-        self.Kp_vel = 1.0  # proportional gain for velocity
+        self.Kp_vel = 2.0  # proportional gain for velocity
         self.Ki_vel = 0.2  # integral gain for velocity
         self.Kd_vel = 0.2  # derivative gain for velocity
 
-        self.Kp_yaw = 1.0  # proportional gain for yaw
-        self.Ki_yaw = 0.2  # integral gain for yaw
+        self.Kp_yaw = 1.5  # proportional gain for yaw
+        self.Ki_yaw = 0.1  # integral gain for yaw
         self.Kd_yaw = 0.2  # derivative gain for yaw
+
+        # --- Performance metrics ---
+        # Performance metrics tracking with moving window
+        self.window_size = 200  # 2 seconds of data at 100Hz
+        self.error_window = []  # Store recent position errors
+        self.error_yaw_window = []  # Store recent yaw errors
+        self.start_time = None
+        self.sample_count = 0
+
+        # Time between metrics calculations (e.g., 1 second)
+        self.metrics_interval = 1.0  # seconds
+        self.last_metrics_time = 0.0
 
         # Track integral error
         self.max_integral_error_pos = 1.0
@@ -191,7 +230,7 @@ class GotoPointController(Node):
 
         # Tolerances for considering the target reached
         self.pos_tol = 0.25  # meters
-        self.yaw_tol = 0.05  # radians
+        self.yaw_tol = 0.1  # radians
 
         self.error_pos = np.zeros(2)
         self.error_yaw = 0.0
@@ -242,7 +281,8 @@ class GotoPointController(Node):
             ).as_euler("xyz", degrees=False)
             self.ref_filter = ThrdOrderRefFilter(
                 dt=self.dt,
-                omega=[0.2, 0.2, 0.2],
+                omega=[0.1, 0.1, 0.3],
+                delta=[1.0, 1.0, 1.0],
                 initial_eta=[self.target_x, self.target_y, self.target_yaw],
             )
             self.ref_filter.eta_d = np.array(
@@ -250,6 +290,94 @@ class GotoPointController(Node):
             )
 
         self.latest_odom = msg
+
+    def process_performance_metrics(self, desired_pose, desired_vel, error_pos, error_vel, error_yaw):
+        """
+        Process and publish debug information using a moving window approach.
+        """
+        # Publish reference pose (from reference filter)
+        debug_ref_pose = PoseStamped()
+        debug_ref_pose.header.stamp = self.get_clock().now().to_msg()
+        debug_ref_pose.header.frame_id = "world"
+        debug_ref_pose.pose.position.x = desired_pose[0]
+        debug_ref_pose.pose.position.y = desired_pose[1]
+        debug_ref_pose.pose.position.z = 0.0
+        # Convert yaw to quaternion
+        q = R.from_euler('z', desired_pose[2]).as_quat()
+        debug_ref_pose.pose.orientation.x = q[0]
+        debug_ref_pose.pose.orientation.y = q[1]
+        debug_ref_pose.pose.orientation.z = q[2]
+        debug_ref_pose.pose.orientation.w = q[3]
+        self.debug_pose_pub.publish(debug_ref_pose)
+
+        debug_ref_vel = TwistStamped()
+        debug_ref_vel.header.stamp = self.get_clock().now().to_msg()
+        debug_ref_vel.header.frame_id = "base_link"
+        debug_ref_vel.twist.linear.x = desired_vel[0]
+        debug_ref_vel.twist.linear.y = desired_vel[1]
+        debug_ref_vel.twist.angular.z = desired_vel[2]
+        self.debug_vel_pub.publish(debug_ref_vel)
+
+        debug_error_vel = TwistStamped()
+        debug_error_vel.header.stamp = self.get_clock().now().to_msg()
+        debug_error_vel.header.frame_id = "base_link"
+        debug_error_vel.twist.linear.x = error_vel[0]
+        debug_error_vel.twist.linear.y = error_vel[1]
+        debug_error_vel.twist.angular.z = error_yaw
+        self.debug_error_vel_pub.publish(debug_error_vel)
+
+        # Publish error information
+        debug_error_pose = Pose2D()
+        debug_error_pose.x = error_pos[0]
+        debug_error_pose.y = error_pos[1]
+        debug_error_pose.theta = error_yaw
+        self.debug_error_pose_pub.publish(debug_error_pose)
+
+        # Update metrics using moving window
+        error_norm = np.sqrt(error_pos[0]**2 + error_pos[1]**2)
+
+        # Initialize start time if not already set
+        if self.start_time is None:
+            self.start_time = self.get_clock().now().nanoseconds / 1e9
+
+        # Add newest error to window
+        self.error_window.append(error_norm)
+        self.error_yaw_window.append(abs(error_yaw))
+
+        # Keep window at fixed size
+        if len(self.error_window) > self.window_size:
+            self.error_window.pop(0)
+            self.error_yaw_window.pop(0)
+
+        self.sample_count += 1
+
+        current_time = self.get_clock().now().nanoseconds / 1e9
+        if current_time - self.last_metrics_time >= self.metrics_interval and len(self.error_window) > 0:
+            self.last_metrics_time = current_time
+
+            # Calculate window statistics
+            error_array = np.array(self.error_window)
+
+            metrics_msg = PerformanceMetrics()
+            metrics_msg.header.stamp = self.get_clock().now().to_msg()
+            metrics_msg.header.frame_id = "voyager"
+            metrics_msg.message = "Position tracking error (meters)"
+
+            # Calculate statistics over the window
+            metrics_msg.mean = np.mean(error_array)
+            metrics_msg.median = np.median(error_array)
+            metrics_msg.rms = np.sqrt(np.mean(np.square(error_array)))
+            metrics_msg.min = np.min(error_array)
+            metrics_msg.max = np.max(error_array)
+            metrics_msg.stddev = np.std(error_array)
+
+            self.debug_metrics_pub.publish(metrics_msg)
+
+            self.get_logger().info(
+                f"Position tracking metrics - Mean: {metrics_msg.mean:.3f}m, "
+                f"RMS: {metrics_msg.rms:.3f}m, Max: {metrics_msg.max:.3f}m"
+            )
+
 
     def control_loop(self):
         """
@@ -269,7 +397,8 @@ class GotoPointController(Node):
 
         # Extract yaw (heading) from quaternion orientation
         orientation = self.latest_odom.pose.pose.orientation
-        rot = R.from_quat([orientation.x, orientation.y, orientation.z, orientation.w])
+        rot = R.from_quat([orientation.x, orientation.y,
+                          orientation.z, orientation.w])
         _, _, current_yaw = rot.as_euler("xyz", degrees=False)
 
         # Also get current velocities from odometry for the derivative term.
@@ -286,10 +415,12 @@ class GotoPointController(Node):
         # Retrieve filtered outputs: desired pose, velocity, and acceleration.
         desired_pose = self.ref_filter.eta_d  # [x, y, yaw]
         desired_vel = self.ref_filter.eta_d_dot  # velocity
-        desired_acc = self.ref_filter.eta_d_ddot  # acceleration (feedforward term)
+        # acceleration (feedforward term)
+        desired_acc = self.ref_filter.eta_d_ddot
 
         # Compute errors (position and yaw) between the filtered desired state and current state.
-        error_pos = np.array([desired_pose[0] - current_x, desired_pose[1] - current_y])
+        error_pos = np.array(
+            [desired_pose[0] - current_x, desired_pose[1] - current_y])
         error_yaw = wrap_to_pi(desired_pose[2] - current_yaw)
 
         self.error_pos = error_pos
@@ -297,7 +428,8 @@ class GotoPointController(Node):
 
         # Compute velocity errors
         current_vel = np.array([current_vx, current_vy])
-        error_vel = np.array([desired_vel[0] - current_vx, desired_vel[1] - current_vy])
+        error_vel = np.array(
+            [desired_vel[0] - current_vx, desired_vel[1] - current_vy])
         error_yaw_rate = desired_vel[2] - current_yaw_rate
 
         acc = self.shoebox.M_eff @ self.ref_filter.get_nu_d()
@@ -312,7 +444,6 @@ class GotoPointController(Node):
         self.integral_error_yaw = self.max_integral_error_yaw * saturate(
             self.integral_error_yaw, self.saturation_yaw
         )
-
 
         # Compute control commands.
         # For position, we use feedforward desired acceleration plus a PID correction.
@@ -335,7 +466,11 @@ class GotoPointController(Node):
             + self.Ki_yaw * self.integral_error_yaw
         )
 
-        control_x, control_y, control_yaw = Rz(current_yaw).T @ np.array([world_x, world_y, world_yaw])
+        # Process and publish performance metrics
+        self.process_performance_metrics(desired_pose, desired_vel, error_pos, error_vel, error_yaw)
+
+        control_x, control_y, control_yaw = Rz(
+            current_yaw).T @ np.array([world_x, world_y, world_yaw])
 
         # Optionally apply saturation.
         # control_x = saturate(control_x, self.saturation_pos)
@@ -378,11 +513,17 @@ class GotoPointController(Node):
         self.target_x = target_pose.pose.position.x
         self.target_y = target_pose.pose.position.y
 
-        self.get_logger().info(f"Target position: ({self.target_x}, {self.target_y})")
+        self.get_logger().info(
+            f"Target position: ({self.target_x}, {self.target_y})")
 
         # Convert quaternion to yaw angle
         orientation = target_pose.pose.orientation
-        rot = R.from_quat([orientation.x, orientation.y, orientation.z, orientation.w])
+        rot = R.from_quat([
+            orientation.x,
+            orientation.y,
+            orientation.z,
+            orientation.w]
+        )
         _, _, self.target_yaw = rot.as_euler("xyz", degrees=False)
 
         feedback_msg = NavigateToPose.Feedback()
@@ -474,6 +615,7 @@ class GotoPointController(Node):
 
         self.marker_pub.publish(marker)
 
+
 def main(args=None):
     rclpy.init(args=args)
     server_node = GotoPointController()
@@ -494,6 +636,7 @@ def main(args=None):
         client_node.destroy_node()
         executor.shutdown()
         rclpy.shutdown()
+
 
 if __name__ == "__main__":
     main()

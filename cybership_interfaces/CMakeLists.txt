@@ -14,9 +14,10 @@ find_package(rosidl_default_generators REQUIRED)
 # find_package(<dependency> REQUIRED)
 
 set(msg_files
+  msg/PerformanceMetrics.msg
 )
 set(srv_files
-  "srv/ResetSimulator.srv"
+  srv/ResetSimulator.srv
 )
 
 rosidl_generate_interfaces(${PROJECT_NAME}

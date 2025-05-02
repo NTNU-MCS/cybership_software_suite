@@ -189,7 +189,7 @@ class BaseSimulator(Node, ABC):
         # F[0:3] = Rz.T @ F[0:3]
 
 
-        # self.vessel.eta[2] = 0.0
+        self.vessel.eta[2] = 0.0
 
         self.vessel.step(tau=tau, dt=self.dt)
         self.publish_odom()
