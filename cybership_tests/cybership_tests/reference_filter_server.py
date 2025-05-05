@@ -195,16 +195,16 @@ class GotoPointController(Node):
 
         # --- Controller gains (for the PD part) ---
         # You can tune these gains as needed.
-        self.Kp_pos = 2.0  # proportional gain for position
+        self.Kp_pos = 4.0  # proportional gain for position
         self.Ki_pos = 0.2  # integral gain for position
         self.Kd_pos = 0.2  # derivative gain for position
-        self.Kp_vel = 2.0  # proportional gain for velocity
-        self.Ki_vel = 0.2  # integral gain for velocity
-        self.Kd_vel = 0.2  # derivative gain for velocity
+        self.Kp_vel = 0.7  # proportional gain for velocity
+        self.Ki_vel = 0.1  # integral gain for velocity
+        self.Kd_vel = 0.5  # derivative gain for velocity
 
-        self.Kp_yaw = 1.5  # proportional gain for yaw
-        self.Ki_yaw = 0.1  # integral gain for yaw
-        self.Kd_yaw = 0.2  # derivative gain for yaw
+        self.Kp_yaw = 1.3   # proportional gain for yaw
+        self.Ki_yaw = 0.2  # integral gain for yaw
+        self.Kd_yaw = 1.0   # derivative gain for yaw
 
         # --- Performance metrics ---
         # Performance metrics tracking with moving window
@@ -220,7 +220,7 @@ class GotoPointController(Node):
 
         # Track integral error
         self.max_integral_error_pos = 1.0
-        self.max_integral_error_yaw = 1.0
+        self.max_integral_error_yaw = 1.4
         self.integral_error_pos = np.zeros(2)
         self.integral_error_yaw = 0.0
 
@@ -281,8 +281,8 @@ class GotoPointController(Node):
             ).as_euler("xyz", degrees=False)
             self.ref_filter = ThrdOrderRefFilter(
                 dt=self.dt,
-                omega=[0.1, 0.1, 0.3],
-                delta=[1.0, 1.0, 1.0],
+                omega=[0.15, 0.15, 0.15],
+                delta=[0.8, 0.8, 0.8],
                 initial_eta=[self.target_x, self.target_y, self.target_yaw],
             )
             self.ref_filter.eta_d = np.array(
@@ -438,12 +438,14 @@ class GotoPointController(Node):
         self.integral_error_yaw += error_yaw * self.dt
 
         # Apply saturation to the integral error
-        self.integral_error_pos = self.max_integral_error_pos * saturate(
-            self.integral_error_pos, self.saturation_pos
-        )
-        self.integral_error_yaw = self.max_integral_error_yaw * saturate(
-            self.integral_error_yaw, self.saturation_yaw
-        )
+        self.integral_error_pos = np.clip(self.integral_error_pos, -self.max_integral_error_pos, self.max_integral_error_pos)
+        #  self.integral_error_pos = self.max_integral_error_pos * saturate(
+        #     self.integral_error_pos, self.saturation_pos
+        # )
+        self.integral_error_yaw = np.clip(self.integral_error_yaw, -self.max_integral_error_yaw, self.max_integral_error_yaw)
+        # self.integral_error_yaw = self.max_integral_error_yaw * saturate(
+        #     self.integral_error_yaw, self.saturation_yaw
+        # )
 
         # Compute control commands.
         # For position, we use feedforward desired acceleration plus a PID correction.
