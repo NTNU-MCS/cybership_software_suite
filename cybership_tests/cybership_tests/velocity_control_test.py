@@ -42,12 +42,12 @@ class VelocityCommandPublisher(Node):
 
         # Test parameters
         self.amplitude = {
-            'surge': 0.2,  # m/s
+            'surge': 0.1,  # m/s
             'sway': 0.0,   # m/s
             'yaw': 0.0,    # rad/s
         }
         self.frequency = {
-            'surge': 0.05,  # Hz
+            'surge': 0.1,  # Hz
             'sway': 0.05,  # Hz
             'yaw': 0.05,    # Hz
         }

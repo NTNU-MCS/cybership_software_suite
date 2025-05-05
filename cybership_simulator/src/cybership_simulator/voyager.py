@@ -127,9 +127,19 @@ class VoyagerSimulator(BaseSimulator):
 
 def main(args=None):
     rclpy.init(args=args)
+
     simulator = VoyagerSimulator()
-    rclpy.spin(simulator)
-    rclpy.shutdown()
+
+    # Create a multithreaded executor
+    executor = rclpy.executors.MultiThreadedExecutor()
+    executor.add_node(simulator)
+
+    try:
+        executor.spin()
+    finally:
+        # Clean shutdown
+        simulator.destroy_node()
+        rclpy.shutdown()
 
 
 if __name__ == "__main__":

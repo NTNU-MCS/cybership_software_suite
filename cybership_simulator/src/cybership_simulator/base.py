@@ -69,7 +69,7 @@ class BaseSimulator(Node, ABC):
         self.setup_thrusters()
 
         # Simulation time step and timer
-        self.dt = 0.01
+        self.dt = 0.001
         self.timer = self.create_timer(self.dt, self.iterate)
 
     # ------------------------------------------------------------------------

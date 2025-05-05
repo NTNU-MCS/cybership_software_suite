@@ -49,6 +49,23 @@ def generate_launch_description():
         respawn_delay=5,
     )
 
+    # Add topic multiplexer node
+    node_topic_mux = launch_ros.actions.Node(
+        namespace=launch.substitutions.LaunchConfiguration("vessel_name"),
+        package="topic_tools",
+        executable="mux",
+        name=f"force_mux_{anon()}",
+        arguments=[
+            "control/force/command",  # Output topic
+            "control/force/mux",      # Input topic to listen to
+            "--repeat-delay", "0.1"   # Optional delay for repeated messages
+        ],
+        output="screen",
+        respawn=True,
+        respawn_delay=5,
+    )
+
     ld.add_action(node_force_controller)
+    ld.add_action(node_topic_mux)
 
     return ld

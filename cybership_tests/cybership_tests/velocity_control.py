@@ -18,6 +18,9 @@ from typing import Tuple
 import shoeboxpy.model3dof as box
 from visualization_msgs.msg import Marker
 from scipy.spatial.transform import Rotation as R
+import numpy as np
+from typing import Dict, Any, Optional
+
 
 # Add import for performance metrics
 try:
@@ -27,49 +30,171 @@ except ImportError:
 
 import numpy as np
 
+class ExponentialSmoothing():
+    """
+    Exponential smoothing class
+    """
 
-class VelocityController:
-    def __init__(self, mass, damping, k_p_gain, k_i_gain, integ_limit=None, dt=0.01):
+    def __init__(self, r: float = 0.7) -> None:
         """
-        Initialize the controller for surge, sway, and yaw.
+        Exponential smoothing class constructor
 
-        Parameters:
-            mass (array-like): [m_surge, m_sway, m_yaw] parameters.
-            damping (array-like): [d_surge, d_sway, d_yaw] damping coefficients.
-            k_gain (array-like): [k_surge, k_sway, k_yaw] control gains.
+        :param r: A weighting factor in the set [0-1]
         """
-        self.dt = dt
-        self.mass = np.array(mass)
-        self.damping = np.array(damping)
-        self.Kp = np.diag(k_p_gain)
-        self.Ki = np.diag(k_i_gain)
-        self.z = np.zeros(3)          # integral state
-        self.limit = integ_limit      # scalar or 3-vector
+        self.r = r
+        self.x = None
+        self.x_p = None
+        self.dx_p = None
 
-    def update(self, v, v_des, dv_des):
+    def __call__(self, x: np.ndarray) -> np.ndarray:
         """
-        Compute the control input vector for surge, sway, and yaw.
+        Exponential smoothing function
 
-        Parameters:
-            v (np.array): Current velocity vector [surge, sway, yaw].
-            v_des (np.array): Desired velocity vector [surge, sway, yaw].
-            dv_des (np.array): Time derivative of the desired velocity vector.
-
-        Returns:
-            u (np.array): Control input vector [u_surge, u_sway, u_yaw].
+        :param x: current value of x
+        :return: dx
         """
-        # Tracking error for each channel
-        e = v - v_des
+        if self.x_p is None or self.dx_p is None:
+            self.x_p = x
+            self.dx_p = x
+            return x
+        else:
+            self.dx_p = ExponentialSmoothing.__func(self.r, x, self.x_p, self.dx_p)
+            self.x_p = x
+            return self.dx_p
 
-        self.z += e * self.dt         # integrate
+    def reset(self, x: np.ndarray) -> None:
+        """
+        Reset the exponential smoothing
 
-        # simple anti-wind-up
-        if self.limit is not None:
-            self.z = np.clip(self.z, -self.limit, self.limit)
+        :param x: current value of x
+        :return:
+        """
+        self.x_p = x
+        self.dx_p = x
 
-        u = self.damping @ v_des + self.mass @ dv_des - self.Kp @ e - self.Ki @ self.z
-        return u
+    @staticmethod
+    def __func(
+            r: float, x: np.ndarray, x_p: np.ndarray = None, dx_p: np.ndarray = None
+    ) -> np.ndarray:
+        r"""
+        Exponential smoothing function
 
+        .. math::
+            \begin{aligned}
+                s_{0}&=x_{0}\\
+                s_{t}&=\alpha x_{t}+(1-\alpha )s_{t-1},\quad t>0
+            \end{aligned}
+
+
+        :param r: A weighting factor in the set [0-1]
+        :param x: current value of x
+        :param x_p: previous value of x
+        :param dx_p: last computed filtered x value
+        :return:
+        """
+        if x_p is None or dx_p is None:
+            return x
+        else:
+            return (1 - r) * dx_p + r * (x - x_p)
+
+def _saturate(vec: np.ndarray, limit: float) -> np.ndarray:
+    """Scale `vec` so its l2-norm does not exceed `limit`. If `limit` <= 0, return vec unchanged."""
+    nrm = np.linalg.norm(vec)
+    return vec if nrm <= limit or limit <= 0.0 else vec * (limit / nrm)
+
+# ---------------------------------------------------------------------- #
+#  Controller implementation                                             #
+# ---------------------------------------------------------------------- #
+
+class AccelLimitedInverseDynamicsPI():
+    """Inverse-dynamics velocity controller with PI action and acceleration limiting."""
+
+    def __init__(self, config: Optional[Dict[str, Any]] = None):
+
+        self.config = config or {}
+        # Matrices and gains
+        self.M: np.ndarray = np.array(self.config.get("M", np.eye(3)), dtype=float)
+        self.D: np.ndarray = np.array(self.config.get("D", np.zeros((3, 3))), dtype=float)
+        self.Kp: np.ndarray = np.array(self.config.get("Kp", np.eye(3)), dtype=float)
+        self.Ki: np.ndarray = np.array(self.config.get("Ki", np.zeros((3, 3))), dtype=float)
+        self.Kd: np.ndarray = np.array(self.config.get("Kd", np.zeros((3, 3))), dtype=float)
+        self.dt: float = float(self.config.get("dt", 0.01))  # seconds
+
+        # Pre-compute inverse inertia
+        self.M_inv = np.linalg.inv(self.M)
+
+        # Limits and behaviours
+        self.a_max: float = float(self.config.get("a_max", -1.0))       # hard acc limit (<=0 => off)
+        self.I_max: float = float(self.config.get("I_max", -1.0))       # integral wind-up cap (<=0 => off)
+        self.smooth: bool = bool(self.config.get("smooth_limit", False))
+
+        # Internal state
+        self._prev_vd: Optional[np.ndarray] = None  # for desired-velocity derivative
+        self._int_e: np.ndarray = np.zeros(3)       # integral of error dt
+
+    # ------------------------------------------------------------------ #
+    #  Public API                                                        #
+    # ------------------------------------------------------------------ #
+    def update(
+        self,
+        current_velocity: np.ndarray,
+        desired_velocity: np.ndarray,
+        dt: float,
+    ) -> np.ndarray:
+        """Compute the force/torque command tau."""
+
+        if dt <= 0.0:
+            raise ValueError("dt must be positive")
+
+        v  = current_velocity.reshape(3)
+        vd = desired_velocity.reshape(3)
+
+        if not hasattr(self, '_vd_dot_smoother'):
+            r = self.config.get("filter_alpha", 0.7)
+            self._vd_dot_smoother = ExponentialSmoothing(r=r)
+
+        if not hasattr(self, '_e_dot_smoother'):
+            r = self.config.get("filter_alpha", 0.7)
+            self._e_dot_smoother = ExponentialSmoothing(r=r)
+
+        raw_vd_dot = (vd - self._prev_vd) / dt if self._prev_vd is not None else np.zeros(3)
+        vd_dot = self._vd_dot_smoother(raw_vd_dot)
+        self._prev_vd = vd.copy()
+
+        e = v - vd
+        raw_e_dot = (v - self._prev_vd) / dt if self._prev_vd is not None else np.zeros(3)
+        e_dot = self._e_dot_smoother(raw_e_dot)
+
+        self._int_e = self._int_e + e * dt
+        self._int_e = np.clip(self._int_e, -self.I_max, self.I_max)
+
+        a_des = vd_dot - self.Kp @ e - self.Ki @ self._int_e - self.Kd @ e_dot
+
+        tau = self.M @ a_des + self.D @ vd
+        return tau
+
+    def reset(self):
+        """Clear stored derivative and integral information."""
+        self._prev_vd = None
+        self._int_e = np.zeros(3)
+
+    # ------------------------------------------------------------------ #
+    #  Private helpers                                                   #
+    # ------------------------------------------------------------------ #
+    def _limit_acceleration(self, a_des: np.ndarray) -> tuple[np.ndarray, bool]:
+        """Return (a_cmd, saturated_flag) after applying the configured limiter."""
+        if self.a_max <= 0.0:
+            return a_des, False  # unlimited
+
+        if self.smooth:
+            # Smooth limiter using tanh
+            a_cmd = self.a_max * np.tanh(a_des / self.a_max)
+            saturated = not np.allclose(a_cmd, a_des)
+            return a_cmd, saturated
+        else:
+            a_cmd = _saturate(a_des, self.a_max)
+            saturated = not np.allclose(a_cmd, a_des)
+            return a_cmd, saturated
 
 class VelocityControlNode(Node):
     """
@@ -81,23 +206,29 @@ class VelocityControlNode(Node):
         super().__init__("velocity_control_node", namespace="voyager")
 
         # Create a velocity controller
-        self.dt = 0.01  # seconds
+        self.dt = 0.05  # seconds
         self.vessel = box.Shoebox(L=1.0, B=0.3, T=0.05)
 
-        # Control gains for surge, sway, and yaw
-        self.k_p_gain = np.array([20, 20, 20])
-        # Control gains for surge, sway, and yaw
-        self.k_i_gain = np.array([2.0, 2.0, 2.0])
+        # # Control gains for surge, sway, and yaw
+        self.k_p_gain = np.array([5.0, 5.0, 5.0])
+        self.k_i_gain = np.array([0.0, 0.0, 0.0])
+        self.k_d_gain = np.array([0.3, 0.3, 0.3])
 
-        self.controller = VelocityController(
-            mass=self.vessel.M_eff,
-            damping=self.vessel.D,
-            k_p_gain=self.k_p_gain,
-            k_i_gain=self.k_i_gain,
-            dt=self.dt,
-            integ_limit=1.0
+        self.controller = AccelLimitedInverseDynamicsPI(
+            config={
+                "M": self.vessel.M_eff,
+                "D": self.vessel.D,
+                "Kp": np.diag(self.k_p_gain),
+                "Ki": np.diag(self.k_i_gain),
+                "Kd": np.diag(self.k_d_gain),
+                "I_max": 20.0,  # Nms
+                "smooth_limit": True,
+                "filter_alpha": 0.1,  # Smoothing factor for desired velocity
+                "dt": self.dt,
+            }
         )
 
+        self.nu_prev = np.zeros(3)  # [u, v, r] previous velocities
         self.nu_cmd = np.zeros(3)  # [u, v, r] desired velocities
         self.nu_cmd_prev = np.zeros(3)  # [u, v, r] desired velocities
 
@@ -123,7 +254,7 @@ class VelocityControlNode(Node):
         # Publisher for control commands
         self.control_pub = self.create_publisher(
             Wrench,
-            'control/force/command',
+            'control/force/mux/velocity',
             10
         )
 
@@ -209,7 +340,6 @@ class VelocityControlNode(Node):
         msg.linear.y = desired_vel[1]
         msg.angular.z = desired_vel[2]
 
-
         self.debug_vel_cmd_pub.publish(msg)
 
         # Publish velocity error for debugging
@@ -223,7 +353,8 @@ class VelocityControlNode(Node):
         self.debug_error_vel_pub.publish(error_twist)
 
         # Update metrics using moving window
-        error_norm = np.sqrt(error_vel[0]**2 + error_vel[1]**2 + error_vel[2]**2)
+        error_norm = np.sqrt(
+            error_vel[0]**2 + error_vel[1]**2 + error_vel[2]**2)
 
         # Initialize start time if not already set
         if self.start_time is None:
@@ -272,9 +403,14 @@ class VelocityControlNode(Node):
         """
         # Update the reference filter
 
-        tau = self.controller.update(v=self.nu, v_des=self.nu_cmd, dv_des=(
-            self.nu_cmd - self.nu_cmd_prev) / self.dt)
-        self.nu_cmd_prev = self.nu_cmd
+        now   = self.get_clock().now().nanoseconds * 1e-9
+        dt_rt = now - self._prev_t if hasattr(self, '_prev_t') else self.dt
+        tau = self.controller.update(
+            current_velocity=self.nu,
+            desired_velocity=self.nu_cmd,
+            dt=dt_rt
+        )
+        self._prev_t = now
 
         # Calculate velocity error for metrics
         error_vel = self.nu_cmd - self.nu
@@ -296,16 +432,22 @@ class VelocityControlNode(Node):
 
 def main(args=None):
     """
-    Main function to initialize and run the velocity control node.
+    Main function to initialize and run the velocity control node with a multithreaded executor.
     """
     rclpy.init(args=args)
     node = VelocityControlNode()
 
+    # Create a multithreaded executor
+    executor = rclpy.executors.MultiThreadedExecutor()
+    executor.add_node(node)
+
     try:
-        rclpy.spin(node)
+        # Spin the executor instead of the node directly
+        executor.spin()
     except KeyboardInterrupt:
         node.get_logger().info("Keyboard interrupt, shutting down...")
     finally:
+        executor.shutdown()
         node.destroy_node()
         rclpy.shutdown()
 
