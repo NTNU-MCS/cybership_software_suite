@@ -12,12 +12,12 @@ ENV ROS_DISTRO=${ROS_DISTRO}
 ENV DEBIAN_FRONTEND=noninteractive
 ENV DEBIAN_FRONTEND=teletype
 
-RUN apt-get update && apt-get install -y sudo
+RUN apt-get update && apt-get upgrade -y && apt-get install -y sudo
 
 RUN uid=${UID} && \
     if getent passwd $uid > /dev/null; then \
-        username=$(getent passwd $uid | cut -d: -f1); \
-        userdel -r $username; \
+    username=$(getent passwd $uid | cut -d: -f1); \
+    userdel -r $username; \
     fi
 
 RUN groupadd --gid "${GID}" ros_user \
@@ -39,9 +39,9 @@ USER ros_user
 RUN sudo apt-get update && \
     sudo apt-get install -y git ros-dev-tools && \
     sudo apt-cache search ${ROS_DISTRO}-rmw \
-      | grep -v -E "dbgsym|connextdds" \
-      | awk '{print $1}' \
-      | xargs sudo apt-get install -y
+    | grep -v -E "dbgsym|connextdds" \
+    | awk '{print $1}' \
+    | xargs sudo apt-get install -y
 
 RUN cd src/cybership_common && git submodule update --init --recursive
 

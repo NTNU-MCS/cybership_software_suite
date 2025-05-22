@@ -62,6 +62,11 @@ class BaseSimulator(Node, ABC):
         self.publisher_odom = self.create_publisher(Odometry, "measurement/odom", 1)
         self.publisher_pose = self.create_publisher(PoseWithCovarianceStamped, "measurement/pose", 1)
 
+        # Add clock publisher for simulated time
+        self.sim_time = 0.0
+        self.clock_msg = Clock()
+        self.publisher_clock = self.create_publisher(Clock, "/clock", 10)
+
         # Common reset service
         self.reset_service = self.create_service(Empty, "simulator/reset", self.reset_simulation)
 
@@ -167,6 +172,8 @@ class BaseSimulator(Node, ABC):
             self.u = np.zeros_like(self.u)
         self.vessel.eta = self.eta0
         self.vessel.nu = self.nu0
+        # Reset simulation time
+        self.sim_time = 0.0
         self._read_parameters()
         return response
 
@@ -177,11 +184,35 @@ class BaseSimulator(Node, ABC):
         """
         tau = (self.allocator._b_matrix @ self.u).flatten()
 
+        # phi = self.vessel.eta[5]
+        # Rz = np.array([
+        #     [np.cos(phi), -np.sin(phi), 0],
+        #     [np.sin(phi), np.cos(phi), 0],
+        #     [0, 0, 1]
+        # ])
+        # # World fixed constant force
+        # F = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+        # # Transform to body fixed frame
+        # F[0:3] = Rz.T @ F[0:3]
+
         self.vessel.eta[2] = 0.0
 
         self.vessel.step(tau=tau, dt=self.dt)
+
+        # Increment simulation time and publish it
+        self.sim_time += self.dt
+        self.publish_clock()
+
         self.publish_odom()
         self.publish_tf()
+
+    def publish_clock(self):
+        """
+        Publish the current simulation time to the /clock topic
+        """
+        self.clock_msg.clock.sec = int(self.sim_time)
+        self.clock_msg.clock.nanosec = int((self.sim_time - int(self.sim_time)) * 1e9)
+        self.publisher_clock.publish(self.clock_msg)
 
     def publish_odom(self):
         eta, nu = self.vessel.get_states()

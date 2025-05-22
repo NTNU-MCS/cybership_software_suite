@@ -1,8 +1,7 @@
 services:
 
-
   voyager:
-    image: docker.io/incebellipipo/cybership:jazzy
+    image: docker.io/incebellipipo/cybership:humble
     profiles: ["voyager"]
     build:
       args:

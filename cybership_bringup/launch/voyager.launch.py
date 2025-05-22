@@ -72,6 +72,12 @@ def generate_launch_description():
         )
     )
 
+    ld.add_action(
+        include_launch_action_with_config(
+            vessel_model, vessel_name,
+            'force_multiplexer.launch.py', 'force_multiplexer.yaml'
+        )
+    )
     # ld.add_action(
     #     include_launch_action_with_config(
     #         vessel_model, vessel_name,

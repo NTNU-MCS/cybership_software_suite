@@ -1,2 +1,3 @@
 scipy
 numpy
+shoeboxpy @ git+https://github.com/NTNU-MCS/shoeboxpy.git@v0.0.1

@@ -21,10 +21,11 @@ ament_python_install_package(${PROJECT_NAME})
 
 install(
   PROGRAMS
-    ${PROJECT_NAME}/four_corner_client.py
     ${PROJECT_NAME}/four_corner_line_of_sight.py
-    ${PROJECT_NAME}/go_to_server.py
-    ${PROJECT_NAME}/go_to.py
+    ${PROJECT_NAME}/four_corner_client.py
+    ${PROJECT_NAME}/pid_position_server.py
+    ${PROJECT_NAME}/go_to_client.py
+    ${PROJECT_NAME}/reference_filter_server.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

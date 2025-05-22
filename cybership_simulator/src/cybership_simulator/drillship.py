@@ -67,7 +67,7 @@ class DrillshipSimulator(BaseSimulator):
     def setup_thrusters(self):
         """
         Sets up thruster publishers/subscriptions for Drillship.
-        In this example, Voyager uses three thruster groups with a combined command vector of dimension 5.
+        In this example, Drillship uses three thruster groups with a combined command vector of dimension 5.
         """
         # Initialize the thruster command vector (5 elements)
         self.u = np.zeros((12, 1))

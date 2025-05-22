@@ -81,7 +81,7 @@ class VoyagerSimulator(BaseSimulator):
     def cb_tunnel_thruster(self, msg: geometry_msgs.msg.Wrench):
         self.u[0] = msg.force.x
 
-        if np.linalg.norm(self.u[0]) < 0.1:
+        if np.linalg.norm(self.u[0]) < 0.05:
             self.u[0] = 0.0
 
         issued = geometry_msgs.msg.WrenchStamped()
@@ -127,9 +127,19 @@ class VoyagerSimulator(BaseSimulator):
 
 def main(args=None):
     rclpy.init(args=args)
+
     simulator = VoyagerSimulator()
-    rclpy.spin(simulator)
-    rclpy.shutdown()
+
+    # Create a multithreaded executor
+    executor = rclpy.executors.MultiThreadedExecutor()
+    executor.add_node(simulator)
+
+    try:
+        executor.spin()
+    finally:
+        # Clean shutdown
+        simulator.destroy_node()
+        rclpy.shutdown()
 
 
 if __name__ == "__main__":
