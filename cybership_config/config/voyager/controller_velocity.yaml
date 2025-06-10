@@ -1,0 +1,39 @@
+/**:
+  ros__parameters:
+    # Vessel physical dimensions (meters)
+    vessel:
+      length: 1.0    # Length of vessel
+      beam: 0.3      # Width of vessel
+      draft: 0.05    # Draft (depth) of vessel
+
+    # Control parameters
+    control:
+      # Proportional gains for each DOF
+      p_gain:
+        surge: 5.0   # Forward/backward
+        sway: 5.0    # Left/right
+        yaw: 5.0     # Rotation
+
+      # Integral gains for each DOF
+      i_gain:
+        surge: 0.0
+        sway: 0.0
+        yaw: 0.0
+
+      # Derivative gains for each DOF
+      d_gain:
+        surge: 0.3
+        sway: 0.3
+        yaw: 0.3
+
+      i_max: 20.0          # Maximum integral contribution
+      smooth_limit: true    # Enable smooth limiting
+      filter_alpha: 0.1     # Smoothing factor for desired velocity (0-1)
+
+    # Performance metrics configuration
+    metrics:
+      window_size: 50       # Number of samples in moving window
+      interval: 1.0         # Time between metrics calculations (seconds)
+
+    # General parameters
+    dt: 0.1                 # Control loop time step (seconds)
