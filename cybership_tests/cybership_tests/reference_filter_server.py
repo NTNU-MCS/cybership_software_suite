@@ -28,6 +28,7 @@ from shoeboxpy.model3dof import Shoebox
 from visualization_msgs.msg import Marker
 from std_msgs.msg import Float32MultiArray
 
+from cybership_controller.position.reference_filter import ThirdOrderReferenceFilter
 
 try:
     from cybership_interfaces.msg import PerformanceMetrics
@@ -62,88 +63,6 @@ def Rz(psi):
     )
 
 
-class ThrdOrderRefFilter:
-    """Third-order reference filter for guidance."""
-
-    def __init__(self, dt, omega=[0.2, 0.2, 0.2], delta=[1.0, 1.0, 1.0], initial_eta=None):
-        self._dt = dt
-        # Keep everything as a float array
-        self.eta_d = (
-            np.zeros(3) if initial_eta is None else np.array(
-                initial_eta, dtype=float)
-        )  # [ x, y, yaw ]
-        self.eta_d_dot = np.zeros(3)
-        self.eta_d_ddot = np.zeros(3)
-        self._eta_r = self.eta_d.copy()  # reference target (unwrapped)
-
-        # State vector of 9 elements: [ eta, eta_dot, eta_ddot ]
-        self._x = np.concatenate([self.eta_d, self.eta_d_dot, self.eta_d_ddot])
-
-        # Gains
-        self._delta = np.eye(3)
-        self._w = np.diag(omega)
-        O3x3 = np.zeros((3, 3))
-        self.Ad = np.block(
-            [
-                [O3x3, np.eye(3), O3x3],
-                [O3x3, O3x3, np.eye(3)],
-                [
-                    -self._w**3,
-                    -(2 * self._delta + np.eye(3)) @ self._w**2,
-                    -(2 * self._delta + np.eye(3)) @ self._w,
-                ],
-            ]
-        )
-        self.Bd = np.block([[O3x3], [O3x3], [self._w**3]])
-
-    def get_eta_d(self):
-        """Get desired pose: [ x, y, yaw ]."""
-        return self.eta_d
-
-    def get_eta_d_dot(self):
-        """Get desired velocity in the inertial frame."""
-        return self.eta_d_dot
-
-    def get_eta_d_ddot(self):
-        """Get desired acceleration in the inertial frame."""
-        return self.eta_d_ddot
-
-    def get_nu_d(self):
-        """Get desired velocity in *body* frame (u, v, r)."""
-        psi = self.eta_d[2]
-        return Rz(psi).T @ self.eta_d_dot
-
-    def set_eta_r(self, eta_r):
-        """
-        Set the reference pose. We ensure the yaw changes by at most ±π
-        so the filter sees only small changes in yaw.
-        """
-        old_yaw = self._eta_r[2]
-        new_yaw = eta_r[2]
-
-        # Wrap new yaw to [-pi, pi]
-        new_yaw = wrap_to_pi(new_yaw)
-
-        # Get minimal difference
-        diff = wrap_to_pi(new_yaw - old_yaw)
-        continuous_yaw = old_yaw + diff  # small step only
-
-        self._eta_r = np.array([eta_r[0], eta_r[1], continuous_yaw])
-
-    def update(self):
-        """
-        Integrate filter for one time step. We do NOT forcibly wrap
-        'self.eta_d[2]' so the filter remains continuous in yaw.
-        """
-        x_dot = self.Ad @ self._x + self.Bd @ self._eta_r
-        self._x += self._dt * x_dot
-
-        # Extract the updated states
-        self.eta_d = self._x[:3]
-        self.eta_d_dot = self._x[3:6]
-        self.eta_d_ddot = self._x[6:]
-
-
 def saturate(x, z):
     """
     Saturation function: returns x / (|x| + z)
@@ -169,12 +88,10 @@ class GotoPointController(Node):
         self.debug_error_vel_pub = self.create_publisher(
             TwistStamped, "control/pose/debug/tracking_error_velocity", 10)
 
-
         self.debug_metrics_pub = None
         if PerformanceMetrics is not None:
             self.debug_metrics_pub = self.create_publisher(
                 PerformanceMetrics, "control/pose/debug/performance_metrics", 10)
-
 
         # self.create_subscription(PoseStamped, "/goal_pose", self.goal_pose_callback, 10)
         self.create_subscription(
@@ -279,7 +196,7 @@ class GotoPointController(Node):
                     msg.pose.pose.orientation.w,
                 ]
             ).as_euler("xyz", degrees=False)
-            self.ref_filter = ThrdOrderRefFilter(
+            self.ref_filter = ThirdOrderReferenceFilter(
                 dt=self.dt,
                 omega=[0.15, 0.15, 0.15],
                 delta=[0.8, 0.8, 0.8],
@@ -378,7 +295,6 @@ class GotoPointController(Node):
                 f"RMS: {metrics_msg.rms:.3f}m, Max: {metrics_msg.max:.3f}m"
             )
 
-
     def control_loop(self):
         """
         Control loop that computes and publishes the control command.
@@ -438,11 +354,13 @@ class GotoPointController(Node):
         self.integral_error_yaw += error_yaw * self.dt
 
         # Apply saturation to the integral error
-        self.integral_error_pos = np.clip(self.integral_error_pos, -self.max_integral_error_pos, self.max_integral_error_pos)
+        self.integral_error_pos = np.clip(
+            self.integral_error_pos, -self.max_integral_error_pos, self.max_integral_error_pos)
         #  self.integral_error_pos = self.max_integral_error_pos * saturate(
         #     self.integral_error_pos, self.saturation_pos
         # )
-        self.integral_error_yaw = np.clip(self.integral_error_yaw, -self.max_integral_error_yaw, self.max_integral_error_yaw)
+        self.integral_error_yaw = np.clip(
+            self.integral_error_yaw, -self.max_integral_error_yaw, self.max_integral_error_yaw)
         # self.integral_error_yaw = self.max_integral_error_yaw * saturate(
         #     self.integral_error_yaw, self.saturation_yaw
         # )
@@ -469,7 +387,8 @@ class GotoPointController(Node):
         )
 
         # Process and publish performance metrics
-        self.process_performance_metrics(desired_pose, desired_vel, error_pos, error_vel, error_yaw)
+        self.process_performance_metrics(
+            desired_pose, desired_vel, error_pos, error_vel, error_yaw)
 
         control_x, control_y, control_yaw = Rz(
             current_yaw).T @ np.array([world_x, world_y, world_yaw])

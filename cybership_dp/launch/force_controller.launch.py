@@ -44,6 +44,12 @@ def generate_launch_description():
             "--vessel-name",
             launch.substitutions.LaunchConfiguration("vessel_name"),
         ],
+        remappings=[
+            (
+                "control/force/command",
+                "control/force/command/mux",
+            ),  # Remap to the multiplexer output
+        ],
         output="screen",
         respawn=True,
         respawn_delay=5,
@@ -56,8 +62,10 @@ def generate_launch_description():
         executable="mux",
         name=f"force_mux_{anon()}",
         arguments=[
-            "control/force/command",  # Output topic
-            "control/force/mux",      # Input topic to listen to
+            "control/force/command/mux",           # Output topic
+            "control/force/command",               # Input topic to listen to
+            "control/force/command/velocity",      # Input topic to listen to
+            "control/force/command/position",      # Input topic to listen to
             "--repeat-delay", "0.1"   # Optional delay for repeated messages
         ],
         output="screen",
