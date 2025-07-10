@@ -107,7 +107,7 @@ class ForceControllerROS(rclpy.node.Node):
             extra_attributes={
                 "rate_limit": 0.1,
                 "saturation_limit": 1.0,
-                "reference_angle": -np.pi / 2.0,
+                "reference_angle": np.pi / 2.0,
                 "name": "port_azimuth",
             },
         )
@@ -116,7 +116,7 @@ class ForceControllerROS(rclpy.node.Node):
             extra_attributes={
                 "rate_limit": 0.1,
                 "saturation_limit": 1.0,
-                "reference_angle": np.pi / 2.0,
+                "reference_angle": -np.pi / 2.0,
                 "name": "starboard_azimuth",
             },
         )

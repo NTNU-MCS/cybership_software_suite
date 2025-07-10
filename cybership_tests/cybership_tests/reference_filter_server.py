@@ -119,6 +119,17 @@ class GotoPointController(Node):
             ]
         )
 
+        # Initialize the 3rd order reference filter.
+        # Here, we treat [x, y, yaw] as the 3D pose to be smoothed.
+        self.ref_filter = None
+
+        self.start_time = None
+
+        self.error_window = []  # For position error
+        self.error_yaw_window = []  # For yaw error
+        self.sample_count = 0
+        self.last_metrics_time = 0.0
+
         # Add parameter callback for runtime updates
         self.add_on_set_parameters_callback(self.parameters_callback)
 
@@ -169,9 +180,6 @@ class GotoPointController(Node):
         self.error_pos = np.zeros(2)
         self.error_yaw = 0.0
 
-        # Initialize the 3rd order reference filter.
-        # Here, we treat [x, y, yaw] as the 3D pose to be smoothed.
-        self.ref_filter = None
 
         self.get_logger().info(
             "Goto Point Controller (Reference Filter Version) Initialized with parameters."

@@ -77,6 +77,8 @@ class BaseSimulator(Node, ABC):
         self.dt = 0.01
         self.timer = self.create_timer(self.dt, self.iterate)
 
+        self.body_frame_id = "base_link_ned"
+
     # ------------------------------------------------------------------------
     # ABSTRACT METHODS (to be implemented in subclasses)
     # ------------------------------------------------------------------------
@@ -124,6 +126,8 @@ class BaseSimulator(Node, ABC):
                 ('yaw_rate', 0.0),
             ]
         )
+        self.declare_parameter('frame_id', 'world')
+        self.declare_parameter('body_frame_id', 'base_link_ned')
 
     def _read_parameters(self):
         self.eta0[0] = self.get_parameter('initial_conditions.position.x').value
@@ -195,7 +199,7 @@ class BaseSimulator(Node, ABC):
         # # Transform to body fixed frame
         # F[0:3] = Rz.T @ F[0:3]
 
-        self.vessel.eta[2] = 0.0
+        # self.vessel.eta[2] = 0.0
 
         self.vessel.step(tau=tau, dt=self.dt)
 
@@ -221,7 +225,7 @@ class BaseSimulator(Node, ABC):
 
         self.odom.header.frame_id = "world"
         self.odom.header.stamp = self.get_clock().now().to_msg()
-        self.odom.child_frame_id = "base_link"
+        self.odom.child_frame_id = "base_link_ned"
 
         self.odom.pose.pose.position.x = eta[0].item()
         self.odom.pose.pose.position.y = eta[1].item()
@@ -249,7 +253,7 @@ class BaseSimulator(Node, ABC):
         t = TransformStamped()
         t.header.stamp = self.get_clock().now().to_msg()
         t.header.frame_id = "world"
-        t.child_frame_id = "base_link"
+        t.child_frame_id = "base_link_ned"
 
         t.transform.translation.x = self.odom.pose.pose.position.x
         t.transform.translation.y = self.odom.pose.pose.position.y
