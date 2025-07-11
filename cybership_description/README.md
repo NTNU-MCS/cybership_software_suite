@@ -19,7 +19,12 @@ This package depends on:
 - `xacro`: For URDF preprocessing
 - `urdf`: For URDF parsing
 
-## Usage
+## Frames
+
+> [!NOTE]
+> The devices on the vehicle is first defined in the ENU coordinate frame, and then transformed to the NED coordinate frame using `base_link_ned` frame.
+
+##  Usage
 
 ### Visualizing the Model
 

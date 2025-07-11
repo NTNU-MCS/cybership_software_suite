@@ -72,9 +72,9 @@ def saturate(x, z):
     return x / (np.abs(x) + z)
 
 
-class GotoPointController(Node):
+class PositionController(Node):
     def __init__(self):
-        super().__init__("goto_point_controller", namespace="voyager")
+        super().__init__("position_controller", namespace="cybership")
 
         # Declare parameters with default values
         self.declare_parameters(
@@ -640,7 +640,7 @@ class GotoPointController(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    server_node = GotoPointController()
+    server_node = PositionController()
     client_node = NavigateToPoseClient()
     executor = (
         MultiThreadedExecutor()

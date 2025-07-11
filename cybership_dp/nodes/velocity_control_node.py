@@ -33,7 +33,7 @@ class VelocityControlNode(Node):
     """
 
     def __init__(self):
-        super().__init__("velocity_control_node", namespace="voyager")
+        super().__init__("velocity_control_node", namespace="cybership")
 
         # Declare parameters with default values
         self.declare_parameters(
@@ -105,7 +105,7 @@ class VelocityControlNode(Node):
         # Publisher for control commands
         self.control_pub = self.create_publisher(
             Wrench,
-            'control/force/command/velocity',
+            'control/force/command',
             10
         )
 

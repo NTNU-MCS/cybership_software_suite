@@ -16,7 +16,7 @@ def generate_launch_description():
                 launch_ros.substitutions.FindPackageShare("cybership_config"),
                 "config",
                 launch.substitutions.LaunchConfiguration("vessel_model"),
-                "controller_velocity.yaml",
+                "controller_position.yaml",
             ]
         ),
     )
@@ -26,11 +26,11 @@ def generate_launch_description():
     for arg in arguments:
         ld.add_action(arg)
 
-    node_velocity_controller = launch_ros.actions.Node(
+    node_position_controller = launch_ros.actions.Node(
         namespace=launch.substitutions.LaunchConfiguration("vessel_name"),
         package="cybership_dp",
-        executable="velocity_control_node.py",
-        name=f"velocity_controller",
+        executable="position_control_node.py",
+        name=f"position_controller",
         parameters=[
             launch.substitutions.LaunchConfiguration("param_file"),
             {
@@ -47,38 +47,16 @@ def generate_launch_description():
         ],
         remappings=[
             (
-                "control/velocity/command",
-                "control/velocity/command/mux",
-            ),  # Remap to the multiplexer output
-            (
                 "control/force/command",
-                "control/force/command/velocity",
-            ),  # Remap force command to velocity controller output
+                "control/force/command/position",
+            ),  # Remap force command to position controller output
         ],
         output="screen",
         respawn=True,
         respawn_delay=5,
     )
 
-    ld.add_action(node_velocity_controller)
-
-    # Add topic multiplexer node for velocity commands
-    node_topic_mux = launch_ros.actions.Node(
-        namespace=launch.substitutions.LaunchConfiguration("vessel_name"),
-        package="topic_tools",
-        executable="mux",
-        name=f"velocity_mux",
-        arguments=[
-            "control/velocity/command/mux",           # Output topic
-            "control/velocity/command",               # Input topic to listen to
-            "--repeat-delay", "0.1",                  # Optional delay for repeated messages
-            "--initial-topic", "control/velocity/command"  # Initial topic to publish
-        ],
-        output="screen",
-        respawn=True,
-        respawn_delay=5,
-    )
-    ld.add_action(node_topic_mux)
+    ld.add_action(node_position_controller)
 
     # Add argument to control whether to auto-switch the mux
     arg_auto_switch = launch.actions.DeclareLaunchArgument(
