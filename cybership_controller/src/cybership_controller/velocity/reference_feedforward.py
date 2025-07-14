@@ -59,10 +59,10 @@ class RffVelocityController():
 
         # Internal state
         # for desired-velocity derivative
-        self._prev_vd: Optional[np.ndarray] = None
+        self._prev_vd: Optional[np.ndarray] = np.zeros(3)  # previous desired velocity
         self._int_e: np.ndarray = np.zeros(3)       # integral of error dt
 
-        self._prev_tau = None
+        self._prev_tau = np.zeros(3)  # previous tau command
 
     def update(self, current_velocity: np.ndarray, desired_velocity: np.ndarray, dt: float) -> np.ndarray:
         r"""Compute the force/torque command tau.
@@ -97,7 +97,7 @@ class RffVelocityController():
         """
 
         if dt <= 0.0:
-            return self._prev_tau if self._prev_tau is not None else np.zeros(3)
+            return self._prev_tau
 
         v = current_velocity.reshape(3)
         vd = desired_velocity.reshape(3)
@@ -128,3 +128,13 @@ class RffVelocityController():
         tau = self.M @ a_des + self.D @ vd
         self._prev_tau = tau.copy()
         return tau
+
+    def reset(self):
+        """Reset the controller state."""
+        self._prev_vd = np.zeros(3)
+        self._int_e = np.zeros(3)
+        self._prev_tau = np.zeros(3)
+        if hasattr(self, '_vd_dot_smoother'):
+            self._vd_dot_smoother.reset()
+        if hasattr(self, '_e_dot_smoother'):
+            self._e_dot_smoother.reset()
