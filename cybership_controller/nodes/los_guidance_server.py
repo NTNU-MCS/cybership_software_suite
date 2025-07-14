@@ -19,6 +19,8 @@ from cybership_interfaces.action import LOSGuidance
 
 # Import underlying LOS guidance implementation
 from cybership_controller.guidance.los import LOSGuidance as BaseLOSGuidance
+import numpy as np
+from scipy.interpolate import splev
 
 class LOSGuidanceROS(Node):
     def __init__(self):
@@ -80,6 +82,8 @@ class LOSGuidanceROS(Node):
         k_h = float(self.get_parameter('heading_gain').value)
         guidance = BaseLOSGuidance(waypoints, V_d=V_d, delta=delta)
         last_wp = waypoints[-1]
+        # Visualize spline path
+        self.publish_spline_marker(guidance)
         # Define rate for loop (10 Hz)
         rate = self.create_rate(10)
 
@@ -119,7 +123,6 @@ class LOSGuidanceROS(Node):
 
         goal_handle.succeed()
         result = LOSGuidance.Result()
-        result.success = True
         return result
 
     def publish_path_marker(self, path_msg: Path):
@@ -154,6 +157,22 @@ class LOSGuidanceROS(Node):
         start = Point(x=x, y=y, z=0.0)
         end = Point(x=x + vel_arrow[0], y=y + vel_arrow[1], z=0.0)
         marker.points = [start, end]
+        self._marker_pub.publish(marker)
+
+    def publish_spline_marker(self, guidance):
+        marker = Marker()
+        marker.header.frame_id = 'world'
+        marker.header.stamp = self.get_clock().now().to_msg()
+        marker.ns = 'los_spline'
+        marker.id = 2
+        marker.type = Marker.LINE_STRIP
+        marker.action = Marker.ADD
+        marker.scale.x = 0.05
+        marker.color.r = 0.0; marker.color.g = 0.0; marker.color.b = 1.0; marker.color.a = 1.0
+        # Sample spline path points
+        ts = np.linspace(0, 1, 100)
+        spline_pts = np.array(splev(ts, guidance.tck)).T
+        marker.points = [Point(x=pt[0], y=pt[1], z=0.0) for pt in spline_pts]
         self._marker_pub.publish(marker)
 
 

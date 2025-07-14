@@ -12,6 +12,21 @@ class LOSGuidance:
         :param delta: look-ahead distance (m)
         """
         pts = np.asarray(pts)
+
+        # Add three intermediate points between each consecutive waypoint pair
+        expanded_pts = [pts[0]]  # Start with first point
+        for i in range(len(pts) - 1):
+            start_pt = pts[i]
+            end_pt = pts[i + 1]
+            # Add 3 intermediate points
+            for j in range(1, 4):
+                alpha = j / 4.0
+                intermediate_pt = start_pt + alpha * (end_pt - start_pt)
+                expanded_pts.append(intermediate_pt)
+            expanded_pts.append(end_pt)  # Add the end point
+
+        pts = np.array(expanded_pts)
+
         # Fit cubic B-spline to the waypoints
         self.tck, _ = splprep([pts[:, 0], pts[:, 1]], s=0, k=3)
         self.V_d = V_d
