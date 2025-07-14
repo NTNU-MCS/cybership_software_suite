@@ -16,6 +16,8 @@ from geometry_msgs.msg import Twist, Wrench
 from nav_msgs.msg import Odometry
 import shoeboxpy.model3dof as box
 
+from std_srvs.srv import SetBool
+
 from cybership_controller.velocity.reference_feedforward import RffVelocityController as VelocityController
 
 # Add import for performance metrics
@@ -144,6 +146,14 @@ class VelocityControlNode(Node):
         # Timer for control loop
         self.timer = self.create_timer(self.dt, self.control_loop)
 
+        # Service to enable/disable the velocity controller
+        self.enabled = True
+        self.state_service = self.create_service(
+            SetBool,
+            f"{self.get_name()}/change_state",
+            self.change_state_callback
+        )
+
         self.get_logger().info("Velocity controller initialized with parameters")
 
     def update_configuration(self):
@@ -224,6 +234,23 @@ class VelocityControlNode(Node):
             self.update_configuration()
 
         return True  # Accept all parameter changes
+
+    def change_state_callback(self, request, response):
+        """Service callback to enable/disable the velocity controller."""
+        if request.data:
+            self.enabled = True
+            # Reset performance metrics state
+            self.start_time = None
+            self.error_window.clear()
+            self.sample_count = 0
+            self.last_metrics_time = 0.0
+            response.success = True
+            response.message = "Velocity controller enabled and reset."
+        else:
+            self.enabled = False
+            response.success = True
+            response.message = "Velocity controller disabled."
+        return response
 
     def cmd_vel_callback(self, msg: Twist):
         """
@@ -333,6 +360,9 @@ class VelocityControlNode(Node):
         """
         Periodic control loop to update reference filter and publish control commands.
         """
+        # Skip control loop if controller is disabled
+        if not self.enabled:
+            return
         tau = self.controller.update(
             current_velocity=self.nu,
             desired_velocity=self.nu_cmd,
@@ -355,6 +385,25 @@ class VelocityControlNode(Node):
         wrench_msg.torque.z = float(tau[2])
 
         self.control_pub.publish(wrench_msg)
+
+    def change_state_callback(self, request, response):
+        """
+        Callback for the change_state service to enable/disable the controller.
+        """
+        self.enabled = request.data
+
+        if self.enabled:
+            response.message = "Velocity controller enabled"
+            self.get_logger().info(response.message)
+        else:
+                       # Publish zero forces and torques to reset the controller
+            zero_wrench = Wrench()
+            self.control_pub.publish(zero_wrench)
+            response.message = "Velocity controller disabled"
+            self.get_logger().info(response.message)
+
+        response.success = True
+        return response
 
 
 def main(args=None):

@@ -180,7 +180,6 @@ class PositionController(Node):
         self.error_pos = np.zeros(2)
         self.error_yaw = 0.0
 
-
         self.get_logger().info(
             "Goto Point Controller (Reference Filter Version) Initialized with parameters."
         )
@@ -197,6 +196,13 @@ class PositionController(Node):
             goal_callback=self.action_goal_callback,
             cancel_callback=self.action_cancel_callback,
         )
+        # Service to enable/disable the controller
+        self.enabled = True
+        self.state_service = self.create_service(
+            SetBool,
+            f"{self.get_name()}/change_state",
+            self.change_state_callback
+        )
 
     def update_configuration(self):
         """Update controller configuration from parameters"""
@@ -212,10 +218,14 @@ class PositionController(Node):
         self.Kd_yaw = self.get_parameter('control.d_gain.yaw').value
 
         # Get controller limits
-        self.max_integral_error_pos = self.get_parameter('control.max_integral_error.pos').value
-        self.max_integral_error_yaw = self.get_parameter('control.max_integral_error.yaw').value
-        self.saturation_pos = self.get_parameter('control.saturation.pos').value
-        self.saturation_yaw = self.get_parameter('control.saturation.yaw').value
+        self.max_integral_error_pos = self.get_parameter(
+            'control.max_integral_error.pos').value
+        self.max_integral_error_yaw = self.get_parameter(
+            'control.max_integral_error.yaw').value
+        self.saturation_pos = self.get_parameter(
+            'control.saturation.pos').value
+        self.saturation_yaw = self.get_parameter(
+            'control.saturation.yaw').value
 
         # Get tolerances
         self.pos_tol = self.get_parameter('control.tolerance.pos').value
@@ -407,6 +417,10 @@ class PositionController(Node):
         Periodic control loop to update reference filter and publish control commands.
         This version uses a 3rd order reference filter to generate a smooth desired trajectory.
         """
+        # Skip control loop if controller is disabled
+        if not self.enabled:
+            return
+
         if self.latest_odom is None:
             return
 
@@ -527,6 +541,34 @@ class PositionController(Node):
         self.get_logger().info("Received cancel request for NavigateToPose")
         return CancelResponse.ACCEPT
 
+    def change_state_callback(self, request, response):
+        """Service callback to enable/disable the controller."""
+        if request.data:
+            self.enabled = True
+            # Reset controller state
+            self.start_time = None
+            self.error_window.clear()
+            self.error_yaw_window.clear()
+            self.sample_count = 0
+            self.last_metrics_time = 0.0
+            self.integral_error_pos = np.zeros(2)
+            self.integral_error_yaw = 0.0
+            self.error_pos = np.zeros(2)
+            self.error_yaw = 0.0
+            self.ref_filter = None
+
+            response.success = True
+            response.message = "Controller enabled and reset."
+        else:
+            self.enabled = False
+            # Publish zero forces and torques to reset the controller
+            zero_wrench = Wrench()
+            self.control_pub.publish(zero_wrench)
+
+            response.success = True
+            response.message = "Controller disabled."
+        return response
+
     def execute_callback(self, goal_handle):
         self.get_logger().info("Executing NavigateToPose goal...")
 
@@ -554,13 +596,14 @@ class PositionController(Node):
         self.publish_target_pose_marker(target_pose)
 
         # Loop until the robot reaches the target (within tolerance) or the goal is canceled.
-        while rclpy.ok():
+        while rclpy.ok():  # Loop until the robot reaches the target or goal is canceled
             if goal_handle.is_cancel_requested:
                 goal_handle.canceled()
                 self.get_logger().info("NavigateToPose goal canceled")
                 result = NavigateToPose.Result()
                 return result
 
+            # Wait for odometry
             if self.latest_odom is None:
                 time.sleep(1.0)
                 continue

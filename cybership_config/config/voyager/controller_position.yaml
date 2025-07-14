@@ -10,15 +10,15 @@
     control:
       # Position control gains
       p_gain:
-        pos: 4.0     # Proportional gain for position
+        pos: 2.0     # Proportional gain for position
         vel: 0.7     # Proportional gain for velocity
-        yaw: 1.3     # Proportional gain for yaw
+        yaw: 0.9     # Proportional gain for yaw
 
       # Integral gains
       i_gain:
         pos: 0.2     # Integral gain for position
         vel: 0.1     # Integral gain for velocity
-        yaw: 0.2     # Integral gain for yaw
+        yaw: 0.1     # Integral gain for yaw
 
       # Derivative gains
       d_gain:
@@ -29,7 +29,7 @@
       # Integral error limits
       max_integral_error:
         pos: 1.0     # Maximum position error integration
-        yaw: 1.4     # Maximum yaw error integration
+        yaw: 0.6     # Maximum yaw error integration
 
       # Saturation parameters
       saturation:
