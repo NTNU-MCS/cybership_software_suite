@@ -33,17 +33,6 @@ def generate_launch_description():
         name=f"position_controller",
         parameters=[
             launch.substitutions.LaunchConfiguration("param_file"),
-            {
-                "vessel_model": launch.substitutions.LaunchConfiguration(
-                    "vessel_model"
-                ),
-            },
-        ],
-        arguments=[
-            "--vessel-model",
-            launch.substitutions.LaunchConfiguration("vessel_model"),
-            "--vessel-name",
-            launch.substitutions.LaunchConfiguration("vessel_name"),
         ],
         remappings=[
             (
@@ -57,15 +46,5 @@ def generate_launch_description():
     )
 
     ld.add_action(node_position_controller)
-
-    # Add argument to control whether to auto-switch the mux
-    arg_auto_switch = launch.actions.DeclareLaunchArgument(
-        name="auto_switch_mux",
-        default_value="true",
-        description="Automatically switch force mux to velocity controller output",
-    )
-    ld.add_action(arg_auto_switch)
-
-
 
     return ld

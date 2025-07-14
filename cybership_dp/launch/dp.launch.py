@@ -70,7 +70,6 @@ def generate_launch_description():
             '{topic: "control/force/command/position"}'
         ],
         output='screen',
-        condition=launch.conditions.LaunchConfigurationEquals('auto_switch_mux', 'true')
     )
     ld.add_action(service_call_switch_mux)
 
