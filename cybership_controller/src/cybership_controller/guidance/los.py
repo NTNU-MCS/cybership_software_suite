@@ -7,6 +7,10 @@ class LOSGuidance:
         """
         Initialize the LOS guidance module.
 
+        # TODO: This works as long as the waypoints are far apart. Path
+        #       parameterization should be added between waypoints to ensure
+        #       optimum doesn't jump between segments.
+
         :param pts: array-like of shape (N, 2), waypoints in NED coordinates
         :param V_d: desired speed (m/s)
         :param delta: look-ahead distance (m)

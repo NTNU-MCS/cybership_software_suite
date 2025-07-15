@@ -11,7 +11,8 @@ import math
 import time
 from rclpy.action import ActionClient
 from nav2_msgs.action import NavigateToPose
-
+from tf_transformations import quaternion_from_euler
+import numpy as np
 
 class ActionRunner(Node):
     def __init__(self):
@@ -21,24 +22,32 @@ class ActionRunner(Node):
         self.actions = [
             {
                 'action': 'pose',
-                'parameters': {'x': 0.0, 'y': 0.0, 'yaw': 0.0},
-                'duration': 2.0,
+                'parameters': {'x': -2.0, 'y': -2.0, 'yaw': np.pi / 4},
+                'duration': 10.0,
             },
             {
                 'action': 'velocity',
                 'parameters': {'linear_x': 0.5, 'linear_y': 0.0, 'angular_z': 0.0},
-                'duration': 20.0,
+                'duration': 30.0,
+            },
+            {
+                'action': 'wait',
+                'duration': 5.0,
             },
             {
                 'action': 'pose',
-                'parameters': {'x': 0.0, 'y': 0.0, 'yaw': 0.0},
-                'duration': 2.0,
+                'parameters': {'x': 2.0, 'y': 2.0, 'yaw': 5 * np.pi / 4},
+                'duration': 10.0,
             },
             {
                 'action': 'velocity',
                 'parameters': {'linear_x': 0.5, 'linear_y': 0.0, 'angular_z': 0.0},
-                'duration': 10.0,
+                'duration': 30.0,
             },
+            {
+                'action': 'wait',
+                'duration': 5.0,
+            }
         ]
         self.repeat = 5
 
@@ -109,15 +118,16 @@ class ActionRunner(Node):
         # Build goal message
         msg = PoseStamped()
         msg.header.stamp = self.get_clock().now().to_msg()
-        msg.header.frame_id = 'map'
+        msg.header.frame_id = 'world'
         msg.pose.position.x = x
         msg.pose.position.y = y
         msg.pose.position.z = 0.0
         # Orientation quaternion
-        qz = math.sin(yaw / 2.0)
-        qw = math.cos(yaw / 2.0)
-        msg.pose.orientation.z = qz
-        msg.pose.orientation.w = qw
+        quat = quaternion_from_euler(0.0, 0.0, yaw)
+        msg.pose.orientation.x = quat[0]
+        msg.pose.orientation.y = quat[1]
+        msg.pose.orientation.z = quat[2]
+        msg.pose.orientation.w = quat[3]
 
         goal_msg = NavigateToPose.Goal()
         goal_msg.pose = msg

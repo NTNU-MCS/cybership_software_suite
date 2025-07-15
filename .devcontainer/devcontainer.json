@@ -1,7 +1,7 @@
 {
     "image": "incebellipipo/devcontainer:humble",
     "customizations": {
-        "terminalPrompt": "🐳 [container] ${containerName} ${folder}",
+        "terminalPrompt": "[container] ${containerName} ${folder}",
         "settings": {
             "terminal.integrated.shell.linux": "/bin/bash"
         },

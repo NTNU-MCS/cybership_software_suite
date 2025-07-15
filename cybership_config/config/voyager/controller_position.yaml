@@ -29,7 +29,7 @@
       # Integral error limits
       max_integral_error:
         pos: 1.0     # Maximum position error integration
-        yaw: 0.6     # Maximum yaw error integration
+        yaw: 0.1     # Maximum yaw error integration
 
       # Saturation parameters
       saturation:
@@ -44,7 +44,7 @@
     # Reference filter parameters
     filter:
       omega: [0.15, 0.15, 0.15]  # Natural frequency for reference filter
-      delta: [0.8, 0.8, 0.8]     # Damping ratio for reference filter
+      delta: [1.8, 1.8, 1.8]     # Damping ratio for reference filter
 
     # Performance metrics configuration
     metrics:

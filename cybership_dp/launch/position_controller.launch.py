@@ -10,7 +10,7 @@ def generate_launch_description():
 
     ld = launch.LaunchDescription()
     arg_param_file = launch.actions.DeclareLaunchArgument(
-        name="param_file",
+        name="param",
         default_value=launch.substitutions.PathJoinSubstitution(
             [
                 launch_ros.substitutions.FindPackageShare("cybership_config"),
@@ -22,8 +22,8 @@ def generate_launch_description():
     )
     ld.add_action(arg_param_file)
 
-    arguments = list(filter(lambda a: a.name not in ["param_file", "vessel_model"], ARGUMENTS))
-    for arg in arguments:
+    # arguments = list(filter(lambda a: a.name not in ["param_file", "vessel_model"], ARGUMENTS))
+    for arg in ARGUMENTS:
         ld.add_action(arg)
 
     node_position_controller = launch_ros.actions.Node(
@@ -32,7 +32,7 @@ def generate_launch_description():
         executable="position_control_node.py",
         name=f"position_controller",
         parameters=[
-            launch.substitutions.LaunchConfiguration("param_file"),
+            launch.substitutions.LaunchConfiguration("param"),
         ],
         remappings=[
             (
