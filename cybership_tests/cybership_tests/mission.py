@@ -14,11 +14,15 @@ from nav2_msgs.action import NavigateToPose
 from tf_transformations import quaternion_from_euler
 import numpy as np
 
+
 class ActionRunner(Node):
     def __init__(self):
         # Node namespace set at initialization; service and topic names are relative
         super().__init__('action_runner', namespace='cybership')
         # Define the mission actions
+
+        self.rng = np.random.default_rng()
+
         self.actions = [
             {
                 'action': 'pose',
@@ -27,7 +31,12 @@ class ActionRunner(Node):
             },
             {
                 'action': 'velocity',
-                'parameters': {'linear_x': 0.5, 'linear_y': 0.0, 'angular_z': 0.0},
+                'parameters': {
+                    # Sample linear and angular components each publish
+                    'linear_x': lambda: self.rng.uniform(0.4, 0.6),
+                    'linear_y': lambda: self.rng.uniform(-0.1, 0.1),
+                    'angular_z': lambda: self.rng.uniform(-0.1, 0.1)
+                },
                 'duration': 30.0,
             },
             {
@@ -41,7 +50,12 @@ class ActionRunner(Node):
             },
             {
                 'action': 'velocity',
-                'parameters': {'linear_x': 0.5, 'linear_y': 0.0, 'angular_z': 0.0},
+                'parameters': {
+                    # Sample linear and angular components each publish
+                    'linear_x': lambda: self.rng.uniform(0.4, 0.6),
+                    'linear_y': lambda: self.rng.uniform(-0.1, 0.1),
+                    'angular_z': lambda: self.rng.uniform(-0.1, 0.1)
+                },
                 'duration': 30.0,
             },
             {
@@ -168,19 +182,27 @@ class ActionRunner(Node):
         # Activate velocity controller
         self.call_mux('control/force/command/velocity')
         self.set_enable(self.vel_enable_client, True, 'velocity')
-        # Prepare command
+        # Loop and publish, sampling parameters if callable
         msg = Twist()
-        msg.linear.x = params['linear_x']
-        msg.linear.y = params['linear_y']
-        msg.angular.z = params['angular_z']
-        # Loop and publish
+        lx = params['linear_x']() if callable(params.get(
+            'linear_x')) else params.get('linear_x', 0.0)
+        ly = params['linear_y']() if callable(params.get(
+            'linear_y')) else params.get('linear_y', 0.0)
+        az = params['angular_z']() if callable(params.get(
+            'angular_z')) else params.get('angular_z', 0.0)
+        self.get_logger().info(
+            f'Velocity action (u={lx:.2f}, v={ly:.2f}, r={az:.2f})')
         start = self.get_clock().now().nanoseconds / 1e9
         while rclpy.ok() and (self.get_clock().now().nanoseconds / 1e9 - start) < duration:
+            # Sample velocity parameters if provided as callables
+
+            msg.linear.x = lx
+            msg.linear.y = ly
+            msg.angular.z = az
             self.vel_pub.publish(msg)
             if self.current_odom:
                 pos = self.current_odom.pose.pose.position
-                self.get_logger().debug(
-                    f'Velocity action - current pos: ({pos.x:.2f}, {pos.y:.2f})')
+
             rclpy.spin_once(self, timeout_sec=0.1)
         # Deactivate velocity controller
         self.set_enable(self.vel_enable_client, False, 'velocity')
@@ -204,7 +226,8 @@ class ActionRunner(Node):
                 self.set_enable(self.vel_enable_client, False, 'velocity')
                 # Execute action-specific loop
                 if act == 'pose':
-                    self.get_logger().info(f'Starting pose action for {duration}s')
+                    self.get_logger().info(
+                        f'Starting pose action for {duration}s')
                     self.run_pose_action(params, duration)
                 elif act == 'velocity':
                     self.get_logger().info(
@@ -219,12 +242,6 @@ class ActionRunner(Node):
     def odom_callback(self, msg):
         # Store and log the current vehicle pose from odometry data
         self.current_odom = msg
-        pos = msg.pose.pose.position
-        ori = msg.pose.pose.orientation
-        self.get_logger().info(
-            f'Current pose - Position: ({pos.x:.2f}, {pos.y:.2f}, {pos.z:.2f}), '
-            f'Orientation: ({ori.x:.2f}, {ori.y:.2f}, {ori.z:.2f}, {ori.w:.2f})'
-        )
 
 
 def main(args=None):
