@@ -51,8 +51,6 @@ def generate_launch_description():
             "control/force/command",               # Input topic to listen to
             "control/force/command/velocity",      # Input topic to listen to
             "control/force/command/position",      # Input topic to listen to
-            "--repeat-delay", "0.1"   # Optional delay for repeated messages
-            "--initial_topic", "control/force/command"  # Initial topic to publish
         ],
         output="screen",
         respawn=True,

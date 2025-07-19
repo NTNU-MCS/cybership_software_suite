@@ -60,8 +60,6 @@ def generate_launch_description():
         arguments=[
             "control/velocity/command/mux",           # Output topic
             "control/velocity/command",               # Input topic to listen to
-            "--repeat-delay", "0.1",                  # Optional delay for repeated messages
-            "--initial-topic", "control/velocity/command"  # Initial topic to publish
         ],
         output="screen",
         respawn=True,
