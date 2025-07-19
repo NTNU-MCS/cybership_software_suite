@@ -23,7 +23,7 @@ class ActionRunner(Node):
 
         self.add_mux('control/force/command/constant')
 
-        self.repeat = 5
+        self.repeat = 500
 
         # Publisher for velocity controller input
         self.vel_pub = self.create_publisher(
@@ -197,7 +197,7 @@ class ActionRunner(Node):
         """
         while rclpy.ok() and self.current_odom is None:
             self.get_logger().info('Waiting for initial odometry data...')
-            rclpy.spin_once(self, timeout_sec=0.1)
+            rclpy.spin_once(self, timeout_sec=0.5)
         self.get_logger().info('Initial odometry data received.')
 
     def add_mux(self, topic: str):
@@ -383,6 +383,8 @@ class ActionRunner(Node):
                 raise RuntimeError('Abort condition met during velocity action, aborting')
 
             rclpy.spin_once(self, timeout_sec=0.5)
+            # actual sleep to enforce loop period
+            time.sleep(0.5)
 
         # Deactivate velocity controller
         self.set_enable(self.vel_enable_client, False, 'velocity')
@@ -404,7 +406,9 @@ class ActionRunner(Node):
             if elapsed >= grace and self.abort_condition():
                 raise RuntimeError('Abort condition met during wait action, aborting')
 
-            rclpy.spin_once(self, timeout_sec=0.1)
+            rclpy.spin_once(self, timeout_sec=0.5)
+            # actual sleep to enforce loop period
+            time.sleep(0.5)
             # Feedback: log current odometry state
             if self.current_odom:
                 pos = self.current_odom.pose.pose.position
@@ -419,7 +423,7 @@ class ActionRunner(Node):
         msg = Wrench()
 
         self.get_logger().info(
-            f'Force action ('
+            f'    Force action ('
             f'fx={params.get("force_x", 0.0):.4f}, '
             f'fy={params.get("force_y", 0.0):.4f}, '
             f'tz={params.get("torque_z", 0.0):.4f})'
@@ -450,7 +454,9 @@ class ActionRunner(Node):
             if elapsed >= grace and self.abort_condition():
                 raise RuntimeError('Abort condition met during force action, aborting')
 
-            rclpy.spin_once(self, timeout_sec=0.1)
+            rclpy.spin_once(self, timeout_sec=0.5)
+            # actual sleep to enforce loop period
+            time.sleep(0.5)
 
     def execute_action(self, action):
         """
