@@ -13,41 +13,70 @@ from rclpy.action import ActionClient
 from nav2_msgs.action import NavigateToPose
 from tf_transformations import quaternion_from_euler
 import numpy as np
+from typing import Any, Dict, Optional, List
+
+# Topic and service name constants
+TOPIC_FORCE_CONSTANT: str = 'control/force/command/constant'
+TOPIC_VELOCITY_COMMAND: str = 'control/velocity/command'
+TOPIC_ODOM: str = 'measurement/odom'
+TOPIC_POSE_GOAL: str = 'navigate_to_pose'
+TOPIC_FORCE_POSITION: str = 'control/force/command/position'
+TOPIC_FORCE_VELOCITY: str = 'control/force/command/velocity'
+TOPIC_FORCE_BASE: str = 'control/force/command'
+
+SERVICE_MUX_ADD: str = 'force_mux/add'
+SERVICE_MUX_SELECT: str = 'force_mux/select'
+SERVICE_POSE_ENABLE: str = 'position_controller/change_state'
+SERVICE_VEL_ENABLE: str = 'velocity_controller/change_state'
 
 
 class ActionRunner(Node):
-    def __init__(self):
-        # Node namespace set at initialization; service and topic names are relative
-        super().__init__('action_runner', namespace='cybership')
-        # Define the mission actions
+    """
+    ActionRunner executes a predefined sequence of navigation, velocity, force, and wait actions
+    on a ROS2 node, monitoring odometry for abort conditions.
 
-        self.add_mux('control/force/command/constant')
+    Attributes:
+        repeat (int): Number of times to repeat the full action sequence.
+        current_odom (Odometry): Latest odometry message for pose feedback.
+    """
+    def __init__(self):
+        """
+        Initialize the ActionRunner node, including publishers, subscribers, action and service clients.
+
+        Sets up:
+            - Mux for force control topics
+            - Publishers for velocity (Twist) and force (Wrench) commands
+            - Subscriber for odometry (Odometry)
+            - ActionClient for NavigateToPose
+            - Service clients for enabling/disabling pose and velocity controllers
+        """
+        super().__init__('action_runner', namespace='cybership')
+        # Define the list of mission actions
+        self.add_mux(TOPIC_FORCE_CONSTANT)
 
         self.repeat = 500
 
-        # Publisher for velocity controller input
         self.vel_pub = self.create_publisher(
-            Twist, 'control/velocity/command', 10)
-        # Publisher for constant force command
+            Twist, TOPIC_VELOCITY_COMMAND, 10)
         self.force_pub = self.create_publisher(
-            Wrench, 'control/force/command/constant', 10)
+            Wrench, TOPIC_FORCE_CONSTANT, 10)
 
-        # Initialize odometry storage
+        # Initialize storage for odometry messages
         self.current_odom = None
-        # Subscribe to odometry to monitor vehicle pose
+        # Subscribe to '/measurement/odom' topic for odometry feedback
         self.create_subscription(
-            Odometry, 'measurement/odom', self.odom_callback, 10)
+            Odometry, TOPIC_ODOM, self.odom_callback, 10)
         self.get_logger().info('Subscribed to measurement/odom')
 
         # Action client for pose navigation (relative to node namespace)
         self.pose_action_client = ActionClient(
-            self, NavigateToPose, 'navigate_to_pose')
+            self, NavigateToPose, TOPIC_POSE_GOAL)
         self.get_logger().info('Waiting for NavigateToPose action server...')
         self.pose_action_client.wait_for_server()
 
         # Enable/disable service clients (service names to be set later)
-        POSE_ENABLE_SERVICE = 'position_controller/change_state'
-        VELOCITY_ENABLE_SERVICE = 'velocity_controller/change_state'
+        POSE_ENABLE_SERVICE = SERVICE_POSE_ENABLE
+        VELOCITY_ENABLE_SERVICE = SERVICE_VEL_ENABLE
 
         if POSE_ENABLE_SERVICE:
             self.pose_enable_client = self.create_client(
@@ -190,20 +219,26 @@ class ActionRunner(Node):
             }
         ]
 
-    def wait_until_ready(self):
+    def wait_until_ready(self) -> None:
         """
-        Wait until the odometry has been read at least once.
-        This is useful to ensure the vehicle has a valid pose before starting actions.
+        Block until the first odometry message is received.
+
+        Ensures the vehicle has a valid initial pose before performing actions.
         """
         while rclpy.ok() and self.current_odom is None:
             self.get_logger().info('Waiting for initial odometry data...')
             rclpy.spin_once(self, timeout_sec=0.5)
         self.get_logger().info('Initial odometry data received.')
 
-    def add_mux(self, topic: str):
-        """Add a topic to the mux via MuxAdd service."""
+    def add_mux(self, topic: str) -> None:
+        """
+        Add a topic to the force multiplexer using MuxAdd service.
+
+        Args:
+            topic (str): ROS topic name to add to the mux.
+        """
         req = MuxAdd.Request()
-        mux_add_client = self.create_client(MuxAdd, 'force_mux/add')
+        mux_add_client = self.create_client(MuxAdd, SERVICE_MUX_ADD)
         req.topic = topic
         future = mux_add_client.call_async(req)
         rclpy.spin_until_future_complete(self, future)
@@ -213,16 +248,23 @@ class ActionRunner(Node):
         else:
             self.get_logger().error(f'Failed to add mux topic {topic}')
 
-    def abort_condition(self):
+    def abort_condition(self) -> bool:
         """
-        Check if the abort condition is met based on the current odometry.
-        This can be overridden in derived classes to implement specific conditions.
+        Determine if the mission should abort based on odometry limits.
+
+        Returns:
+            bool: True if |x| or |y| position exceeds 2.5 meters, False otherwise.
         """
         return abs(self.current_odom.pose.pose.position.x) > 2.5 or abs(self.current_odom.pose.pose.position.y) > 2.5
 
-    def call_mux(self, topic: str):
+    def call_mux(self, topic: str) -> None:
+        """
+        Select the active force control topic on the mux.
 
-        mux_client = self.create_client(MuxSelect, 'force_mux/select')
+        Args:
+            topic (str): ROS topic name to select for force commands.
+        """
+        mux_client = self.create_client(MuxSelect, SERVICE_MUX_SELECT)
         mux_client.wait_for_service()
         self.get_logger().info(f'Calling mux select for topic {topic}')
         req = MuxSelect.Request()
@@ -234,7 +276,15 @@ class ActionRunner(Node):
         else:
             self.get_logger().error(f'Failed to switch mux to {topic}')
 
-    def set_enable(self, client, enable: bool, name: str):
+    def set_enable(self, client: Optional[Any], enable: bool, name: str) -> None:
+        """
+        Enable or disable a controller via SetBool service.
+
+        Args:
+            client (rclpy.client.Client): Service client for SetBool.
+            enable (bool): True to enable, False to disable.
+            name (str): Human-readable name of the controller.
+        """
         if client is None:
             return
         req = SetBool.Request()
@@ -246,8 +296,13 @@ class ActionRunner(Node):
         else:
             self.get_logger().error(f'Failed to set {name} enable={enable}')
 
-    def _pose_feedback_callback(self, feedback_msg):
-        """Log distance remaining from NavigateToPose feedback."""
+    def _pose_feedback_callback(self, feedback_msg: Any) -> None:
+        """
+        Callback to log remaining distance from a NavigateToPose action.
+
+        Args:
+            feedback_msg: Action feedback message containing distance_remaining (float, meters).
+        """
         fb = feedback_msg.feedback
         # nav2 NavigateToPose feedback has distance_remaining
         dist = getattr(fb, 'distance_remaining', None)
@@ -256,10 +311,24 @@ class ActionRunner(Node):
         else:
             self.get_logger().info('    NavigateToPose feedback received')
 
-    def run_pose_action(self, **params):
-        """Unified pose action: send NavigateToPose goal and monitor abort (including while waiting)."""
+    def run_pose_action(self, **params: Any) -> None:
+        """
+        Navigate to a target pose and monitor for timeouts or abort conditions.
+
+        Sends a NavigateToPose goal and cancels if duration elapsed or abort condition met.
+
+        Args:
+            x (float): Target x-position in meters.
+            y (float): Target y-position in meters.
+            yaw (float): Target yaw angle in radians.
+            duration (float): Max navigation time in seconds.
+            grace (float): Grace period before starting abort checks in seconds.
+
+        Raises:
+            RuntimeError: If abort_condition() returns True after grace period.
+        """
         # Activate pose controller via mux & service
-        self.call_mux('control/force/command/position')
+        self.call_mux(TOPIC_FORCE_POSITION)
         self.set_enable(self.pose_enable_client, True, 'pose')
 
         # Extract parameters
@@ -330,10 +399,23 @@ class ActionRunner(Node):
         # Deactivate pose controller
         self.set_enable(self.pose_enable_client, False, 'pose')
 
-    def run_velocity_action(self, **params):
-        """Execute a velocity action in a loop, sending velocity commands continuously."""
+    def run_velocity_action(self, **params: Any) -> None:
+        """
+        Publish constant velocity commands for a given duration, with optional early stop.
+
+        Args:
+            linear_x (float): Desired linear velocity in x (m/s).
+            linear_y (float): Desired linear velocity in y (m/s).
+            angular_z (float): Desired angular velocity around z (rad/s).
+            duration (float): Total time to publish commands (seconds).
+            margin (float, optional): Early stop threshold for actual vs commanded velocity (m/s).
+            grace (float): Grace period before starting abort checks (seconds).
+
+        Raises:
+            RuntimeError: If abort_condition() returns True after grace period.
+        """
         # Activate velocity controller
-        self.call_mux("control/force/command/velocity")
+        self.call_mux(TOPIC_FORCE_VELOCITY)
         self.set_enable(self.vel_enable_client, True, 'velocity')
 
         # Prepare and log command
@@ -389,47 +471,63 @@ class ActionRunner(Node):
         # Deactivate velocity controller
         self.set_enable(self.vel_enable_client, False, 'velocity')
 
-    def run_wait_action(self, **params):
-        """Simple wait loop, still processing callbacks."""
-        # Extract duration, optional grace period, and start time
+    def run_wait_action(self, **params: Any) -> None:
+        """
+        Wait for a specified duration while processing ROS callbacks.
+
+        This loop periodically checks for an abort condition after an optional grace period
+        and logs odometry feedback during the wait.
+
+        Args:
+            duration (float): Total wait time in seconds.
+            grace (float): Grace period before starting abort checks in seconds.
+
+        Raises:
+            RuntimeError: If abort_condition() returns True after grace period.
+        """
         duration = params.get('duration', 0.0)
         grace = params.get('grace', 0.0)
         start = self.get_clock().now().nanoseconds / 1e9
 
         self.get_logger().info(f'Waiting for {duration:.4f} seconds')
-
         elapsed = 0.0
         while rclpy.ok() and elapsed < duration:
-            # abort check after grace period
             elapsed = self.get_clock().now().nanoseconds / 1e9 - start
 
             if elapsed >= grace and self.abort_condition():
-                raise RuntimeError('Abort condition met during wait action, aborting')
+                raise RuntimeError(
+                    'Abort condition met during wait action, aborting')
 
             rclpy.spin_once(self, timeout_sec=0.5)
-            # actual sleep to enforce loop period
             time.sleep(0.5)
-            # Feedback: log current odometry state
+
             if self.current_odom:
                 pos = self.current_odom.pose.pose.position
                 self.get_logger().info(
-                    f'Wait feedback: pos=({pos.x:.2f}, {pos.y:.2f}), elapsed={elapsed:.2f}s'
+                    f'Wait feedback: pos=({pos.x:.2f}, {pos.y:.2f}), '
+                    f'elapsed={elapsed:.2f}s'
                 )
 
-    def run_force_action(self, **params):
-        """Execute a constant force action in a loop."""
-        # Activate force topic on mux
-        self.call_mux("control/force/command/constant")
+    def run_force_action(self, **params: Any) -> None:
+        """
+        Apply a constant force to the vehicle for a specified duration.
+
+        This loop publishes a Wrench message at fixed intervals and checks for abort
+        conditions after an optional grace period. Odometry feedback is logged each cycle.
+
+        Args:
+            force_x (float): Force in x-direction in Newtons.
+            force_y (float): Force in y-direction in Newtons.
+            torque_z (float): Torque about z-axis in Newton-meters.
+            duration (float): Total time to apply force in seconds.
+            grace (float): Grace period before starting abort checks in seconds.
+
+        Raises:
+            RuntimeError: If abort_condition() returns True after grace period.
+        """
+        self.call_mux(TOPIC_FORCE_CONSTANT)
         msg = Wrench()
 
-        self.get_logger().info(
-            f'    Force action ('
-            f'fx={params.get("force_x", 0.0):.4f}, '
-            f'fy={params.get("force_y", 0.0):.4f}, '
-            f'tz={params.get("torque_z", 0.0):.4f})'
-        )
-
-        # Extract duration, optional grace period, and start time
         duration = params.get('duration', 0.0)
         grace = params.get('grace', 0.0)
 
@@ -443,25 +541,27 @@ class ActionRunner(Node):
             msg.torque.z = params.get('torque_z', 0.0)
             self.force_pub.publish(msg)
 
-            # Feedback: log current odometry state
             if self.current_odom:
                 pos = self.current_odom.pose.pose.position
                 self.get_logger().info(
                     f'Force feedback: pos=({pos.x:.2f}, {pos.y:.2f})'
                 )
 
-            # abort check after grace period
             if elapsed >= grace and self.abort_condition():
-                raise RuntimeError('Abort condition met during force action, aborting')
+                raise RuntimeError(
+                    'Abort condition met during force action, aborting')
 
             rclpy.spin_once(self, timeout_sec=0.5)
-            # actual sleep to enforce loop period
             time.sleep(0.5)
 
-    def execute_action(self, action):
+    def execute_action(self, action: Dict[str, Any]) -> None:
         """
-        Execute a single action, handling any exceptions and aborts.
-        This is a wrapper to allow for dynamic action execution.
+        Execute one mission action and resolve its parameters.
+
+        Normalizes callable parameters, disables other controllers, and invokes the action.
+
+        Args:
+            action (dict): Action descriptor with keys 'action' (callable) and 'parameters' (dict).
         """
         if not isinstance(action, dict):
             self.get_logger().error(f'Invalid action format: {action}')
@@ -482,8 +582,12 @@ class ActionRunner(Node):
 
         runner(**resolved_params)
 
-    def execute_actions(self):
+    def execute_actions(self) -> None:
+        """
+        Loop through the action sequence `repeat` times, handling aborts.
 
+        For each action, calls execute_action and on RuntimeError runs an abort_action.
+        """
         for _ in range(self.repeat):
 
             for action in self.actions:
@@ -500,16 +604,21 @@ class ActionRunner(Node):
                         self.get_logger().error(f'Abort action failed too!: {abort_e}')
                         self.set_enable(self.pose_enable_client, False, 'pose')
                         self.set_enable(self.vel_enable_client, False, 'velocity')
-                        self.call_mux('control/force/command')
+                        self.call_mux(TOPIC_FORCE_BASE)
                         exit(1)
 
 
     def odom_callback(self, msg):
-        # Store and log the current vehicle pose from odometry data
+        """
+        Callback for Odometry subscription; stores the latest message.
+
+        Args:
+            msg (Odometry): Received odometry message containing pose and twist.
+        """
         self.current_odom = msg
 
 
-def main(args=None):
+def main(args: Optional[List[str]] = None) -> None:
     rclpy.init(args=args)
     node = ActionRunner()
     node.execute_actions()
