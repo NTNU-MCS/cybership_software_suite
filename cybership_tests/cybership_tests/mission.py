@@ -15,6 +15,8 @@ from tf_transformations import quaternion_from_euler
 import numpy as np
 from typing import Any, Dict, Optional, List
 from rclpy.executors import MultiThreadedExecutor, SingleThreadedExecutor
+from abc import ABC, abstractmethod
+import time
 
 
 # Topic and service name constants
@@ -245,10 +247,12 @@ class ActionRunner(Node):
 
         Ensures the vehicle has a valid initial pose before performing actions.
         """
+
         while rclpy.ok() and self.current_odom is None:
             self.get_logger().info("Waiting for initial odometry data...")
             # process callbacks without blocking executor
             rclpy.spin_once(self, timeout_sec=0.1)
+            time.sleep(0.5)
         self.get_logger().info("Initial odometry data received.")
 
     def _experiment_publisher(self) -> None:
@@ -481,6 +485,7 @@ class ActionRunner(Node):
         # Loop at ~10 Hz, processing callbacks without blocking
         period = 0.1
 
+
         while rclpy.ok() and elapsed < duration:
             elapsed = self.get_clock().now().nanoseconds / 1e9 - start
             # Publish the commanded velocity
@@ -513,8 +518,7 @@ class ActionRunner(Node):
                 raise RuntimeError(
                     "Abort condition met during velocity action, aborting"
                 )
-
-            # enforce loop rate and allow callbacks
+            time.sleep(0.1)
             rclpy.spin_once(self, timeout_sec=period)
 
         # Deactivate velocity controller
@@ -624,6 +628,7 @@ class ActionRunner(Node):
             if elapsed >= grace and self.abort_condition():
                 raise RuntimeError("Abort condition met during force action, aborting")
 
+            time.sleep(period)  # Sleep for the period to control frequency
             # allow callbacks and enforce publish rate
             rclpy.spin_once(self)
 
@@ -698,10 +703,13 @@ class ActionRunner(Node):
 def main(args: Optional[List[str]] = None) -> None:
     rclpy.init(args=args)
     node = ActionRunner()
+
+    executor = MultiThreadedExecutor()
+    executor.add_node(node)
+
     node.execute_actions()
-    rclpy.spin(node)
-    node.destroy_node()
-    rclpy.shutdown()
+    executor.spin()
+    executor.shutdown()
 
 if __name__ == "__main__":
     main()
