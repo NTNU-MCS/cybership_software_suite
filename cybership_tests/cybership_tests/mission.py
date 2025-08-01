@@ -704,7 +704,7 @@ def main(args: Optional[List[str]] = None) -> None:
     rclpy.init(args=args)
     node = ActionRunner()
 
-    executor = MultiThreadedExecutor()
+    executor = SingleThreadedExecutor()
     executor.add_node(node)
 
     node.execute_actions()

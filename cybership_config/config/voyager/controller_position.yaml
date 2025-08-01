@@ -43,8 +43,8 @@
 
     # Reference filter parameters
     filter:
-      omega: [0.15, 0.15, 0.15]  # Natural frequency for reference filter
-      delta: [1.8, 1.8, 1.8]     # Damping ratio for reference filter
+      omega: [0.25, 0.25, 0.60]  # Natural frequency for reference filter
+      delta: [1.00, 1.00, 1.00]     # Damping ratio for reference filter
 
     # Performance metrics configuration
     metrics:
