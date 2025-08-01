@@ -1,6 +1,6 @@
 /**:
   ros__parameters:
-    world_frame: world_ned
+    world_frame: world
     base_frame: mocap_link
     rigid_body_name: "0"
     topic_name: measurement/pose
