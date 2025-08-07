@@ -26,9 +26,7 @@ def include_launch_action_with_config(
             (
                 'param_file',
                 launch.substitutions.PathJoinSubstitution(
-                    launch.substitutions.PathJoinSubstitution(
-                        [config_pkg_dir, 'config', vessel_model, param_file]
-                    )
+                    [config_pkg_dir, 'config', vessel_model, config_file]
                 )
             )
         )
