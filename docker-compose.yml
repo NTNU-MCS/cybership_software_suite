@@ -1,7 +1,7 @@
 services:
 
   voyager:
-    image: docker.io/incebellipipo/cybership:humble
+    image: docker.io/incebellipipo/cybership:jazzy
     profiles: ["voyager"]
     build:
       args:
@@ -20,13 +20,13 @@ services:
     restart: always
 
   enterprise:
-    image: docker.io/incebellipipo/cybership:humble
+    image: docker.io/incebellipipo/cybership:jazzy
     profiles: ["enterprise"]
     build:
       context: .
       dockerfile: dockerfile
       args:
-        ROS_DISTRO: humble
+        ROS_DISTRO: jazzy
     command: ros2 launch cybership_bringup enterprise.launch.py vessel_name:=enterprise
     network_mode: host
     ipc: host
@@ -39,13 +39,13 @@ services:
     restart: always
 
   drillship:
-    image: docker.io/incebellipipo/cybership:humble
+    image: docker.io/incebellipipo/cybership:jazzy
     profiles: ["drillship"]
     build:
       context: .
       dockerfile: dockerfile
       args:
-        ROS_DISTRO: humble
+        ROS_DISTRO: jazzy
     command: ros2 launch cybership_bringup drillship.launch.py vessel_name:=drillship
     network_mode: host
     ipc: host
