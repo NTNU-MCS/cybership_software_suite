@@ -119,7 +119,7 @@ thrusters:
     signal_inverted: true
 ```
 
-You can load this configuration via a YAML file and pass it as an argument to your node or use ROS2’s parameter mechanisms to set these values dynamically.
+You can load this configuration via a YAML file and pass it as an argument to your node or use ROS2's parameter mechanisms to set these values dynamically.
 
 ## Additional Information
 

@@ -62,6 +62,10 @@ void Azimuth::f_force_callback(const geometry_msgs::msg::Wrench::SharedPtr msg)
     auto angle = std::atan2(msg->force.y, msg->force.x);
     auto rpm = std::sqrt(std::pow(msg->force.y,2) + std::pow(msg->force.x,2));
 
+    if (m_config.angle_inverted) {
+        angle = -angle;
+    }
+
     angle_msg.data = angle;
     rpm_msg.data = rpm;
 

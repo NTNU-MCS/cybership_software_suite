@@ -15,6 +15,7 @@ import time
 import numpy as np
 import rclpy
 from rclpy.node import Node
+from rclpy.parameter import Parameter
 from geometry_msgs.msg import Wrench, Pose2D, PoseStamped, TwistStamped
 from nav_msgs.msg import Odometry
 import math
@@ -27,7 +28,8 @@ from cybership_tests.go_to_client import NavigateToPoseClient
 from shoeboxpy.model3dof import Shoebox
 from visualization_msgs.msg import Marker
 from std_msgs.msg import Float32MultiArray
-
+from std_srvs.srv import SetBool, Trigger, Empty
+from cybership_controller.position.reference_filter import ThirdOrderReferenceFilter
 
 try:
     from cybership_interfaces.msg import PerformanceMetrics
@@ -62,88 +64,6 @@ def Rz(psi):
     )
 
 
-class ThrdOrderRefFilter:
-    """Third-order reference filter for guidance."""
-
-    def __init__(self, dt, omega=[0.2, 0.2, 0.2], delta=[1.0, 1.0, 1.0], initial_eta=None):
-        self._dt = dt
-        # Keep everything as a float array
-        self.eta_d = (
-            np.zeros(3) if initial_eta is None else np.array(
-                initial_eta, dtype=float)
-        )  # [ x, y, yaw ]
-        self.eta_d_dot = np.zeros(3)
-        self.eta_d_ddot = np.zeros(3)
-        self._eta_r = self.eta_d.copy()  # reference target (unwrapped)
-
-        # State vector of 9 elements: [ eta, eta_dot, eta_ddot ]
-        self._x = np.concatenate([self.eta_d, self.eta_d_dot, self.eta_d_ddot])
-
-        # Gains
-        self._delta = np.eye(3)
-        self._w = np.diag(omega)
-        O3x3 = np.zeros((3, 3))
-        self.Ad = np.block(
-            [
-                [O3x3, np.eye(3), O3x3],
-                [O3x3, O3x3, np.eye(3)],
-                [
-                    -self._w**3,
-                    -(2 * self._delta + np.eye(3)) @ self._w**2,
-                    -(2 * self._delta + np.eye(3)) @ self._w,
-                ],
-            ]
-        )
-        self.Bd = np.block([[O3x3], [O3x3], [self._w**3]])
-
-    def get_eta_d(self):
-        """Get desired pose: [ x, y, yaw ]."""
-        return self.eta_d
-
-    def get_eta_d_dot(self):
-        """Get desired velocity in the inertial frame."""
-        return self.eta_d_dot
-
-    def get_eta_d_ddot(self):
-        """Get desired acceleration in the inertial frame."""
-        return self.eta_d_ddot
-
-    def get_nu_d(self):
-        """Get desired velocity in *body* frame (u, v, r)."""
-        psi = self.eta_d[2]
-        return Rz(psi).T @ self.eta_d_dot
-
-    def set_eta_r(self, eta_r):
-        """
-        Set the reference pose. We ensure the yaw changes by at most ±π
-        so the filter sees only small changes in yaw.
-        """
-        old_yaw = self._eta_r[2]
-        new_yaw = eta_r[2]
-
-        # Wrap new yaw to [-pi, pi]
-        new_yaw = wrap_to_pi(new_yaw)
-
-        # Get minimal difference
-        diff = wrap_to_pi(new_yaw - old_yaw)
-        continuous_yaw = old_yaw + diff  # small step only
-
-        self._eta_r = np.array([eta_r[0], eta_r[1], continuous_yaw])
-
-    def update(self):
-        """
-        Integrate filter for one time step. We do NOT forcibly wrap
-        'self.eta_d[2]' so the filter remains continuous in yaw.
-        """
-        x_dot = self.Ad @ self._x + self.Bd @ self._eta_r
-        self._x += self._dt * x_dot
-
-        # Extract the updated states
-        self.eta_d = self._x[:3]
-        self.eta_d_dot = self._x[3:6]
-        self.eta_d_ddot = self._x[6:]
-
-
 def saturate(x, z):
     """
     Saturation function: returns x / (|x| + z)
@@ -152,9 +72,66 @@ def saturate(x, z):
     return x / (np.abs(x) + z)
 
 
-class GotoPointController(Node):
+class PositionController(Node):
     def __init__(self):
-        super().__init__("goto_point_controller", namespace="voyager")
+        super().__init__("position_controller", namespace="cybership")
+
+        # Declare parameters with default values
+        self.declare_parameters(
+            namespace='',
+            parameters=[
+                # Controller gains
+                ('control.p_gain.pos', 4.0),
+                ('control.i_gain.pos', 0.2),
+                ('control.d_gain.pos', 0.2),
+                ('control.p_gain.vel', 0.7),
+                ('control.i_gain.vel', 0.1),
+                ('control.d_gain.vel', 0.5),
+                ('control.p_gain.yaw', 1.3),
+                ('control.i_gain.yaw', 0.2),
+                ('control.d_gain.yaw', 1.0),
+
+                # Controller limits
+                ('control.max_integral_error.pos', 1.0),
+                ('control.max_integral_error.yaw', 1.4),
+                ('control.saturation.pos', 0.1),
+                ('control.saturation.yaw', 0.1),
+
+                # Tolerances
+                ('control.tolerance.pos', 0.25),
+                ('control.tolerance.yaw', 0.1),
+
+                # Vessel properties
+                ('vessel.length', 1.0),
+                ('vessel.beam', 0.3),
+                ('vessel.draft', 0.02),
+
+                # Reference filter parameters
+                ('filter.omega', [0.15, 0.15, 0.15]),
+                ('filter.delta', [0.8, 0.8, 0.8]),
+
+                # Performance metrics
+                ('metrics.window_size', 200),
+                ('metrics.interval', 1.0),
+
+                # Time step
+                ('dt', 0.01),
+            ]
+        )
+
+        # Initialize the 3rd order reference filter.
+        # Here, we treat [x, y, yaw] as the 3D pose to be smoothed.
+        self.ref_filter = None
+
+        self.start_time = None
+
+        self.error_window = []  # For position error
+        self.error_yaw_window = []  # For yaw error
+        self.sample_count = 0
+        self.last_metrics_time = 0.0
+
+        # Add parameter callback for runtime updates
+        self.add_on_set_parameters_callback(self.parameters_callback)
 
         # Publisher to send control commands (force and torque)
         self.control_pub = self.create_publisher(
@@ -169,12 +146,10 @@ class GotoPointController(Node):
         self.debug_error_vel_pub = self.create_publisher(
             TwistStamped, "control/pose/debug/tracking_error_velocity", 10)
 
-
         self.debug_metrics_pub = None
         if PerformanceMetrics is not None:
             self.debug_metrics_pub = self.create_publisher(
                 PerformanceMetrics, "control/pose/debug/performance_metrics", 10)
-
 
         # self.create_subscription(PoseStamped, "/goal_pose", self.goal_pose_callback, 10)
         self.create_subscription(
@@ -183,7 +158,12 @@ class GotoPointController(Node):
         self.marker_pub = self.create_publisher(
             Marker, "visualization_marker", 10)
 
-        self.dt = 0.01  # seconds
+        # Get time step from parameters
+        self.dt = self.get_parameter('dt').value
+
+        # Initialize controller parameters from ROS parameters
+        self.update_configuration()
+
         # Latest odometry message storage
         self.latest_odom = None
 
@@ -193,65 +173,19 @@ class GotoPointController(Node):
         self.target_y = None  # target y position (meters)
         self.target_yaw = None  # target yaw (radians)
 
-        # --- Controller gains (for the PD part) ---
-        # You can tune these gains as needed.
-        self.Kp_pos = 4.0  # proportional gain for position
-        self.Ki_pos = 0.2  # integral gain for position
-        self.Kd_pos = 0.2  # derivative gain for position
-        self.Kp_vel = 0.7  # proportional gain for velocity
-        self.Ki_vel = 0.1  # integral gain for velocity
-        self.Kd_vel = 0.5  # derivative gain for velocity
-
-        self.Kp_yaw = 1.3   # proportional gain for yaw
-        self.Ki_yaw = 0.2  # integral gain for yaw
-        self.Kd_yaw = 1.0   # derivative gain for yaw
-
-        # --- Performance metrics ---
-        # Performance metrics tracking with moving window
-        self.window_size = 200  # 2 seconds of data at 100Hz
-        self.error_window = []  # Store recent position errors
-        self.error_yaw_window = []  # Store recent yaw errors
-        self.start_time = None
-        self.sample_count = 0
-
-        # Time between metrics calculations (e.g., 1 second)
-        self.metrics_interval = 1.0  # seconds
-        self.last_metrics_time = 0.0
-
         # Track integral error
-        self.max_integral_error_pos = 1.0
-        self.max_integral_error_yaw = 1.4
         self.integral_error_pos = np.zeros(2)
         self.integral_error_yaw = 0.0
-
-        # Saturation parameters (if needed)
-        self.saturation_pos = 0.1
-        self.saturation_yaw = 0.1
-
-        # Tolerances for considering the target reached
-        self.pos_tol = 0.25  # meters
-        self.yaw_tol = 0.1  # radians
 
         self.error_pos = np.zeros(2)
         self.error_yaw = 0.0
 
-        # Initialize the 3rd order reference filter.
-        # Here, we treat [x, y, yaw] as the 3D pose to be smoothed.
-        initial_eta = [self.target_x, self.target_y, self.target_yaw]
-        self.ref_filter = None
-
         self.get_logger().info(
-            "Goto Point Controller (Reference Filter Version) Initialized."
+            "Goto Point Controller (Reference Filter Version) Initialized with parameters."
         )
 
         # Timer for periodic control updates
         self.timer = self.create_timer(self.dt, self.control_loop)
-
-        self.shoebox = Shoebox(
-            L=1.0,
-            B=0.3,
-            T=0.02,
-        )
 
         # --- Action Server using nav2_msgs/NavigateToPose ---
         self._action_server = ActionServer(
@@ -262,6 +196,101 @@ class GotoPointController(Node):
             goal_callback=self.action_goal_callback,
             cancel_callback=self.action_cancel_callback,
         )
+        # Service to enable/disable the controller
+        self.enabled = True
+        self.state_service = self.create_service(
+            SetBool,
+            f"{self.get_name()}/change_state",
+            self.change_state_callback
+        )
+
+    def update_configuration(self):
+        """Update controller configuration from parameters"""
+        # Get controller gains
+        self.Kp_pos = self.get_parameter('control.p_gain.pos').value
+        self.Ki_pos = self.get_parameter('control.i_gain.pos').value
+        self.Kd_pos = self.get_parameter('control.d_gain.pos').value
+        self.Kp_vel = self.get_parameter('control.p_gain.vel').value
+        self.Ki_vel = self.get_parameter('control.i_gain.vel').value
+        self.Kd_vel = self.get_parameter('control.d_gain.vel').value
+        self.Kp_yaw = self.get_parameter('control.p_gain.yaw').value
+        self.Ki_yaw = self.get_parameter('control.i_gain.yaw').value
+        self.Kd_yaw = self.get_parameter('control.d_gain.yaw').value
+
+        # Get controller limits
+        self.max_integral_error_pos = self.get_parameter(
+            'control.max_integral_error.pos').value
+        self.max_integral_error_yaw = self.get_parameter(
+            'control.max_integral_error.yaw').value
+        self.saturation_pos = self.get_parameter(
+            'control.saturation.pos').value
+        self.saturation_yaw = self.get_parameter(
+            'control.saturation.yaw').value
+
+        # Get tolerances
+        self.pos_tol = self.get_parameter('control.tolerance.pos').value
+        self.yaw_tol = self.get_parameter('control.tolerance.yaw').value
+
+        # Get vessel properties
+        vessel_length = self.get_parameter('vessel.length').value
+        vessel_beam = self.get_parameter('vessel.beam').value
+        vessel_draft = self.get_parameter('vessel.draft').value
+
+        # Create vessel model
+        self.shoebox = Shoebox(
+            L=vessel_length,
+            B=vessel_beam,
+            T=vessel_draft,
+        )
+
+        # Get performance metrics parameters
+        self.window_size = self.get_parameter('metrics.window_size').value
+        self.metrics_interval = self.get_parameter('metrics.interval').value
+
+        # Reset reference filter if parameters change
+        if self.ref_filter is not None and self.latest_odom is not None:
+            # Get filter parameters
+            filter_omega = self.get_parameter('filter.omega').value
+            filter_delta = self.get_parameter('filter.delta').value
+
+            # Save current state
+            current_eta = self.ref_filter.eta_d
+
+            # Create new filter with updated parameters
+            self.ref_filter = ThirdOrderReferenceFilter(
+                dt=self.dt,
+                omega=filter_omega,
+                delta=filter_delta,
+                initial_eta=current_eta,
+            )
+            self.ref_filter.eta_d = current_eta
+
+        self.get_logger().info(
+            f"Updated configuration - vessel: [{vessel_length}, {vessel_beam}, {vessel_draft}], " +
+            f"POS gains: P={self.Kp_pos}, I={self.Ki_pos}, D={self.Kd_pos}, " +
+            f"YAW gains: P={self.Kp_yaw}, I={self.Ki_yaw}, D={self.Kd_yaw}"
+        )
+
+    def parameters_callback(self, params):
+        """Handle parameter updates"""
+        update_needed = False
+
+        for param in params:
+            if param.name.startswith(('control.', 'vessel.', 'filter.', 'metrics.')):
+                update_needed = True
+
+            if param.name == 'dt':
+                self.dt = param.value
+                # Recreate the timer with new dt
+                self.timer.cancel()
+                self.timer = self.create_timer(self.dt, self.control_loop)
+                update_needed = True
+
+        # Update configuration if parameters changed
+        if update_needed:
+            self.update_configuration()
+
+        return True  # Accept all parameter changes
 
     def odom_callback(self, msg: Odometry):
         """
@@ -279,10 +308,15 @@ class GotoPointController(Node):
                     msg.pose.pose.orientation.w,
                 ]
             ).as_euler("xyz", degrees=False)
-            self.ref_filter = ThrdOrderRefFilter(
+
+            # Get filter parameters from ROS parameters
+            filter_omega = self.get_parameter('filter.omega').value
+            filter_delta = self.get_parameter('filter.delta').value
+
+            self.ref_filter = ThirdOrderReferenceFilter(
                 dt=self.dt,
-                omega=[0.15, 0.15, 0.15],
-                delta=[0.8, 0.8, 0.8],
+                omega=filter_omega,
+                delta=filter_delta,
                 initial_eta=[self.target_x, self.target_y, self.target_yaw],
             )
             self.ref_filter.eta_d = np.array(
@@ -378,12 +412,15 @@ class GotoPointController(Node):
                 f"RMS: {metrics_msg.rms:.3f}m, Max: {metrics_msg.max:.3f}m"
             )
 
-
     def control_loop(self):
         """
-        Control loop that computes and publishes the control command.
+        Periodic control loop to update reference filter and publish control commands.
         This version uses a 3rd order reference filter to generate a smooth desired trajectory.
         """
+        # Skip control loop if controller is disabled
+        if not self.enabled:
+            return
+
         if self.latest_odom is None:
             return
 
@@ -438,14 +475,10 @@ class GotoPointController(Node):
         self.integral_error_yaw += error_yaw * self.dt
 
         # Apply saturation to the integral error
-        self.integral_error_pos = np.clip(self.integral_error_pos, -self.max_integral_error_pos, self.max_integral_error_pos)
-        #  self.integral_error_pos = self.max_integral_error_pos * saturate(
-        #     self.integral_error_pos, self.saturation_pos
-        # )
-        self.integral_error_yaw = np.clip(self.integral_error_yaw, -self.max_integral_error_yaw, self.max_integral_error_yaw)
-        # self.integral_error_yaw = self.max_integral_error_yaw * saturate(
-        #     self.integral_error_yaw, self.saturation_yaw
-        # )
+        self.integral_error_pos = np.clip(
+            self.integral_error_pos, -self.max_integral_error_pos, self.max_integral_error_pos)
+        self.integral_error_yaw = np.clip(
+            self.integral_error_yaw, -self.max_integral_error_yaw, self.max_integral_error_yaw)
 
         # Compute control commands.
         # For position, we use feedforward desired acceleration plus a PID correction.
@@ -469,7 +502,8 @@ class GotoPointController(Node):
         )
 
         # Process and publish performance metrics
-        self.process_performance_metrics(desired_pose, desired_vel, error_pos, error_vel, error_yaw)
+        self.process_performance_metrics(
+            desired_pose, desired_vel, error_pos, error_vel, error_yaw)
 
         control_x, control_y, control_yaw = Rz(
             current_yaw).T @ np.array([world_x, world_y, world_yaw])
@@ -507,6 +541,34 @@ class GotoPointController(Node):
         self.get_logger().info("Received cancel request for NavigateToPose")
         return CancelResponse.ACCEPT
 
+    def change_state_callback(self, request, response):
+        """Service callback to enable/disable the controller."""
+        if request.data:
+            self.enabled = True
+            # Reset controller state
+            self.start_time = None
+            self.error_window.clear()
+            self.error_yaw_window.clear()
+            self.sample_count = 0
+            self.last_metrics_time = 0.0
+            self.integral_error_pos = np.zeros(2)
+            self.integral_error_yaw = 0.0
+            self.error_pos = np.zeros(2)
+            self.error_yaw = 0.0
+            self.ref_filter = None
+
+            response.success = True
+            response.message = "Controller enabled and reset."
+        else:
+            self.enabled = False
+            # Publish zero forces and torques to reset the controller
+            zero_wrench = Wrench()
+            self.control_pub.publish(zero_wrench)
+
+            response.success = True
+            response.message = "Controller disabled."
+        return response
+
     def execute_callback(self, goal_handle):
         self.get_logger().info("Executing NavigateToPose goal...")
 
@@ -534,13 +596,14 @@ class GotoPointController(Node):
         self.publish_target_pose_marker(target_pose)
 
         # Loop until the robot reaches the target (within tolerance) or the goal is canceled.
-        while rclpy.ok():
+        while rclpy.ok():  # Loop until the robot reaches the target or goal is canceled
             if goal_handle.is_cancel_requested:
                 goal_handle.canceled()
                 self.get_logger().info("NavigateToPose goal canceled")
                 result = NavigateToPose.Result()
                 return result
 
+            # Wait for odometry
             if self.latest_odom is None:
                 time.sleep(1.0)
                 continue
@@ -620,7 +683,7 @@ class GotoPointController(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    server_node = GotoPointController()
+    server_node = PositionController()
     client_node = NavigateToPoseClient()
     executor = (
         MultiThreadedExecutor()

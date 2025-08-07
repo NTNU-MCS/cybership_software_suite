@@ -8,15 +8,15 @@
       axis_mappings:
         force-x:
           axis: 3
-          scale: 1.0
+          scale: 2.0
           offset: 0.0
         force-y:
           axis: 2
-          scale: 1.0
+          scale: -2.0
           offset: 0.0
         torque-z:
           axis: 0
-          scale: 1.0
+          scale: -1.0
           offset: 0.0
 
     enable:

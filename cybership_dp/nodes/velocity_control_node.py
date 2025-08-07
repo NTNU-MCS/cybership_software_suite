@@ -9,18 +9,16 @@
 # ---------------------------------------------------------------------------
 
 import numpy as np
-import math
 import rclpy
 from rclpy.node import Node
-from geometry_msgs.msg import Twist, Wrench, PoseStamped, Pose2D
+from rclpy.parameter import Parameter
+from geometry_msgs.msg import Twist, Wrench
 from nav_msgs.msg import Odometry
-from typing import Tuple
 import shoeboxpy.model3dof as box
-from visualization_msgs.msg import Marker
-from scipy.spatial.transform import Rotation as R
-import numpy as np
-from typing import Dict, Any, Optional
 
+from std_srvs.srv import SetBool
+
+from cybership_controller.velocity.reference_feedforward import RffVelocityController as VelocityController
 
 # Add import for performance metrics
 try:
@@ -28,173 +26,7 @@ try:
 except ImportError:
     print("cybership_msgs not found. Skipping performance metrics.")
 
-import numpy as np
 
-class ExponentialSmoothing():
-    """
-    Exponential smoothing class
-    """
-
-    def __init__(self, r: float = 0.7) -> None:
-        """
-        Exponential smoothing class constructor
-
-        :param r: A weighting factor in the set [0-1]
-        """
-        self.r = r
-        self.x = None
-        self.x_p = None
-        self.dx_p = None
-
-    def __call__(self, x: np.ndarray) -> np.ndarray:
-        """
-        Exponential smoothing function
-
-        :param x: current value of x
-        :return: dx
-        """
-        if self.x_p is None or self.dx_p is None:
-            self.x_p = x
-            self.dx_p = x
-            return x
-        else:
-            self.dx_p = ExponentialSmoothing.__func(self.r, x, self.x_p, self.dx_p)
-            self.x_p = x
-            return self.dx_p
-
-    def reset(self, x: np.ndarray) -> None:
-        """
-        Reset the exponential smoothing
-
-        :param x: current value of x
-        :return:
-        """
-        self.x_p = x
-        self.dx_p = x
-
-    @staticmethod
-    def __func(
-            r: float, x: np.ndarray, x_p: np.ndarray = None, dx_p: np.ndarray = None
-    ) -> np.ndarray:
-        r"""
-        Exponential smoothing function
-
-        .. math::
-            \begin{aligned}
-                s_{0}&=x_{0}\\
-                s_{t}&=\alpha x_{t}+(1-\alpha )s_{t-1},\quad t>0
-            \end{aligned}
-
-
-        :param r: A weighting factor in the set [0-1]
-        :param x: current value of x
-        :param x_p: previous value of x
-        :param dx_p: last computed filtered x value
-        :return:
-        """
-        if x_p is None or dx_p is None:
-            return x
-        else:
-            return (1 - r) * dx_p + r * (x - x_p)
-
-def _saturate(vec: np.ndarray, limit: float) -> np.ndarray:
-    """Scale `vec` so its l2-norm does not exceed `limit`. If `limit` <= 0, return vec unchanged."""
-    nrm = np.linalg.norm(vec)
-    return vec if nrm <= limit or limit <= 0.0 else vec * (limit / nrm)
-
-# ---------------------------------------------------------------------- #
-#  Controller implementation                                             #
-# ---------------------------------------------------------------------- #
-
-class AccelLimitedInverseDynamicsPI():
-    """Inverse-dynamics velocity controller with PI action and acceleration limiting."""
-
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
-
-        self.config = config or {}
-        # Matrices and gains
-        self.M: np.ndarray = np.array(self.config.get("M", np.eye(3)), dtype=float)
-        self.D: np.ndarray = np.array(self.config.get("D", np.zeros((3, 3))), dtype=float)
-        self.Kp: np.ndarray = np.array(self.config.get("Kp", np.eye(3)), dtype=float)
-        self.Ki: np.ndarray = np.array(self.config.get("Ki", np.zeros((3, 3))), dtype=float)
-        self.Kd: np.ndarray = np.array(self.config.get("Kd", np.zeros((3, 3))), dtype=float)
-        self.dt: float = float(self.config.get("dt", 0.01))  # seconds
-
-        # Pre-compute inverse inertia
-        self.M_inv = np.linalg.inv(self.M)
-
-        # Limits and behaviours
-        self.a_max: float = float(self.config.get("a_max", -1.0))       # hard acc limit (<=0 => off)
-        self.I_max: float = float(self.config.get("I_max", -1.0))       # integral wind-up cap (<=0 => off)
-        self.smooth: bool = bool(self.config.get("smooth_limit", False))
-
-        # Internal state
-        self._prev_vd: Optional[np.ndarray] = None  # for desired-velocity derivative
-        self._int_e: np.ndarray = np.zeros(3)       # integral of error dt
-
-    # ------------------------------------------------------------------ #
-    #  Public API                                                        #
-    # ------------------------------------------------------------------ #
-    def update(
-        self,
-        current_velocity: np.ndarray,
-        desired_velocity: np.ndarray,
-        dt: float,
-    ) -> np.ndarray:
-        """Compute the force/torque command tau."""
-
-        if dt <= 0.0:
-            raise ValueError("dt must be positive")
-
-        v  = current_velocity.reshape(3)
-        vd = desired_velocity.reshape(3)
-
-        if not hasattr(self, '_vd_dot_smoother'):
-            r = self.config.get("filter_alpha", 0.7)
-            self._vd_dot_smoother = ExponentialSmoothing(r=r)
-
-        if not hasattr(self, '_e_dot_smoother'):
-            r = self.config.get("filter_alpha", 0.7)
-            self._e_dot_smoother = ExponentialSmoothing(r=r)
-
-        raw_vd_dot = (vd - self._prev_vd) / dt if self._prev_vd is not None else np.zeros(3)
-        vd_dot = self._vd_dot_smoother(raw_vd_dot)
-        self._prev_vd = vd.copy()
-
-        e = v - vd
-        raw_e_dot = (v - self._prev_vd) / dt if self._prev_vd is not None else np.zeros(3)
-        e_dot = self._e_dot_smoother(raw_e_dot)
-
-        self._int_e = self._int_e + e * dt
-        self._int_e = np.clip(self._int_e, -self.I_max, self.I_max)
-
-        a_des = vd_dot - self.Kp @ e - self.Ki @ self._int_e - self.Kd @ e_dot
-
-        tau = self.M @ a_des + self.D @ vd
-        return tau
-
-    def reset(self):
-        """Clear stored derivative and integral information."""
-        self._prev_vd = None
-        self._int_e = np.zeros(3)
-
-    # ------------------------------------------------------------------ #
-    #  Private helpers                                                   #
-    # ------------------------------------------------------------------ #
-    def _limit_acceleration(self, a_des: np.ndarray) -> tuple[np.ndarray, bool]:
-        """Return (a_cmd, saturated_flag) after applying the configured limiter."""
-        if self.a_max <= 0.0:
-            return a_des, False  # unlimited
-
-        if self.smooth:
-            # Smooth limiter using tanh
-            a_cmd = self.a_max * np.tanh(a_des / self.a_max)
-            saturated = not np.allclose(a_cmd, a_des)
-            return a_cmd, saturated
-        else:
-            a_cmd = _saturate(a_des, self.a_max)
-            saturated = not np.allclose(a_cmd, a_des)
-            return a_cmd, saturated
 
 class VelocityControlNode(Node):
     """
@@ -203,30 +35,51 @@ class VelocityControlNode(Node):
     """
 
     def __init__(self):
-        super().__init__("velocity_control_node", namespace="voyager")
+        super().__init__("velocity_control_node", namespace="cybership")
 
-        # Create a velocity controller
-        self.dt = 0.05  # seconds
-        self.vessel = box.Shoebox(L=1.0, B=0.3, T=0.05)
+        # Declare parameters with default values
+        self.declare_parameters(
+            namespace='',
+            parameters=[
+                # Vessel dimensions
+                ('vessel.length', 1.0),
+                ('vessel.beam', 0.3),
+                ('vessel.draft', 0.05),
 
-        # # Control gains for surge, sway, and yaw
-        self.k_p_gain = np.array([5.0, 5.0, 5.0])
-        self.k_i_gain = np.array([0.0, 0.0, 0.0])
-        self.k_d_gain = np.array([0.3, 0.3, 0.3])
+                # Control gains
+                ('control.p_gain.surge', 5.0),
+                ('control.p_gain.sway', 5.0),
+                ('control.p_gain.yaw', 5.0),
 
-        self.controller = AccelLimitedInverseDynamicsPI(
-            config={
-                "M": self.vessel.M_eff,
-                "D": self.vessel.D,
-                "Kp": np.diag(self.k_p_gain),
-                "Ki": np.diag(self.k_i_gain),
-                "Kd": np.diag(self.k_d_gain),
-                "I_max": 20.0,  # Nms
-                "smooth_limit": True,
-                "filter_alpha": 0.1,  # Smoothing factor for desired velocity
-                "dt": self.dt,
-            }
+                ('control.i_gain.surge', 0.0),
+                ('control.i_gain.sway', 0.0),
+                ('control.i_gain.yaw', 0.0),
+
+                ('control.d_gain.surge', 0.3),
+                ('control.d_gain.sway', 0.3),
+                ('control.d_gain.yaw', 0.3),
+
+                ('control.i_max', 20.0),
+                ('control.smooth_limit', True),
+                ('control.filter_alpha', 0.1),
+
+                # Performance metrics
+                ('metrics.window_size', 50),
+                ('metrics.interval', 1.0),
+
+                # Time step
+                ('dt', 0.1),
+            ]
         )
+
+        # Add parameter callback for runtime updates
+        self.add_on_set_parameters_callback(self.parameters_callback)
+
+        # Get current parameter values
+        self.dt = self.get_parameter('dt').value
+
+        # Initialize vessel and controller
+        self.update_configuration()
 
         self.nu_prev = np.zeros(3)  # [u, v, r] previous velocities
         self.nu_cmd = np.zeros(3)  # [u, v, r] desired velocities
@@ -248,13 +101,13 @@ class VelocityControlNode(Node):
             Odometry,
             'measurement/odom',
             self.odom_callback,
-            10
+            1
         )
 
         # Publisher for control commands
         self.control_pub = self.create_publisher(
             Wrench,
-            'control/force/mux/velocity',
+            'control/force/command',
             10
         )
 
@@ -281,17 +134,123 @@ class VelocityControlNode(Node):
 
         # --- Performance metrics ---
         # Performance metrics tracking with moving window
-        self.window_size = 200  # 2 seconds of data at 100Hz
+        self.window_size = self.get_parameter('metrics.window_size').value
         self.error_window = []  # Store recent velocity errors
         self.start_time = None
         self.sample_count = 0
 
         # Time between metrics calculations
-        self.metrics_interval = 1.0  # seconds
+        self.metrics_interval = self.get_parameter('metrics.interval').value
         self.last_metrics_time = 0.0
 
         # Timer for control loop
         self.timer = self.create_timer(self.dt, self.control_loop)
+
+        # Service to enable/disable the velocity controller
+        self.enabled = True
+        self.state_service = self.create_service(
+            SetBool,
+            f"{self.get_name()}/change_state",
+            self.change_state_callback
+        )
+
+        self.get_logger().info("Velocity controller initialized with parameters")
+
+    def update_configuration(self):
+        """Update vessel and controller configuration from parameters"""
+        # Get vessel dimensions
+        vessel_length = self.get_parameter('vessel.length').value
+        vessel_beam = self.get_parameter('vessel.beam').value
+        vessel_draft = self.get_parameter('vessel.draft').value
+
+        # Create vessel model
+        self.vessel = box.Shoebox(L=vessel_length, B=vessel_beam, T=vessel_draft)
+
+        # Get control gains
+        self.k_p_gain = np.array([
+            self.get_parameter('control.p_gain.surge').value,
+            self.get_parameter('control.p_gain.sway').value,
+            self.get_parameter('control.p_gain.yaw').value
+        ])
+
+        self.k_i_gain = np.array([
+            self.get_parameter('control.i_gain.surge').value,
+            self.get_parameter('control.i_gain.sway').value,
+            self.get_parameter('control.i_gain.yaw').value
+        ])
+
+        self.k_d_gain = np.array([
+            self.get_parameter('control.d_gain.surge').value,
+            self.get_parameter('control.d_gain.sway').value,
+            self.get_parameter('control.d_gain.yaw').value
+        ])
+
+        # Create/update controller
+        self.controller = VelocityController(
+            config={
+                "M": self.vessel.M_eff,
+                "D": self.vessel.D,
+                "Kp": np.diag(self.k_p_gain),
+                "Ki": np.diag(self.k_i_gain),
+                "Kd": np.diag(self.k_d_gain),
+                "I_max": self.get_parameter('control.i_max').value,
+                "smooth_limit": self.get_parameter('control.smooth_limit').value,
+                "filter_alpha": self.get_parameter('control.filter_alpha').value,
+                "dt": self.dt,
+            }
+        )
+
+        # Update metrics parameters
+        self.window_size = self.get_parameter('metrics.window_size').value
+        self.metrics_interval = self.get_parameter('metrics.interval').value
+
+        self.get_logger().info(f"Updated configuration - vessel: [{vessel_length}, {vessel_beam}, {vessel_draft}], " +
+                              f"P: {self.k_p_gain}, I: {self.k_i_gain}, D: {self.k_d_gain}")
+
+    def parameters_callback(self, params):
+        """Handle parameter updates"""
+        update_needed = False
+
+        for param in params:
+            if param.name in [
+                'vessel.length', 'vessel.beam', 'vessel.draft',
+                'control.p_gain.surge', 'control.p_gain.sway', 'control.p_gain.yaw',
+                'control.i_gain.surge', 'control.i_gain.sway', 'control.i_gain.yaw',
+                'control.d_gain.surge', 'control.d_gain.sway', 'control.d_gain.yaw',
+                'control.i_max', 'control.smooth_limit', 'control.filter_alpha',
+                'metrics.window_size', 'metrics.interval'
+            ]:
+                update_needed = True
+
+            if param.name == 'dt':
+                self.dt = param.value
+                # Recreate the timer with new dt
+                self.timer.cancel()
+                self.timer = self.create_timer(self.dt, self.control_loop)
+                update_needed = True
+
+        # Update vessel and controller if parameters changed
+        if update_needed:
+            self.update_configuration()
+
+        return True  # Accept all parameter changes
+
+    def change_state_callback(self, request, response):
+        """Service callback to enable/disable the velocity controller."""
+        if request.data:
+            self.enabled = True
+            # Reset performance metrics state
+            self.start_time = None
+            self.error_window.clear()
+            self.sample_count = 0
+            self.last_metrics_time = 0.0
+            response.success = True
+            response.message = "Velocity controller enabled and reset."
+        else:
+            self.enabled = False
+            response.success = True
+            response.message = "Velocity controller disabled."
+        return response
 
     def cmd_vel_callback(self, msg: Twist):
         """
@@ -401,16 +360,14 @@ class VelocityControlNode(Node):
         """
         Periodic control loop to update reference filter and publish control commands.
         """
-        # Update the reference filter
-
-        now   = self.get_clock().now().nanoseconds * 1e-9
-        dt_rt = now - self._prev_t if hasattr(self, '_prev_t') else self.dt
+        # Skip control loop if controller is disabled
+        if not self.enabled:
+            return
         tau = self.controller.update(
             current_velocity=self.nu,
             desired_velocity=self.nu_cmd,
-            dt=dt_rt
+            dt=self.dt
         )
-        self._prev_t = now
 
         # Calculate velocity error for metrics
         error_vel = self.nu_cmd - self.nu
@@ -428,6 +385,25 @@ class VelocityControlNode(Node):
         wrench_msg.torque.z = float(tau[2])
 
         self.control_pub.publish(wrench_msg)
+
+    def change_state_callback(self, request, response):
+        """
+        Callback for the change_state service to enable/disable the controller.
+        """
+        self.enabled = request.data
+
+        if self.enabled:
+            response.message = "Velocity controller enabled"
+            self.get_logger().info(response.message)
+        else:
+                       # Publish zero forces and torques to reset the controller
+            zero_wrench = Wrench()
+            self.control_pub.publish(zero_wrench)
+            response.message = "Velocity controller disabled"
+            self.get_logger().info(response.message)
+
+        response.success = True
+        return response
 
 
 def main(args=None):

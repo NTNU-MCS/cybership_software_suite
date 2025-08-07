@@ -12,6 +12,7 @@ import rcl_interfaces.msg
 import os
 import sys
 import argparse
+import warnings
 
 import numpy as np
 
@@ -21,6 +22,18 @@ import cybership_utilities.launch
 import cybership_dp.voyager
 import cybership_dp.enterprise
 
+# DEPRECATION WARNING
+warnings.warn(
+    "This velocity_controller.py file is deprecated and may be removed in future versions. "
+    "Please use the updated velocity control implementation.",
+    DeprecationWarning,
+    stacklevel=2
+)
+
+print("DEPRECATED: This velocity controller node is deprecated and may be removed in future versions.")
+print("   Please migrate to the updated velocity control implementation.")
+print("   For more information, consult the documentation or contact the development team.")
+print()
 
 class VelocityControllerManager():
 
@@ -47,6 +60,15 @@ class VelocityControllerManager():
 
 
 def main(args=None):
+    # Print deprecation warning
+    print("=" * 80)
+    print("DEPRECATION WARNING")
+    print("This velocity_controller.py node is DEPRECATED!")
+    print("Please migrate to the updated velocity control implementation.")
+    print("This file may be removed in future versions.")
+    print("=" * 80)
+    print()
+
     rclpy.init(args=args)
 
     manager = VelocityControllerManager()

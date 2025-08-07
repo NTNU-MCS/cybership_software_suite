@@ -13,16 +13,3 @@ This package contains:
 
 The package has minimal dependencies:
 - `ament_cmake` (build dependency)
-
-## Structure
-
-The package uses a simple structure:
-```
-cybership_config/
-├── CMakeLists.txt       # Build configuration
-├── LICENSE              # GPL-3.0 license file
-├── package.xml          # Package metadata
-├── README.md            # This file
-└── config/              # Configuration files directory
-    └── [various config files]
-```

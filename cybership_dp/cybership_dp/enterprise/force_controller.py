@@ -11,7 +11,7 @@ import skadipy.allocator.reference_filters
 class ForceControllerROS(rclpy.node.Node):
     def __init__(self, *args, **kwargs):
         super().__init__(
-            node_name="voyager_thrust_allocator",
+            node_name="enterprise_thrust_allocator",
             allow_undeclared_parameters=True,
             *args,
             **kwargs,

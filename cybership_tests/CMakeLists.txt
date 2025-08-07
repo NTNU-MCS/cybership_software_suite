@@ -19,13 +19,12 @@ find_package(nav_msgs REQUIRED)
 
 ament_python_install_package(${PROJECT_NAME})
 
+# Find all python scripts under the "nodes" directory.
+file(GLOB NODE_SCRIPTS ${CMAKE_CURRENT_SOURCE_DIR}/cybership_tests/*.py)
+
 install(
   PROGRAMS
-    ${PROJECT_NAME}/four_corner_line_of_sight.py
-    ${PROJECT_NAME}/four_corner_client.py
-    ${PROJECT_NAME}/pid_position_server.py
-    ${PROJECT_NAME}/go_to_client.py
-    ${PROJECT_NAME}/reference_filter_server.py
+    ${NODE_SCRIPTS}
   DESTINATION lib/${PROJECT_NAME}
 )
 

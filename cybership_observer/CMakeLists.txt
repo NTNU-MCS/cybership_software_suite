@@ -15,25 +15,26 @@ find_package(tf2_ros REQUIRED)
 
 include_directories(include)
 
-add_executable(ned_to_enu_transformer src/ned_to_enu_transformer.cpp)
-ament_target_dependencies(ned_to_enu_transformer
+add_executable(ned_to_enu_transformer_cpp src/ned_to_enu_transformer.cpp)
+ament_target_dependencies(ned_to_enu_transformer_cpp
   rclcpp
   std_msgs
   geometry_msgs
   tf2_ros
 )
 
+
+file(GLOB NODE_SCRIPTS ${CMAKE_CURRENT_SOURCE_DIR}/nodes/*.py)
+
 install(
   PROGRAMS
-    nodes/enu_to_ned_twist.py
-    nodes/enu_to_ned_odom.py
-    nodes/ned_to_enu_transformer.py
+    ${NODE_SCRIPTS}
   DESTINATION lib/${PROJECT_NAME}
 )
 
 install(
   TARGETS
-    ned_to_enu_transformer
+    ned_to_enu_transformer_cpp
   DESTINATION lib/${PROJECT_NAME}
 )
 

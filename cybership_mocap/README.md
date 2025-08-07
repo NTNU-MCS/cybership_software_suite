@@ -66,5 +66,5 @@ The node behavior can be configured via parameters in the `config.yaml` file:
 
 ### Published Transforms (if enabled)
 
-- `mocap` → `cybership/base_link` - Transform from the world frame to the ship's base frame
+- `mocap` -> `cybership/base_link` - Transform from the world frame to the ship's base frame
 
