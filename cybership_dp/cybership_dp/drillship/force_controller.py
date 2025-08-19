@@ -36,14 +36,14 @@ class ForceControllerROS(rclpy.node.Node):
         self.pubs["bow_starboard_azimuth"] = self.create_publisher(
             geometry_msgs.msg.Wrench, "thruster/bow_starboard/command", 10
         )
-        self.pubs["aft_port_azimuth"] = self.create_publisher(
-            geometry_msgs.msg.Wrench, "thruster/aft_port/command", 10
+        self.pubs["stern_port_azimuth"] = self.create_publisher(
+            geometry_msgs.msg.Wrench, "thruster/stern_port/command", 10
         )
-        self.pubs["aft_center_azimuth"] = self.create_publisher(
-            geometry_msgs.msg.Wrench, "thruster/aft_center/command", 10
+        self.pubs["stern_center_azimuth"] = self.create_publisher(
+            geometry_msgs.msg.Wrench, "thruster/stern_center/command", 10
         )
-        self.pubs["aft_starboard_azimuth"] = self.create_publisher(
-            geometry_msgs.msg.Wrench, "thruster/aft_starboard/command", 10
+        self.pubs["stern_starboard_azimuth"] = self.create_publisher(
+            geometry_msgs.msg.Wrench, "thruster/stern_starboard/command", 10
         )
 
         self.declare_parameter("frequency", rclpy.Parameter.Type.DOUBLE)
@@ -84,19 +84,19 @@ class ForceControllerROS(rclpy.node.Node):
         msg = geometry_msgs.msg.Wrench()
         msg.force.x = float(u3_f[0])
         msg.force.y = float(u3_f[1])
-        self.pubs["aft_port_azimuth"].publish(msg)
+        self.pubs["stern_port_azimuth"].publish(msg)
         # Aft center azimuth thruster
         u4_f = self.actuators[4].force
         msg = geometry_msgs.msg.Wrench()
         msg.force.x = float(u4_f[0])
         msg.force.y = float(u4_f[1])
-        self.pubs["aft_center_azimuth"].publish(msg)
+        self.pubs["stern_center_azimuth"].publish(msg)
         # Aft starboard azimuth thruster
         u5_f = self.actuators[5].force
         msg = geometry_msgs.msg.Wrench()
         msg.force.x = float(u5_f[0])
         msg.force.y = float(u5_f[1])
-        self.pubs["aft_starboard_azimuth"].publish(msg)
+        self.pubs["stern_starboard_azimuth"].publish(msg)
 
 
     def force_callback(self, msg: geometry_msgs.msg.Wrench):
@@ -116,47 +116,65 @@ class ForceControllerROS(rclpy.node.Node):
     def _initialize_thrusters(self):
         bow_port_azimuth = skadipy.actuator.Azimuth(
             position=skadipy.toolbox.Point([0.9344, -0.11, 0.0]),
+                        orientation=skadipy.toolbox.Quaternion(
+                axis=(0.0, 0.0, 1.0), radians=np.pi / 2.0
+            ),
             extra_attributes={
                 "rate_limit": 0.1,
                 "saturation_limit": 0.7,
-                "reference_angle": 3 * np.pi / 4.0,
+                "reference_angle": 3* np.pi / 4.0,
             }
         )
         bow_center_azimuth = skadipy.actuator.Azimuth(
             position=skadipy.toolbox.Point([1.0678, 0.0, 0.0]),
+                        orientation=skadipy.toolbox.Quaternion(
+                axis=(0.0, 0.0, 1.0), radians=np.pi / 2.0
+            ),
             extra_attributes={
                 "rate_limit": 0.1,
                 "saturation_limit": 0.7,
-                "reference_angle": 4 * np.pi / 4.0,
+                "reference_angle": -np.pi,
             }
         )
         bow_starboard_azimuth = skadipy.actuator.Azimuth(
             position=skadipy.toolbox.Point([0.9344, 0.11, 0.0]),
+                        orientation=skadipy.toolbox.Quaternion(
+                axis=(0.0, 0.0, 1.0), radians=np.pi / 2.0
+            ),
             extra_attributes={
                 "rate_limit": 0.1,
                 "saturation_limit": 0.7,
-                "reference_angle": 5 * np.pi / 4.0,
+                "reference_angle": -3*np.pi / 4.0,
             }
         )
 
-        aft_port_azimuth = skadipy.actuator.Azimuth(
+        stern_port_azimuth = skadipy.actuator.Azimuth(
             position=skadipy.toolbox.Point([-0.9911, -0.1644, -0.1]),
+                        orientation=skadipy.toolbox.Quaternion(
+                axis=(0.0, 0.0, 1.0), radians=np.pi / 2.0
+            ),
             extra_attributes={
                 "rate_limit": 0.1,
                 "saturation_limit": 0.7,
                 "reference_angle": np.pi / 4.0,
             }
         )
-        aft_center_azimuth = skadipy.actuator.Azimuth(
+        stern_center_azimuth = skadipy.actuator.Azimuth(
             position=skadipy.toolbox.Point([-1.1644, 0.0, 0.0]),
+                        orientation=skadipy.toolbox.Quaternion(
+                axis=(0.0, 0.0, 1.0), radians=np.pi / 2.0
+            ),
             extra_attributes={
                 "rate_limit": 0.1,
                 "saturation_limit": 0.7,
                 "reference_angle": 0.0,
             }
         )
-        aft_starboard_azimuth = skadipy.actuator.Azimuth(
+        stern_starboard_azimuth = skadipy.actuator.Azimuth(
             position=skadipy.toolbox.Point([-0.9911, 0.1644, 0.0]),
+                        orientation=skadipy.toolbox.Quaternion(
+                axis=(0.0, 0.0, 1.0), radians=np.pi / 2.0
+            ),
             extra_attributes={
                 "rate_limit": 0.1,
                 "saturation_limit": 0.7,
@@ -169,9 +187,9 @@ class ForceControllerROS(rclpy.node.Node):
             bow_port_azimuth,
             bow_center_azimuth,
             bow_starboard_azimuth,
-            aft_port_azimuth,
-            aft_center_azimuth,
-            aft_starboard_azimuth
+            stern_port_azimuth,
+            stern_center_azimuth,
+            stern_starboard_azimuth
         ]
 
     def _initialize_allocator(self):
@@ -183,8 +201,8 @@ class ForceControllerROS(rclpy.node.Node):
         self.allocator = skadipy.allocator.reference_filters.MinimumMagnitudeAndAzimuth(
             actuators=self.actuators,
             force_torque_components=dofs,
-            gamma=0.001,
-            mu=0.01,
+            gamma=0.01,
+            mu=0.1,
             rho=1,
             time_step=(1.0 /self.freq ),
             control_barrier_function=skadipy.safety.ControlBarrierFunctionType.SUMSQUARE,

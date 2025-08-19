@@ -9,7 +9,7 @@ def include_launch_action_with_config(
         vessel_model,
         vessel_name,
         launch_file,
-        param_file=""):
+        config_file=""):
 
     bringup_pkg_dir = launch_ros.substitutions.FindPackageShare(
         'cybership_bringup')
@@ -21,7 +21,7 @@ def include_launch_action_with_config(
         ('vessel_model', vessel_model)
     ]
 
-    if len(param_file) != 0:
+    if len(config_file) != 0:
         launch_arguments.append(
             (
                 'param_file',
