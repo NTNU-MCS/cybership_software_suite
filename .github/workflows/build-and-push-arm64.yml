@@ -10,9 +10,6 @@ on:
 jobs:
   docker:
 
-    # Disable this job for now, as we are not using arm64 images yet.
-    if: false
-
     strategy:
       fail-fast: false
       matrix:
@@ -21,7 +18,6 @@ jobs:
           - ros_distro: 'jazzy'
 
     runs-on: ubuntu-24.04-arm64
-    # runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout
