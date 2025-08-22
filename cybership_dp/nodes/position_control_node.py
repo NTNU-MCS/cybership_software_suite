@@ -100,6 +100,8 @@ class PositionController(Node):
                 # Tolerances
                 ('control.tolerance.pos', 0.25),
                 ('control.tolerance.yaw', 0.1),
+                # Require being within tolerance for this long before success
+                ('control.success_hold_time', 1.0),
 
                 # Vessel properties
                 ('vessel.length', 1.0),
@@ -230,6 +232,7 @@ class PositionController(Node):
         # Get tolerances
         self.pos_tol = self.get_parameter('control.tolerance.pos').value
         self.yaw_tol = self.get_parameter('control.tolerance.yaw').value
+        self.success_hold_time = self.get_parameter('control.success_hold_time').value
 
         # Get vessel properties
         vessel_length = self.get_parameter('vessel.length').value
@@ -292,38 +295,69 @@ class PositionController(Node):
 
         return True  # Accept all parameter changes
 
-    def odom_callback(self, msg: Odometry):
-        """
-        Callback to update the latest odometry measurement.
-        """
-        if self.ref_filter is None:
-            print("Setting target position from odometry.")
-            self.target_x = msg.pose.pose.position.x
-            self.target_y = msg.pose.pose.position.y
-            _, _, self.target_yaw = R.from_quat(
-                [
-                    msg.pose.pose.orientation.x,
-                    msg.pose.pose.orientation.y,
-                    msg.pose.pose.orientation.z,
-                    msg.pose.pose.orientation.w,
-                ]
-            ).as_euler("xyz", degrees=False)
+    # def odom_callback(self, msg: Odometry):
+    #     """
+    #     Callback to update the latest odometry measurement.
+    #     """
+    #     if self.ref_filter is None:
+    #         print("Setting target position from odometry.")
+    #         self.target_x = msg.pose.pose.position.x
+    #         self.target_y = msg.pose.pose.position.y
+    #         _, _, self.target_yaw = R.from_quat(
+    #             [
+    #                 msg.pose.pose.orientation.x,
+    #                 msg.pose.pose.orientation.y,
+    #                 msg.pose.pose.orientation.z,
+    #                 msg.pose.pose.orientation.w,
+    #             ]
+    #         ).as_euler("xyz", degrees=False)
 
-            # Get filter parameters from ROS parameters
+    #         # Get filter parameters from ROS parameters
+    #         filter_omega = self.get_parameter('filter.omega').value
+    #         filter_delta = self.get_parameter('filter.delta').value
+
+    #         self.ref_filter = ThirdOrderReferenceFilter(
+    #             dt=self.dt,
+    #             omega=filter_omega,
+    #             delta=filter_delta,
+    #             initial_eta=[self.target_x, self.target_y, self.target_yaw],
+    #         )
+    #         self.ref_filter.eta_d = np.array(
+    #             [self.target_x, self.target_y, self.target_yaw]
+    #         )
+
+    #     self.latest_odom = msg
+
+    def odom_callback(self, msg: Odometry):
+        current_x = msg.pose.pose.position.x
+        current_y = msg.pose.pose.position.y
+        _, _, current_yaw = R.from_quat([
+            msg.pose.pose.orientation.x,
+            msg.pose.pose.orientation.y,
+            msg.pose.pose.orientation.z,
+            msg.pose.pose.orientation.w
+        ]).as_euler("xyz", degrees=False)
+
+        # Always store latest odom
+        self.latest_odom = msg
+
+        if self.ref_filter is None:
+            # Initialize the filter to CURRENT pose (not the target)
             filter_omega = self.get_parameter('filter.omega').value
             filter_delta = self.get_parameter('filter.delta').value
-
             self.ref_filter = ThirdOrderReferenceFilter(
                 dt=self.dt,
                 omega=filter_omega,
                 delta=filter_delta,
-                initial_eta=[self.target_x, self.target_y, self.target_yaw],
+                initial_eta=[current_x, current_y, current_yaw],
             )
-            self.ref_filter.eta_d = np.array(
-                [self.target_x, self.target_y, self.target_yaw]
-            )
+            self.ref_filter.eta_d = np.array([current_x, current_y, current_yaw])
 
-        self.latest_odom = msg
+            # Only seed a target from odom if no goal has ever been set
+            if self.target_x is None:
+                self.target_x = current_x
+                self.target_y = current_y
+                self.target_yaw = current_yaw
 
     def process_performance_metrics(self, desired_pose, desired_vel, error_pos, error_vel, error_yaw):
         """
@@ -574,6 +608,11 @@ class PositionController(Node):
 
         # Extract target pose from the goal message
         target_pose: PoseStamped = goal_handle.request.pose
+        # Warn if frame differs from odom, since we compute distances in odom frame
+        if target_pose.header.frame_id and target_pose.header.frame_id not in ("odom", "/odom"):
+            self.get_logger().warn(
+                f"Goal frame_id '{target_pose.header.frame_id}' differs from 'odom'; no TF transform is applied."
+            )
         self.target_x = target_pose.pose.position.x
         self.target_y = target_pose.pose.position.y
 
@@ -595,8 +634,9 @@ class PositionController(Node):
 
         self.publish_target_pose_marker(target_pose)
 
-        # Loop until the robot reaches the target (within tolerance) or the goal is canceled.
-        while rclpy.ok():  # Loop until the robot reaches the target or goal is canceled
+        # Loop until the robot reaches the target (within tolerance for a hold time) or the goal is canceled.
+        within_since = None
+        while rclpy.ok():  # Loop until target reached or goal is canceled
             if goal_handle.is_cancel_requested:
                 goal_handle.canceled()
                 self.get_logger().info("NavigateToPose goal canceled")
@@ -639,11 +679,18 @@ class PositionController(Node):
                 f"Distance remaining: {error_norm:.2f}, angle error: {error_yaw:.2f}"
             )
 
-            # Check if target is reached (both position and yaw)
+            # Check if target is reached (both position and yaw) and held
+            now_t = self.get_clock().now().nanoseconds / 1e9
             if error_norm < self.pos_tol and abs(error_yaw) < self.yaw_tol:
-                self.error_pos = np.array([np.inf, np.info])
-                self.error_yaw = np.inf
-                break
+                if within_since is None:
+                    within_since = now_t
+                if (now_t - within_since) >= self.success_hold_time:
+                    # Mark large errors to avoid lingering metrics effects
+                    self.error_pos = np.array([np.inf, np.inf])
+                    self.error_yaw = np.inf
+                    break
+            else:
+                within_since = None
 
             time.sleep(1.0)  # Publish feedback at ~1Hz
 

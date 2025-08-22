@@ -68,31 +68,31 @@ class ForceControllerROS(rclpy.node.Node):
         msg.force.y = float(u0_f[1])
         self.pubs["bow_port_azimuth"].publish(msg)
         # Bow center azimuth thruster
-        u1_f = self.actuators[1].force
-        msg = geometry_msgs.msg.Wrench()
-        msg.force.x = float(u1_f[0])
-        msg.force.y = float(u1_f[1])
-        self.pubs["bow_center_azimuth"].publish(msg)
+        # u1_f = self.actuators[1].force
+        # msg = geometry_msgs.msg.Wrench()
+        # msg.force.x = float(u1_f[0])
+        # msg.force.y = float(u1_f[1])
+        # self.pubs["bow_center_azimuth"].publish(msg)
         # Bow starboard azimuth thruster
-        u2_f = self.actuators[2].force
+        u2_f = self.actuators[1].force
         msg = geometry_msgs.msg.Wrench()
         msg.force.x = float(u2_f[0])
         msg.force.y = float(u2_f[1])
         self.pubs["bow_starboard_azimuth"].publish(msg)
         # Aft port azimuth thruster
-        u3_f = self.actuators[3].force
+        u3_f = self.actuators[2].force
         msg = geometry_msgs.msg.Wrench()
         msg.force.x = float(u3_f[0])
         msg.force.y = float(u3_f[1])
         self.pubs["stern_port_azimuth"].publish(msg)
         # Aft center azimuth thruster
-        u4_f = self.actuators[4].force
-        msg = geometry_msgs.msg.Wrench()
-        msg.force.x = float(u4_f[0])
-        msg.force.y = float(u4_f[1])
-        self.pubs["stern_center_azimuth"].publish(msg)
+        # u4_f = self.actuators[4].force
+        # msg = geometry_msgs.msg.Wrench()
+        # msg.force.x = float(u4_f[0])
+        # msg.force.y = float(u4_f[1])
+        # self.pubs["stern_center_azimuth"].publish(msg)
         # Aft starboard azimuth thruster
-        u5_f = self.actuators[5].force
+        u5_f = self.actuators[3].force
         msg = geometry_msgs.msg.Wrench()
         msg.force.x = float(u5_f[0])
         msg.force.y = float(u5_f[1])
@@ -185,10 +185,10 @@ class ForceControllerROS(rclpy.node.Node):
         # Put all actuators in a list and create the allocator object
         self.actuators = [
             bow_port_azimuth,
-            bow_center_azimuth,
+            # bow_center_azimuth,
             bow_starboard_azimuth,
             stern_port_azimuth,
-            stern_center_azimuth,
+            # stern_center_azimuth,
             stern_starboard_azimuth
         ]
 

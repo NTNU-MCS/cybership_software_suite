@@ -51,4 +51,4 @@
         device_id: 5
         gain: 100.0
         delta: 45.0
-        offset: 0.2
+        offset: -1.0

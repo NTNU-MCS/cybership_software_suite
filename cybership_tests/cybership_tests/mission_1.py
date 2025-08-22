@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 
 import rclpy
 import rclpy.client
@@ -88,8 +90,8 @@ class ActionRunner(Node):
             "name": "default_abort",
             "action": self.run_pose_action,
             "parameters": {
-                "x": -4.0,
-                "y": 0.5,
+                "x": -2.0,
+                "y": 0.0,
                 "yaw": 0.0,
                 "duration": 50.0,
                 "grace": 50.0,
@@ -102,7 +104,7 @@ class ActionRunner(Node):
                 "name": "pose_neg_diag",
                 "action": self.run_pose_action,
                 "parameters": {
-                    "x": -4.0,
+                    "x": -3.0,
                     "y": 0.5,
                     "yaw": 0.0,
                     "duration": 60.0,
@@ -137,12 +139,12 @@ class ActionRunner(Node):
                 "name": "command_constant_force",
                 "action": self.run_force_action,
                 "parameters": {
-                    "force_x": lambda: self.rng.uniform(0.7, 1.2),
-                    "force_y": lambda: self.rng.uniform(-0.1, 0.1),
-                    "torque_z": lambda: self.rng.uniform(-0.1, 0.1),
+                    "force_x": lambda: self.rng.uniform(0.7, 1.0),
+                    "force_y": lambda: self.rng.uniform(-0.05, 0.05),
+                    "torque_z": lambda: self.rng.uniform(-0.05, 0.05),
                     "duration": 20.0,
                     "experiment": True,  # Enable experiment flag
-                    "continuous_sampling": True,  # Sample force continuously
+                    "continuous_sampling": False,  # Sample force continuously
                     "frequency": 0.25,  # Hz
                 }
             }
@@ -440,7 +442,10 @@ class ActionRunner(Node):
         # Build goal message
         msg = PoseStamped()
         msg.header.stamp = self.get_clock().now().to_msg()
-        msg.header.frame_id = "world"
+        # Use the same frame as odometry to avoid frame mismatch in the server's
+        # distance_remaining calculation. If your stack uses TF, you can send in
+        # any frame and transform on the server side instead.
+        msg.header.frame_id = "odom"
         msg.pose.position.x = x
         msg.pose.position.y = y
         q = quaternion_from_euler(0.0, 0.0, yaw)
