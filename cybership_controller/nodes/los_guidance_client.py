@@ -73,19 +73,10 @@ def main(args=None):
     example_waypoints = [
         (0.0, 0.0),
         (6.0, 0.0),
-        (6.0, 1.0),
-        (0.0, 1.0),
-        (0.0, 2.0),
-        (6.0, 2.0),
-        (6.0, 3.0),
-        (0.0, 3.0),
-        (0.0, 4.0),
-        (6.0, 4.0),
-        (6.0, 5.0),
-        (0.0, 5.0),
+        (6.0, 6.0),
         (0.0, 6.0),
-        (6.0, 6.0)
-    ] * 2
+        (0.0, 0.0),
+    ]
     client.send_goal(example_waypoints)
     # Use MultiThreadedExecutor to handle feedback continuously
     executor = MultiThreadedExecutor()

@@ -4,6 +4,7 @@ nav_msgs/Path path
 bool success
 ---
 # Empty result currently
+bool success
 ---
 # Feedback: current heading and velocity command
 float64 heading

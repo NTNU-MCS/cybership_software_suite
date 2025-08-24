@@ -3,84 +3,145 @@ from scipy.interpolate import splprep, splev
 from scipy.optimize import minimize_scalar
 
 class LOSGuidance:
-    def __init__(self, pts, V_d, delta):
+    def __init__(self, pts, V_d, delta, window_len=None, mu=0.0):
         """
-        Initialize the LOS guidance module.
-
-        # TODO: This works as long as the waypoints are far apart. Path
-        #       parameterization should be added between waypoints to ensure
-        #       optimum doesn't jump between segments.
-
-        :param pts: array-like of shape (N, 2), waypoints in NED coordinates
-        :param V_d: desired speed (m/s)
-        :param delta: look-ahead distance (m)
+        pts: (N,2) waypoints (NED)
+        V_d: desired speed [m/s]
+        delta: look-ahead distance [m] (arc-length)
+        window_len: local search window [m] around s_prev (default: 4*delta)
+        mu: small gradient gain for along-track stabilization [0..0.5], 0 to disable
         """
         pts = np.asarray(pts)
+        self.tck, self.u_wp = splprep([pts[:,0], pts[:,1]], s=0, k=min(3, len(pts)-1))
 
-        # Add three intermediate points between each consecutive waypoint pair
-        expanded_pts = [pts[0]]  # Start with first point
-        for i in range(len(pts) - 1):
-            start_pt = pts[i]
-            end_pt = pts[i + 1]
-            # Add 3 intermediate points
-            for j in range(1, 4):
-                alpha = j / 4.0
-                intermediate_pt = start_pt + alpha * (end_pt - start_pt)
-                expanded_pts.append(intermediate_pt)
-            expanded_pts.append(end_pt)  # Add the end point
+        # Precompute dense arc-length lookup: u_grid <-> s_grid
+        self.u_grid = np.linspace(0.0, 1.0, 2000)
+        xy = np.array(splev(self.u_grid, self.tck)).T
+        dxy = np.diff(xy, axis=0)
+        seg = np.hypot(dxy[:,0], dxy[:,1])
+        s_grid = np.concatenate(([0.0], np.cumsum(seg)))
+        self.s_grid = s_grid
+        self.path_len = float(s_grid[-1])
 
-        pts = np.array(expanded_pts)
+        self.V_d = float(V_d)
+        self.delta = float(delta)
+        self.window_len = 4.0*self.delta if window_len is None else float(window_len)
+        self.mu = float(mu)  # small gradient to reduce along-track error
 
-        # Fit cubic B-spline to the waypoints
-        self.tck, _ = splprep([pts[:, 0], pts[:, 1]], s=0, k=3)
-        self.V_d = V_d
-        self.delta = delta
+        # Persistent arc-length parameter s (initialize lazily on first call)
+        self.s = None
 
-        # Approximate total path length
-        samples = np.array(splev(np.linspace(0, 1, 500), self.tck)).T
-        diffs = np.diff(samples, axis=0)
-        self.path_len = np.sum(np.hypot(diffs[:, 0], diffs[:, 1]))
+    # ---- helpers: arc-length <-> u -------------------------------------------------
+    def _u_from_s(self, s):
+        s = np.clip(s, 0.0, self.path_len)
+        i = np.searchsorted(self.s_grid, s)
+        if i == 0: return self.u_grid[0]
+        if i >= len(self.s_grid): return self.u_grid[-1]
+        s0, s1 = self.s_grid[i-1], self.s_grid[i]
+        u0, u1 = self.u_grid[i-1], self.u_grid[i]
+        t = 0.0 if s1==s0 else (s - s0)/(s1 - s0)
+        return u0 + t*(u1 - u0)
 
-    def _project(self, x, y):
+    def _pos_from_s(self, s):
+        u = self._u_from_s(s)
+        x, y = splev(u, self.tck)
+        return np.array([x, y])
+
+    def _tangent_from_s(self, s):
+        u = self._u_from_s(s)
+        dx, dy = splev(u, self.tck, der=1)
+        t = np.array([dx, dy])
+        nrm = np.linalg.norm(t)
+        return t / (nrm + 1e-12), nrm  # unit tangent, |p'(u)| (scaled)
+
+    # ---- local projection around s_prev (bounded window + progress bias) ----------
+    def _project_local(self, x, y, s_guess, ds_ff):
         """
-        Project the point (x, y) onto the spline to find the parameter s.
+        Project (x,y) to arc-length s within a local window around s_guess.
+        Adds a quadratic bias toward s_guess + ds_ff to prefer forward progress.
         """
-        def cost(u):
+        w = self.window_len
+        a = max(0.0, s_guess - 0.5*w)
+        b = min(self.path_len, s_guess + 0.5*w)
+        if b <= a:  # fallback
+            a, b = 0.0, self.path_len
+
+        target = np.array([x, y])
+        s_target = s_guess + ds_ff
+
+        def cost(s):
+            p = self._pos_from_s(s)
+            d = p - target
+            # distance term + progress bias term (lambda weights)
+            return d@d + 1e-3*(s - s_target)**2
+
+        res = minimize_scalar(cost, bounds=(a, b), method='bounded', options={'xatol':1e-6})
+        return float(res.x)
+
+    # ---- public API ----------------------------------------------------------------
+    def reset_to_nearest(self, x, y):
+        """Call once before the loop to initialize s to the global nearest point."""
+        target = np.array([x, y])
+        def cost_u(u):
             px, py = splev(u, self.tck)
-            return (px - x)**2 + (py - y)**2
+            d = np.array([px, py]) - target
+            return d@d
+        res = minimize_scalar(cost_u, bounds=(0.0, 1.0), method='bounded')
+        u0 = float(res.x)
+        # convert to arc length
+        i = np.searchsorted(self.u_grid, u0)
+        if i == 0: self.s = 0.0
+        elif i >= len(self.u_grid): self.s = self.path_len
+        else:
+            u0a, u0b = self.u_grid[i-1], self.u_grid[i]
+            s0a, s0b = self.s_grid[i-1], self.s_grid[i]
+            t = (u0 - u0a) / (u0b - u0a + 1e-12)
+            self.s = s0a + t*(s0b - s0a)
 
-        res = minimize_scalar(cost, bounds=(0, 1), method='bounded')
-        return res.x
-
-    def guidance(self, x, y):
+    def guidance(self, x, y, dt=None):
         """
-        Compute the LOS guidance command.
-
-        :param x: current NED x-position (m)
-        :param y: current NED y-position (m)
-        :return: (chi_d, vel_cmd) where chi_d is desired heading (rad),
-                 and vel_cmd is a 2-element array [Vx, Vy] in NED.
+        Compute heading + NED velocity command.
+        If dt is given, advance by V_d*dt along the curve; otherwise use delta lookahead.
+        Returns (chi_d [rad], vel_cmd [2], extras dict)
         """
-        # 1) Project onto spline
-        s0 = self._project(x, y)
+        if self.s is None:
+            self.reset_to_nearest(x, y)
 
-        # 2) Compute look-ahead parameter increment
-        ds = self.delta / self.path_len
-        s_la = min(s0 + ds, 1.0)
+        # feedforward advance in arc length
+        ds_ff = (self.V_d * (dt if dt is not None else 0.0))
 
-        # 3) Evaluate look-ahead point
-        x_la, y_la = splev(s_la, self.tck)
+        # optional gradient correction to reduce along-track error (small mu)
+        # ṡ_c = -mu * t_hat^T * e  where e = p(s) - current position
+        # discretize as ds_grad ~ ṡ_c * dt
+        ds_grad = 0.0
+        if dt is not None and self.mu > 0.0:
+            p_s = self._pos_from_s(self.s)
+            t_hat, _ = self._tangent_from_s(self.s)
+            e = p_s - np.array([x, y])
+            ds_grad = - self.mu * float(t_hat.dot(e)) * dt
 
-        # 4) Compute desired heading
-        dx, dy = x_la - x, y_la - y
+        # predict prior to projection
+        s_pred = np.clip(self.s + ds_ff + ds_grad, 0.0, self.path_len)
+
+        # local projection (prevents jumping at crossings)
+        s0 = self._project_local(x, y, s_pred, ds_ff)
+
+        # choose look-ahead by arc length
+        s_la = min(s0 + self.delta, self.path_len)
+        p_la = self._pos_from_s(s_la)
+
+        # heading toward lookahead
+        dx, dy = p_la[0] - x, p_la[1] - y
         chi_d = np.arctan2(dy, dx)
 
-        # 5) Compute velocity command in NED
+        # velocity command in NED
         Vx = self.V_d * np.cos(chi_d)
         Vy = self.V_d * np.sin(chi_d)
 
-        return chi_d, np.array([Vx, Vy])
+        # commit parameter for next call
+        self.s = s0
 
+        return chi_d, np.array([Vx, Vy]), {"s": self.s, "s_la": s_la, "path_len": self.path_len, "lookahead_point": p_la}
 
 if __name__ == "__main__":
     # Example waypoints in NED (north-east)
