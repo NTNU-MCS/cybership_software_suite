@@ -1,7 +1,7 @@
 /**:
   ros__parameters:
     world_frame: world
-    base_frame: mocap_link
+    base_frame: voyager/mocap_link
     rigid_body_name: "0"
     topic_name: measurement/pose
     publish_tf: false

@@ -1,0 +1,243 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Mux Controller (Foxglove roslibjs)</title>
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 2rem; max-width: 820px; }
+      fieldset { border: 1px solid #ddd; border-radius: 12px; padding: 1rem; margin-bottom: 1rem; }
+      legend { font-weight: 600; }
+      label { display:block; margin: .25rem 0; }
+      button, select, input { padding: .5rem; margin-right: .5rem; }
+      .row { display:flex; gap:.5rem; align-items:center; flex-wrap: wrap; }
+      .status { color:#555; margin-top:.5rem; }
+      .pill { padding: .15rem .5rem; border-radius: 999px; background:#f3f4f6; }
+    </style>
+
+    <!-- UMD build exposes global "ROSLIB" -->
+    <script src="https://cdn.jsdelivr.net/npm/@foxglove/roslibjs/build/roslib.js"></script>
+  </head>
+  <body>
+    <h1>Mux Controller <span class="pill">foxglove_bridge + @foxglove/roslibjs</span></h1>
+
+    <fieldset>
+      <legend>Connection</legend>
+      <div class="row">
+        <label>WebSocket URL
+          <input id="ws" size="40" value="ws://localhost:8765"/>
+        </label>
+        <label>Namespace
+          <input id="ns" size="28" placeholder="/vehicle_namespace (e.g., /enterprise)"/>
+        </label>
+        <button id="connect">Connect</button>
+        <span id="connStatus" class="status">Disconnected</span>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Thruster</legend>
+      <div class="row">
+        <button id="thrOn">Activate</button>
+        <button id="thrOff">Deactivate</button>
+        <span id="thrStatus" class="status">Idle</span>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Force Mux</legend>
+      <div class="row">
+        <button id="forceFind">Find</button>
+        <button id="forceRefresh">Refresh</button>
+        <select id="forceTopics"><option value="">—</option></select>
+        <button id="forceSelect">Select</button>
+      </div>
+      <div class="status" id="forceStatus">Idle</div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Velocity Mux</legend>
+      <div class="row">
+        <button id="velFind">Find</button>
+        <button id="velRefresh">Refresh</button>
+        <select id="velTopics"><option value="">—</option></select>
+        <button id="velSelect">Select</button>
+      </div>
+      <div class="status" id="velStatus">Idle</div>
+    </fieldset>
+
+    <script>
+      // small helpers
+      const $ = (id) => document.getElementById(id);
+      const nsJoin = (ns, name) => {
+        ns = (ns || "").trim();
+        if (ns && !ns.startsWith("/")) ns = "/" + ns;
+        const prefix = ns && ns !== "/" ? ns : "";
+        return (prefix ? prefix + "/" : "/") + String(name).replace(/^\//, "");
+      };
+
+      let ros = null;
+      let forceMux = null;
+      let velMux = null;
+
+      // --- roslibjs helpers (promise wrappers) ---
+      function makeService(name, type) {
+        return new ROSLIB.Service({ ros, name, serviceType: type });
+      }
+
+      function callService(srv, request = {}) {
+        return new Promise((resolve, reject) => {
+          srv.callService(request, (resp) => resolve(resp), (err) => reject(err));
+        });
+      }
+
+      async function getServicesSafe() {
+        // @foxglove/roslibjs provides graph calls on Ros; prefer those if present.
+        // Fallback to empty list if not supported by the connected bridge.
+        try {
+          if (typeof ros.getServices === "function") {
+            return await ros.getServices();
+          }
+        } catch (_) {}
+        return []; // fallback: discovery by probing known names
+      }
+
+      async function findMux(prefix) {
+        const ns = $("ns").value;
+        const nsPrefix = (ns && ns !== "/") ? (ns.replace(/\/?$/, "/")) : "/";
+        const services = await getServicesSafe();
+
+        // Prefer discovering */list services of type topic_tools_interfaces/srv/MuxList
+        const candidates = [];
+        for (const s of services) {
+          // Each service entry is typically { name, type } for foxglove roslibjs
+          const name = s.name || s; // tolerate string shapes
+          const type = s.type || "";
+          if (!String(name).startsWith(nsPrefix)) continue;
+          if (!String(name).endsWith("/list")) continue;
+          if (String(type) !== "topic_tools_interfaces/srv/MuxList") continue;
+          const base = name.split("/").slice(-2, -1)[0];
+          candidates.push(base);
+        }
+
+        if (candidates.length > 0) {
+          candidates.sort();
+          const preferred = candidates.find((b) => b.startsWith(prefix));
+          return preferred || candidates[0];
+        }
+
+        // Fallback if graph not available: probe common names quickly by trying to call /list.
+        const probe = async (base) => {
+          const srv = makeService(nsJoin(ns, base + "/list"), "topic_tools_interfaces/srv/MuxList");
+          try { await callService(srv, {}); return true; } catch { return false; }
+        };
+        const guesses = [prefix, "force_mux", "velocity_mux", "cmd_mux", "mux"];
+        for (const g of guesses) {
+          if (await probe(g)) return g;
+        }
+        return null;
+      }
+
+      async function listMuxTopics(muxBase) {
+        const srv = makeService(nsJoin($("ns").value, muxBase + "/list"), "topic_tools_interfaces/srv/MuxList");
+        const resp = await callService(srv, {});
+        return Array.isArray(resp?.topics) ? resp.topics : [];
+      }
+
+      async function selectMuxTopic(muxBase, topic) {
+        const srv = makeService(nsJoin($("ns").value, muxBase + "/select"), "topic_tools_interfaces/srv/MuxSelect");
+        const resp = await callService(srv, { topic });
+        return !!resp?.success;
+      }
+
+      async function callEmptyService(cands) {
+        // Try namespace-qualified names first
+        for (const cand of cands) {
+          const srv = makeService(nsJoin($("ns").value, cand), "std_srvs/srv/Empty");
+          try { await callService(srv, {}); return true; } catch {/* try next */}
+        }
+        // If that failed, try as-is (in case you passed FQNs in cands)
+        for (const cand of cands) {
+          const srv = makeService(cand, "std_srvs/srv/Empty");
+          try { await callService(srv, {}); return true; } catch {/* try next */}
+        }
+        return false;
+      }
+
+      function setTopicOptions(selectEl, topics) {
+        const opts = ["", ...(topics || [])]
+          .map(t => `<option value="${t}">${t || "—"}</option>`)
+          .join("");
+        selectEl.innerHTML = opts;
+      }
+
+      // --- UI wiring ---
+      $("connect").onclick = () => {
+        ros = new ROSLIB.Ros({ url: $("ws").value });
+        $("connStatus").textContent = "Connecting…";
+        ros.on("connection", () => $("connStatus").textContent = "Connected");
+        ros.on("close", () => $("connStatus").textContent = "Disconnected");
+        ros.on("error", (e) => $("connStatus").textContent = "Error: " + (e?.message || e));
+      };
+
+      // Thruster actions
+      $("thrOn").onclick = async () => {
+        $("thrStatus").textContent = "Activating…";
+        const ok = await callEmptyService(["thruster/activate", "thruster/enable"]);
+        $("thrStatus").textContent = ok ? "Activated" : "Activate failed";
+      };
+      $("thrOff").onclick = async () => {
+        $("thrStatus").textContent = "Disabling…";
+        const ok = await callEmptyService(["thruster/disable"]);
+        $("thrStatus").textContent = ok ? "Disabled" : "Disable failed";
+      };
+
+      // Force panel
+      $("forceFind").onclick = async () => {
+        $("forceStatus").textContent = "Discovering…";
+        forceMux = await findMux("force_mux");
+        $("forceStatus").textContent = forceMux ? `Using '${forceMux}'` : "No mux found";
+      };
+      $("forceRefresh").onclick = async () => {
+        $("forceStatus").textContent = "Listing…";
+        const mux = forceMux || await findMux("force_mux");
+        if (!mux) { $("forceStatus").textContent = "No mux found"; return; }
+        const topics = await listMuxTopics(mux);
+        setTopicOptions($("forceTopics"), topics);
+        $("forceStatus").textContent = `${topics.length} topic(s)`;
+        forceMux = mux;
+      };
+      $("forceSelect").onclick = async () => {
+        if (!forceMux) { $("forceStatus").textContent = "Find/Refresh first"; return; }
+        const topic = $("forceTopics").value;
+        if (!topic) { $("forceStatus").textContent = "Pick a topic"; return; }
+        $("forceStatus").textContent = `Selecting ${topic}…`;
+        const ok = await selectMuxTopic(forceMux, topic);
+        $("forceStatus").textContent = ok ? "Selected" : "Select rejected";
+      };
+
+      // Velocity panel
+      $("velFind").onclick = async () => {
+        $("velStatus").textContent = "Discovering…";
+        velMux = await findMux("velocity_mux");
+        $("velStatus").textContent = velMux ? `Using '${velMux}'` : "No mux found";
+      };
+      $("velRefresh").onclick = async () => {
+        $("velStatus").textContent = "Listing…";
+        const mux = velMux || await findMux("velocity_mux");
+        if (!mux) { $("velStatus").textContent = "No mux found"; return; }
+        const topics = await listMuxTopics(mux);
+        setTopicOptions($("velTopics"), topics);
+        $("velStatus").textContent = `${topics.length} topic(s)`;
+        velMux = mux;
+      };
+      $("velSelect").onclick = async () => {
+        if (!velMux) { $("velStatus").textContent = "Find/Refresh first"; return; }
+        const topic = $("velTopics").value;
+        if (!topic) { $("velStatus").textContent = "Pick a topic"; return; }
+        $("velStatus").textContent = `Selecting ${topic}…`;
+        const ok = await selectMuxTopic(velMux, topic);
+        $("velStatus").textContent = ok ? "Selected" : "Select rejected";
+      };
+    </script>
+  </body>
+</html>

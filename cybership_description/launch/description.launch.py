@@ -31,7 +31,8 @@ def generate_launch_description():
             {'robot_description': launch.substitutions.Command([
                 'xacro', ' ', xacro_file, ' ',
                 'gazebo:=ignition', ' ',
-                'namespace:=', launch.substitutions.LaunchConfiguration('vessel_name')])}
+                'namespace:=', launch.substitutions.LaunchConfiguration('vessel_name')])},
+            {'frame_prefix': [launch.substitutions.LaunchConfiguration('vessel_name'), '/']},
         ],
         remappings=[
             # ('/tf', 'tf'),

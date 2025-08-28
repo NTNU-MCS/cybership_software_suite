@@ -20,7 +20,7 @@ class DrillshipSimulator(BaseSimulator):
     def _create_vessel(self):
         return shoeboxpy.model6dof.Shoebox(
             L=3.0, B=0.4, T=0.10, GM_theta=0.02, GM_phi=0.02,
-            eta0=np.array([0.0, 0.0, 0.0, 0.2, 0.2, 0.0]),
+            eta0=self.eta0.flatten(),
         )
 
     def _init_allocator(self):
@@ -116,7 +116,7 @@ class DrillshipSimulator(BaseSimulator):
         self.u[0] = np.clip(msg.force.x, -1.0, 1.0)
         self.u[1] = np.clip(msg.force.y, -1.0, 1.0)
         issued = geometry_msgs.msg.WrenchStamped()
-        issued.header.frame_id = "bow_port_thruster_link"
+        issued.header.frame_id = self._frame("bow_port_thruster_link")
         issued.header.stamp = self.get_clock().now().to_msg()
         issued.wrench.force.x = msg.force.x
         issued.wrench.force.y = msg.force.y
@@ -126,7 +126,7 @@ class DrillshipSimulator(BaseSimulator):
         self.u[2] = np.clip(msg.force.x, -1.0, 1.0)
         self.u[3] = np.clip(msg.force.y, -1.0, 1.0)
         issued = geometry_msgs.msg.WrenchStamped()
-        issued.header.frame_id = "bow_center_thruster_link"
+        issued.header.frame_id = self._frame("bow_center_thruster_link")
         issued.header.stamp = self.get_clock().now().to_msg()
         issued.wrench.force.x = msg.force.x
         issued.wrench.force.y = msg.force.y
@@ -136,7 +136,7 @@ class DrillshipSimulator(BaseSimulator):
         self.u[4] = np.clip(msg.force.x, -1.0, 1.0)
         self.u[5] = np.clip(msg.force.y, -1.0, 1.0)
         issued = geometry_msgs.msg.WrenchStamped()
-        issued.header.frame_id = "bow_starboard_thruster_link"
+        issued.header.frame_id = self._frame("bow_starboard_thruster_link")
         issued.header.stamp = self.get_clock().now().to_msg()
         issued.wrench.force.x = msg.force.x
         issued.wrench.force.y = msg.force.y
@@ -146,7 +146,7 @@ class DrillshipSimulator(BaseSimulator):
         self.u[6] = np.clip(msg.force.x, -1.0, 1.0)
         self.u[7] = np.clip(msg.force.y, -1.0, 1.0)
         issued = geometry_msgs.msg.WrenchStamped()
-        issued.header.frame_id = "aft_port_thruster_link"
+        issued.header.frame_id = self._frame("aft_port_thruster_link")
         issued.header.stamp = self.get_clock().now().to_msg()
         issued.wrench.force.x = msg.force.x
         issued.wrench.force.y = msg.force.y
@@ -156,7 +156,7 @@ class DrillshipSimulator(BaseSimulator):
         self.u[8] = np.clip(msg.force.x, -1.0, 1.0)
         self.u[9] = np.clip(msg.force.y, -1.0, 1.0)
         issued = geometry_msgs.msg.WrenchStamped()
-        issued.header.frame_id = "aft_center_thruster_link"
+        issued.header.frame_id = self._frame("aft_center_thruster_link")
         issued.header.stamp = self.get_clock().now().to_msg()
         issued.wrench.force.x = msg.force.x
         issued.wrench.force.y = msg.force.y
@@ -166,7 +166,7 @@ class DrillshipSimulator(BaseSimulator):
         self.u[10] = np.clip(msg.force.x, -1.0, 1.0)
         self.u[11] = np.clip(msg.force.y, -1.0, 1.0)
         issued = geometry_msgs.msg.WrenchStamped()
-        issued.header.frame_id = "aft_starboard_thruster_link"
+        issued.header.frame_id = self._frame("aft_starboard_thruster_link")
         issued.header.stamp = self.get_clock().now().to_msg()
         issued.wrench.force.x = msg.force.x
         issued.wrench.force.y = msg.force.y

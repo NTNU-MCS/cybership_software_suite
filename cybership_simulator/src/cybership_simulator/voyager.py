@@ -21,7 +21,7 @@ class VoyagerSimulator(BaseSimulator):
     def _create_vessel(self):
         return shoeboxpy.model6dof.Shoebox(
             L=1.0, B=0.3, T=0.08, GM_theta=0.02, GM_phi=0.02,
-            eta0=np.array([0.0, 0.0, 0.0, 0.2, 0.2, 0.0]),
+            eta0=self.eta0.flatten(),
         )
 
     def _init_allocator(self):
@@ -86,12 +86,10 @@ class VoyagerSimulator(BaseSimulator):
     # Thruster command callbacks
     def cb_tunnel_thruster(self, msg: geometry_msgs.msg.Wrench):
         self.u[0] = msg.force.x
-
         if np.linalg.norm(self.u[0]) < 0.05:
             self.u[0] = 0.0
-
         issued = geometry_msgs.msg.WrenchStamped()
-        issued.header.frame_id = "bow_tunnel_thruster_link"
+        issued.header.frame_id = self._frame("bow_tunnel_thruster_link")
         issued.header.stamp = self.get_clock().now().to_msg()
         issued.wrench.force.x = msg.force.x
         self.publisher_tunnel_thruster.publish(issued)
@@ -99,17 +97,14 @@ class VoyagerSimulator(BaseSimulator):
     def cb_port_thruster(self, msg: geometry_msgs.msg.Wrench):
         fx = np.clip(msg.force.x, -1.0, 1.0)
         fy = np.clip(msg.force.y, -1.0, 1.0)
-
         # Apply a deadband to the thruster commands
         if np.linalg.norm([fx, fy]) < 0.1:
             fx = 0.0
             fy = 0.0
-
         self.u[1] = fx
         self.u[2] = fy
-
         issued = geometry_msgs.msg.WrenchStamped()
-        issued.header.frame_id = "stern_port_thruster_link"
+        issued.header.frame_id = self._frame("stern_port_thruster_link")
         issued.header.stamp = self.get_clock().now().to_msg()
         issued.wrench.force.x = fx
         issued.wrench.force.y = fy
@@ -118,17 +113,14 @@ class VoyagerSimulator(BaseSimulator):
     def cb_starboard_thruster(self, msg: geometry_msgs.msg.Wrench):
         fx = np.clip(msg.force.x, -1.0, 1.0)
         fy = np.clip(msg.force.y, -1.0, 1.0)
-
         # Apply a deadband to the thruster commands
         if np.linalg.norm([fx, fy]) < 0.1:
             fx = 0.0
             fy = 0.0
-
         self.u[3] = fx
         self.u[4] = fy
-
         issued = geometry_msgs.msg.WrenchStamped()
-        issued.header.frame_id = "stern_starboard_thruster_link"
+        issued.header.frame_id = self._frame("stern_starboard_thruster_link")
         issued.header.stamp = self.get_clock().now().to_msg()
         issued.wrench.force.x = fx
         issued.wrench.force.y = fy
