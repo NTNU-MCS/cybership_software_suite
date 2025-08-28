@@ -4,41 +4,8 @@ import launch.actions
 import launch.substitutions
 import launch.launch_description_sources
 
+from cybership_utilities.launch import include_launch_action_with_config
 
-def include_launch_action_with_config(
-        vessel_model,
-        vessel_name,
-        launch_file,
-        config_file=""):
-
-    bringup_pkg_dir = launch_ros.substitutions.FindPackageShare(
-        'cybership_bringup')
-    config_pkg_dir = launch_ros.substitutions.FindPackageShare(
-        'cybership_config')
-
-    launch_arguments = [
-        ('vessel_name', vessel_name),
-        ('vessel_model', vessel_model)
-    ]
-
-    if len(param_file) != 0:
-        launch_arguments.append(
-            (
-                'param_file',
-                launch.substitutions.PathJoinSubstitution(
-                    [config_pkg_dir, 'config', vessel_model, config_file]
-                )
-            )
-        )
-
-    return launch.actions.IncludeLaunchDescription(
-        launch.launch_description_sources.PythonLaunchDescriptionSource(
-            launch.substitutions.PathJoinSubstitution(
-                [bringup_pkg_dir, 'launch', 'include', launch_file]
-            )
-        ),
-        launch_arguments=launch_arguments
-    )
 
 
 def generate_launch_description():

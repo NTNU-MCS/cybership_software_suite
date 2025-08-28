@@ -5,9 +5,10 @@ ROS2 Action Server for LOS Guidance using cybership_interfaces/LOSGuidance
 import math
 import rclpy
 from rclpy.node import Node
-from rclpy.action import ActionServer
+from rclpy.action import ActionServer, ActionClient
 from rclpy.action import CancelResponse, GoalResponse
-from rclpy.executors import MultiThreadedExecutor
+from rclpy.executors import MultiThreadedExecutor, SingleThreadedExecutor
+from rclpy.callback_groups import MutuallyExclusiveCallbackGroup, ReentrantCallbackGroup
 from rclpy.qos import QoSProfile, DurabilityPolicy
 
 from nav_msgs.msg import Path, Odometry
@@ -20,21 +21,26 @@ from cybership_interfaces.action import LOSGuidance
 # Import underlying LOS guidance implementation
 from cybership_controller.guidance.los import LOSGuidance as BaseLOSGuidance
 import numpy as np
+import typing
 from scipy.interpolate import splev
+
 
 class LOSGuidanceROS(Node):
     def __init__(self):
         super().__init__('los_guidance_server', namespace="cybership")
         # Parameters
-        self.declare_parameter('desired_speed', 0.3)
+        self.declare_parameter('desired_speed', 0.5)
         self.declare_parameter('lookahead', 0.4)
         # Heading control gain
-        self.declare_parameter('heading_gain', 4.0)
+        self.declare_parameter('heading_gain', 1.0)
         # Publishers and Subscribers
-        self._cmd_pub = self.create_publisher(Twist, 'control/velocity/command', 10)
+        self._cmd_pub = self.create_publisher(
+            Twist, 'control/velocity/command', 10)
         # Publish markers with transient local durability so RViZ receives past markers
-        self._marker_pub = self.create_publisher(Marker, 'visualization_marker', 10)
-        self._odom_sub = self.create_subscription(Odometry, 'measurement/odom', self.odom_callback, 10)
+        self._marker_pub = self.create_publisher(
+            Marker, 'visualization_marker', 10)
+        self._odom_sub = self.create_subscription(
+            Odometry, 'measurement/odom', self.odom_callback, 10)
         # Vehicle pose
         self._position = None
         self._yaw = None
@@ -45,8 +51,10 @@ class LOSGuidanceROS(Node):
             'los_guidance',
             execute_callback=self.execute_callback,
             goal_callback=self.goal_callback,
-            cancel_callback=self.cancel_callback)
-        self.current_goal = None
+            cancel_callback=self.cancel_callback,
+            callback_group=ReentrantCallbackGroup())
+
+        self.goal_uuids: typing.List = []
 
         self.get_logger().info('LOS Guidance Action Server started')
 
@@ -63,48 +71,55 @@ class LOSGuidanceROS(Node):
         if len(goal_request.path.poses) < 2:
             self.get_logger().warn("Path has fewer than 2 poses — rejecting goal.")
             return GoalResponse.REJECT
-        if self.current_goal is not None:
-            self.get_logger().info("Cancelling previous active goal.")
-            self.current_goal.abort()
+
         return GoalResponse.ACCEPT
 
-    def cancel_callback(self, goal_handle):
+    def cancel_callback(self, goal_handle) -> CancelResponse:
+
         return CancelResponse.ACCEPT
 
-    def execute_callback(self, goal_handle):
-        self.current_goal = goal_handle
-        self.get_logger().info("Goal accepted: starting LOS guidance.")
-        # Extract waypoints from Path and include current vehicle position as initial point
+    def prepare_waypoints(self, path_msg: Path, extend: bool = True, n_intermediate: int = 2) -> np.ndarray:
+        waypoints = [(pose.pose.position.x, pose.pose.position.y)
+                     for pose in path_msg.poses]
+
+        if extend:
+            # Add intermediate points
+            extended_waypoints = []
+            for i in range(len(waypoints) - 1):
+                p1 = waypoints[i]
+                p2 = waypoints[i + 1]
+                extended_waypoints.append(p1)
+                # Add intermediate points
+                for j in range(1, n_intermediate + 1):
+                    mid_point = (
+                        p1[0] + (p2[0] - p1[0]) * j / (n_intermediate + 1),
+                        p1[1] + (p2[1] - p1[1]) * j / (n_intermediate + 1)
+                    )
+                    extended_waypoints.append(mid_point)
+            extended_waypoints.append(waypoints[-1])
+            waypoints = extended_waypoints
+
+        return np.array(waypoints)
+
+    async def execute_callback(self, goal_handle: LOSGuidance.Goal) -> LOSGuidance.Result:
+
+        if len(self.goal_uuids) > 0:
+            self.goal_uuids.pop(0)
+
+        self.goal_uuids.append(tuple(goal_handle.goal_id.uuid))
+
         path_msg: Path = goal_handle.request.path
-        # Build waypoints list, prepending vehicle's initial position if available
         waypoints = []
+        waypoints.extend([(pose.pose.position.x, pose.pose.position.y)
+                          for pose in path_msg.poses])
         if self._position is not None:
             waypoints.append(self._position)
 
-
-        waypoints.extend([(pose.pose.position.x, pose.pose.position.y)
-                          for pose in path_msg.poses])
-
-        # add intermediate points
-        n_intermediate = 2  # Number of intermediate points between each waypoint
-        extended_waypoints = []
-        for i in range(len(waypoints) - 1):
-            p1 = waypoints[i]
-            p2 = waypoints[i + 1]
-            extended_waypoints.append(p1)
-            # Add intermediate points
-            for j in range(1, n_intermediate + 1):
-                mid_point = (
-                    p1[0] + (p2[0] - p1[0]) * j / (n_intermediate + 1),
-                    p1[1] + (p2[1] - p1[1]) * j / (n_intermediate + 1)
-                )
-                extended_waypoints.append(mid_point)
-
-        extended_waypoints.append(waypoints[-1])
-        waypoints = np.array(extended_waypoints)
+        waypoints = self.prepare_waypoints(
+            path_msg, extend=True, n_intermediate=2)
 
         # Initialize guidance
-        hz = 10
+        hz = 2
         rate = self.create_rate(hz)
         V_d = float(self.get_parameter('desired_speed').value)
         delta = float(self.get_parameter('lookahead').value)
@@ -119,9 +134,21 @@ class LOSGuidanceROS(Node):
 
         canceled = False
         while rclpy.ok():
+            self.get_logger().info(f"{self.goal_uuids}")
+            if tuple(goal_handle.goal_id.uuid) not in self.goal_uuids:
+                self.get_logger().info(
+                    f"LOS guidance goal no longer current. {goal_handle.goal_id.uuid}")
+                canceled = True
+                break
+
             if goal_handle.is_cancel_requested:
                 goal_handle.canceled()
-                canceled = True
+                self.get_logger().info(
+                    f"LOS guidance canceled. {goal_handle.goal_id.uuid}")
+                break
+            if not goal_handle.is_active:
+                self.get_logger().info(
+                    f"LOS guidance no longer active. {goal_handle.goal_id.uuid}")
                 break
             if self._position is None or self._yaw is None:
                 rate.sleep()
@@ -130,13 +157,15 @@ class LOSGuidanceROS(Node):
             chi_d, vel_cmd, extras = guidance.guidance(x, y, dt=dt)
             twist = Twist()
             # Compute forward velocity in body frame using current heading
-            v_forward = vel_cmd[0] * math.cos(self._yaw) + vel_cmd[1] * math.sin(self._yaw)
+            v_forward = vel_cmd[0] * \
+                math.cos(self._yaw) + vel_cmd[1] * math.sin(self._yaw)
             # Use computed forward speed (ensuring non-negative speed)
             twist.linear.x = max(v_forward, 0.0)
             twist.linear.y = 0.0
             twist.linear.z = 0.0
             # Compute and normalize heading error
-            heading_error = math.atan2(math.sin(chi_d - self._yaw), math.cos(chi_d - self._yaw))
+            heading_error = math.atan2(
+                math.sin(chi_d - self._yaw), math.cos(chi_d - self._yaw))
             twist.angular.z = k_h * heading_error
             self._cmd_pub.publish(twist)
             # Feedback
@@ -148,7 +177,8 @@ class LOSGuidanceROS(Node):
             self.publish_arrow_marker(x, y, vel_cmd)
             # Look-ahead visualization
             # x_la, y_la, _, _ = guidance.lookahead_point(x, y)
-            self.publish_lookahead_marker(extras["lookahead_point"][0], extras["lookahead_point"][1])
+            self.publish_lookahead_marker(
+                extras["lookahead_point"][0], extras["lookahead_point"][1])
             # self.publish_lookahead_line(x, y, x_la, y_la)
             # Check completion
             if math.hypot(x - last_wp[0], y - last_wp[1]) < delta:
@@ -158,7 +188,6 @@ class LOSGuidanceROS(Node):
         if not canceled:
             goal_handle.succeed()
             self.get_logger().info("LOS guidance finished (result empty).")
-        self.current_goal = None
         return LOSGuidance.Result()
 
     def publish_path_marker(self, path_msg: Path):
@@ -169,7 +198,10 @@ class LOSGuidanceROS(Node):
         marker.type = Marker.LINE_STRIP
         marker.action = Marker.ADD
         marker.scale.x = 0.05
-        marker.color.r = 1.0; marker.color.g = 0.0; marker.color.b = 0.0; marker.color.a = 1.0
+        marker.color.r = 1.0
+        marker.color.g = 0.0
+        marker.color.b = 0.0
+        marker.color.a = 1.0
         marker.points = [Point(x=pose.pose.position.x,
                                y=pose.pose.position.y,
                                z=0.0)
@@ -189,7 +221,10 @@ class LOSGuidanceROS(Node):
         marker.scale.z = 0.1
         # Use a copy of vel_cmd for scaling to avoid in-place modification
         vel_arrow = vel_cmd * 3
-        marker.color.r = 0.0; marker.color.g = 1.0; marker.color.b = 0.5; marker.color.a = 1.0
+        marker.color.r = 0.0
+        marker.color.g = 1.0
+        marker.color.b = 0.5
+        marker.color.a = 1.0
         start = Point(x=x, y=y, z=0.0)
         end = Point(x=x + vel_arrow[0], y=y + vel_arrow[1], z=0.0)
         marker.points = [start, end]
@@ -204,7 +239,10 @@ class LOSGuidanceROS(Node):
         marker.type = Marker.LINE_STRIP
         marker.action = Marker.ADD
         marker.scale.x = 0.05
-        marker.color.r = 0.0; marker.color.g = 0.0; marker.color.b = 1.0; marker.color.a = 1.0
+        marker.color.r = 0.0
+        marker.color.g = 0.0
+        marker.color.b = 1.0
+        marker.color.a = 1.0
         # Sample spline path points
         ts = np.linspace(0, 1, 1000)
         spline_pts = np.array(splev(ts, guidance.tck)).T
@@ -222,7 +260,10 @@ class LOSGuidanceROS(Node):
         m.scale.x = 0.25   # diameter in meters
         m.scale.y = 0.25
         m.scale.z = 0.25
-        m.color.r = 1.0; m.color.g = 0.85; m.color.b = 0.0; m.color.a = 1.0  # golden/yellow
+        m.color.r = 1.0
+        m.color.g = 0.85
+        m.color.b = 0.0
+        m.color.a = 1.0  # golden/yellow
         m.pose.position.x = float(x_la)
         m.pose.position.y = float(y_la)
         m.pose.position.z = 0.0
@@ -237,11 +278,15 @@ class LOSGuidanceROS(Node):
         m.type = Marker.LINE_STRIP
         m.action = Marker.ADD
         m.scale.x = 0.03
-        m.color.r = 1.0; m.color.g = 0.85; m.color.b = 0.0; m.color.a = 0.9
+        m.color.r = 1.0
+        m.color.g = 0.85
+        m.color.b = 0.0
+        m.color.a = 0.9
         start = Point(x=float(x),    y=float(y),    z=0.0)
-        end   = Point(x=float(x_la), y=float(y_la), z=0.0)
+        end = Point(x=float(x_la), y=float(y_la), z=0.0)
         m.points = [start, end]
         self._marker_pub.publish(m)
+
 
 def main(args=None):
     rclpy.init(args=args)

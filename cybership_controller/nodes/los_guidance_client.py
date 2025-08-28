@@ -7,6 +7,8 @@ from rclpy.node import Node
 from rclpy.action import ActionClient
 from rclpy.executors import MultiThreadedExecutor
 
+import numpy as np
+
 from nav_msgs.msg import Path
 from geometry_msgs.msg import PoseStamped
 from cybership_interfaces.action import LOSGuidance
@@ -72,10 +74,9 @@ def main(args=None):
     # Example waypoints for testing
     example_waypoints = [
         (0.0, 0.0),
-        (6.0, 0.0),
-        (6.0, 6.0),
-        (0.0, 6.0),
-        (0.0, 0.0),
+        (np.random.normal(6.0, 1.0), 0.0),
+        (np.random.normal(6.0, 1.0),np.random.normal(6.0, 1.0)),
+        (0.0, np.random.normal(6.0, 1.0)),
     ]
     client.send_goal(example_waypoints)
     # Use MultiThreadedExecutor to handle feedback continuously

@@ -44,8 +44,8 @@
     # Performance metrics configuration
     # Used for monitoring and debugging controller performance
     metrics:
-      window_size: 50       # Number of samples in moving window for statistics
-      interval: 1.0         # Time between metrics calculations (seconds)
+      window_size: 10       # Number of samples in moving window for statistics
+      interval: 5.0         # Time between metrics calculations (seconds)
 
     # Timing parameters
-    dt: 0.1                 # Control loop time step (seconds) - affects timer frequency
+    dt: 0.5                 # Control loop time step (seconds) - affects timer frequency

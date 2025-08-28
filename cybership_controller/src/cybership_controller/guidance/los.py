@@ -2,6 +2,7 @@ import numpy as np
 from scipy.interpolate import splprep, splev
 from scipy.optimize import minimize_scalar
 
+
 class LOSGuidance:
     def __init__(self, pts, V_d, delta, window_len=None, mu=0.0):
         """
@@ -12,20 +13,22 @@ class LOSGuidance:
         mu: small gradient gain for along-track stabilization [0..0.5], 0 to disable
         """
         pts = np.asarray(pts)
-        self.tck, self.u_wp = splprep([pts[:,0], pts[:,1]], s=0, k=min(3, len(pts)-1))
+        self.tck, self.u_wp = splprep(
+            [pts[:, 0], pts[:, 1]], s=0, k=min(3, len(pts)-1))
 
         # Precompute dense arc-length lookup: u_grid <-> s_grid
         self.u_grid = np.linspace(0.0, 1.0, 2000)
         xy = np.array(splev(self.u_grid, self.tck)).T
         dxy = np.diff(xy, axis=0)
-        seg = np.hypot(dxy[:,0], dxy[:,1])
+        seg = np.hypot(dxy[:, 0], dxy[:, 1])
         s_grid = np.concatenate(([0.0], np.cumsum(seg)))
         self.s_grid = s_grid
         self.path_len = float(s_grid[-1])
 
         self.V_d = float(V_d)
         self.delta = float(delta)
-        self.window_len = 4.0*self.delta if window_len is None else float(window_len)
+        self.window_len = 4.0 * \
+            self.delta if window_len is None else float(window_len)
         self.mu = float(mu)  # small gradient to reduce along-track error
 
         # Persistent arc-length parameter s (initialize lazily on first call)
@@ -35,11 +38,13 @@ class LOSGuidance:
     def _u_from_s(self, s):
         s = np.clip(s, 0.0, self.path_len)
         i = np.searchsorted(self.s_grid, s)
-        if i == 0: return self.u_grid[0]
-        if i >= len(self.s_grid): return self.u_grid[-1]
+        if i == 0:
+            return self.u_grid[0]
+        if i >= len(self.s_grid):
+            return self.u_grid[-1]
         s0, s1 = self.s_grid[i-1], self.s_grid[i]
         u0, u1 = self.u_grid[i-1], self.u_grid[i]
-        t = 0.0 if s1==s0 else (s - s0)/(s1 - s0)
+        t = 0.0 if s1 == s0 else (s - s0)/(s1 - s0)
         return u0 + t*(u1 - u0)
 
     def _pos_from_s(self, s):
@@ -75,13 +80,15 @@ class LOSGuidance:
             # distance term + progress bias term (lambda weights)
             return d@d + 1e-3*(s - s_target)**2
 
-        res = minimize_scalar(cost, bounds=(a, b), method='bounded', options={'xatol':1e-6})
+        res = minimize_scalar(cost, bounds=(
+            a, b), method='bounded', options={'xatol': 1e-6})
         return float(res.x)
 
     # ---- public API ----------------------------------------------------------------
     def reset_to_nearest(self, x, y):
         """Call once before the loop to initialize s to the global nearest point."""
         target = np.array([x, y])
+
         def cost_u(u):
             px, py = splev(u, self.tck)
             d = np.array([px, py]) - target
@@ -90,8 +97,10 @@ class LOSGuidance:
         u0 = float(res.x)
         # convert to arc length
         i = np.searchsorted(self.u_grid, u0)
-        if i == 0: self.s = 0.0
-        elif i >= len(self.u_grid): self.s = self.path_len
+        if i == 0:
+            self.s = 0.0
+        elif i >= len(self.u_grid):
+            self.s = self.path_len
         else:
             u0a, u0b = self.u_grid[i-1], self.u_grid[i]
             s0a, s0b = self.s_grid[i-1], self.s_grid[i]
@@ -143,6 +152,7 @@ class LOSGuidance:
 
         return chi_d, np.array([Vx, Vy]), {"s": self.s, "s_la": s_la, "path_len": self.path_len, "lookahead_point": p_la}
 
+
 if __name__ == "__main__":
     # Example waypoints in NED (north-east)
     waypoints = np.array([
@@ -168,5 +178,5 @@ if __name__ == "__main__":
     print("LOS Guidance Commands:")
     for pos in test_positions:
         chi_d, vel_cmd = los.guidance(*pos)
-        print(f"Position {pos} -> Heading: {np.degrees(chi_d):.1f}°, Vel_CMD: [{vel_cmd[0]:.2f}, {vel_cmd[1]:.2f}]")
-
+        print(
+            f"Position {pos} -> Heading: {np.degrees(chi_d):.1f}°, Vel_CMD: [{vel_cmd[0]:.2f}, {vel_cmd[1]:.2f}]")
