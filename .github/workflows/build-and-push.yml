@@ -13,11 +13,9 @@ jobs:
       fail-fast: false
       matrix:
         configurations:
-          - ros_distro: 'humble'
+          - ros_distro: 'kilted'
           - ros_distro: 'jazzy'
-          - ros_distro: 'iron'
-          - ros_distro: 'galactic'
-          
+
     runs-on: ubuntu-latest
 
     steps:
