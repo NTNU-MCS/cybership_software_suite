@@ -11,4 +11,10 @@ find_package(ament_cmake_python REQUIRED)
 
 ament_python_install_package(${PROJECT_NAME})
 
+# Install Python executables
+install(PROGRAMS
+  nodes/force_mux_gui.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 ament_package()

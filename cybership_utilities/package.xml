@@ -10,6 +10,7 @@
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <depend>rclpy</depend>
+  <depend>topic_tools_interfaces</depend>
   <buildtool_depend>ament_cmake_python</buildtool_depend>
 
   <export>
