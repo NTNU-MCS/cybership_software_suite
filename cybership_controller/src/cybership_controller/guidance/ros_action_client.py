@@ -14,8 +14,8 @@ from geometry_msgs.msg import PoseStamped
 from cybership_interfaces.action import LOSGuidance
 
 class LOSGuidanceClient(Node):
-    def __init__(self):
-        super().__init__('los_guidance_client')
+    def __init__(self, **kwargs):
+        super().__init__('los_guidance_client', **kwargs)
         self._action_client = ActionClient(self, LOSGuidance, 'los_guidance')
 
     def send_goal(self, waypoints):
