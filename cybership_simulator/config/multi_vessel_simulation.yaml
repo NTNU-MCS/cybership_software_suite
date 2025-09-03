@@ -3,9 +3,9 @@
   ros__parameters:
     initial_conditions:
       position:
-        x: 0.0
+        x: 25.0
         y: 0.0
-        yaw: 0.0
+        yaw: 3.14159
       velocity:
         surge: 0.0
         sway: 0.0
@@ -18,7 +18,7 @@
   ros__parameters:
     initial_conditions:
       position:
-        x: 4.0
+        x: 10.0
         y: 0.0
         yaw: 0.0
       velocity:
