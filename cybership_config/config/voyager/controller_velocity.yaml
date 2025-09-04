@@ -18,9 +18,9 @@
       # Proportional gains for each degree of freedom (DOF)
       # Higher values provide faster response but may cause oscillations
       p_gain:
-        surge: 5.0   # Forward/backward motion (u)
-        sway: 5.0    # Left/right motion (v)
-        yaw: 5.0     # Rotational motion (r)
+        surge: 0.5   # Forward/backward motion (u)
+        sway: 0.3    # Left/right motion (v)
+        yaw: 0.3     # Rotational motion (r)
 
       # Integral gains for each DOF
       # Helps eliminate steady-state errors
@@ -37,7 +37,7 @@
         yaw: 0.3
 
       # Control limits and filtering
-      i_max: 20.0          # Maximum integral contribution (anti-windup)
+      i_max: 0.0          # Maximum integral contribution (anti-windup)
       smooth_limit: true   # Enable smooth limiting for control outputs
       filter_alpha: 0.1    # Smoothing factor for desired velocity (0-1, lower = more smoothing)
 
@@ -48,4 +48,4 @@
       interval: 5.0         # Time between metrics calculations (seconds)
 
     # Timing parameters
-    dt: 0.5                 # Control loop time step (seconds) - affects timer frequency
+    dt: 0.2                 # Control loop time step (seconds) - affects timer frequency
