@@ -30,7 +30,7 @@ def generate_launch_description() -> LaunchDescription:
     return LaunchDescription(
         [
             DeclareLaunchArgument(
-                "http_port", default_value="8000", description="Port for the static HTTP server"
+                "http_port", default_value="8001", description="Port for the static HTTP server"
             ),
             DeclareLaunchArgument(
                 "ws_port", default_value="8765", description="WebSocket port for foxglove_bridge"
