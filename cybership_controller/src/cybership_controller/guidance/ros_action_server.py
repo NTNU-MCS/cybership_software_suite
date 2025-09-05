@@ -29,10 +29,10 @@ class LOSGuidanceROS(Node):
     def __init__(self):
         super().__init__('los_guidance_server', namespace="cybership")
         # Parameters
-        self.declare_parameter('desired_speed', 0.5)
-        self.declare_parameter('lookahead', 1.0)
+        self.declare_parameter('desired_speed', 0.3)
+        self.declare_parameter('lookahead', 0.4)
         # Heading control gain
-        self.declare_parameter('heading_gain', 1.0)
+        self.declare_parameter('heading_gain', 1.1)
         # Publishers and Subscribers
         self._cmd_pub = self.create_publisher(
             Twist, 'control/velocity/command', 10)

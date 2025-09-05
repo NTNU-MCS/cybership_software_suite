@@ -10,9 +10,9 @@ from cybership_utilities.launch import include_launch_action_with_config
 
 def generate_launch_description():
 
-    vessel_name = 'drillship'
+    vessel_name = 'voyager'
 
-    vessel_model = 'drillship'
+    vessel_model = 'voyager'
 
     ld = launch.LaunchDescription()
 
