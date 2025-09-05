@@ -8,11 +8,11 @@
       axis_mappings:
         force-x:
           axis: 3
-          scale: 2.0
+          scale: 3.0
           offset: 0.0
         force-y:
           axis: 2
-          scale: -2.0
+          scale: -3.0
           offset: 0.0
         torque-z:
           axis: 0
@@ -25,9 +25,22 @@
       service_name: thruster/enable
       buttons: [0]
 
-
     disable:
       type: service
       interface_type: std_srvs/srv/Empty
       service_name: thruster/disable
       buttons: [1]
+
+    joy_force_mux:
+      type: service
+      interface_type: topic_tools_interfaces/srv/MuxSelect
+      service_name: force_mux/select
+      buttons: [2]
+      request: {"topic": "control/force/command"}
+
+    position_force_mux:
+      type: service
+      interface_type: topic_tools_interfaces/srv/MuxSelect
+      service_name: force_mux/select
+      buttons: [3]
+      request: {"topic": "control/force/command/position"}
