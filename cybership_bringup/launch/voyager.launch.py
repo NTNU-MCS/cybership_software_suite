@@ -43,12 +43,6 @@ def generate_launch_description():
             'force_multiplexer.launch.py', 'force_multiplexer.yaml'
         )
     )
-    # ld.add_action(
-    #     include_launch_action_with_config(
-    #         vessel_model, vessel_name,
-    #         'robot_localization.launch.py', 'robot_localization.yaml'
-    #     )
-    # )
 
     ld.add_action(
         include_launch_action_with_config(

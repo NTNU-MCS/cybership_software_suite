@@ -60,6 +60,8 @@ def generate_launch_description():
         arguments=[
             "control/velocity/command/mux",           # Output topic
             "control/velocity/command",               # Input topic to listen to
+            "control/velocity/command/los",           # Input topic to listen to
+            "control/velocity/command/manual",        # Input topic to listen to
         ],
         output="screen",
         respawn=True,

@@ -49,6 +49,7 @@ def generate_launch_description():
         arguments=[
             "control/force/command/mux",           # Output topic
             "control/force/command",               # Input topic to listen to
+            "control/force/command/manual",        # Input topic to listen to
             "control/force/command/velocity",      # Input topic to listen to
             "control/force/command/position",      # Input topic to listen to
         ],

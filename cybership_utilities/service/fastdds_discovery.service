@@ -1,0 +1,14 @@
+[Unit]
+Description=Fast DDS Discovery Server (reads ~/.config/fastdds for configuration)
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=%h/.config/fastdds
+
+[Service]
+Type=simple
+ExecStart=/bin/bash -lc 'source "$HOME/.config/fastdds"; : "${FASTDDS_DISCOVERY_ID:?Set FASTDDS_DISCOVERY_ID in ~/.config/fastdds}"; exec fastdds discovery -i "$FASTDDS_DISCOVERY_ID" -p "${FASTDDS_DISCOVERY_PORT:-11811}"'
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

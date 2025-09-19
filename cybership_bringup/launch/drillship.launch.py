@@ -40,13 +40,6 @@ def generate_launch_description():
         )
     )
 
-    # ld.add_action(
-    #     include_launch_action_with_config(
-    #         vessel_model, vessel_name,
-    #         'robot_localization.launch.py', 'robot_localization.yaml'
-    #     )
-    # )
-
     ld.add_action(
         include_launch_action_with_config(
             vessel_model, vessel_name,
@@ -67,12 +60,5 @@ def generate_launch_description():
             'imu_bno055.launch.py', 'imu_bno055.yaml'
         )
     )
-
-    # ld.add_action(
-    #     include_launch_action_with_config(
-    #         vessel_model, vessel_name,
-    #         'urdf_description.launch.py', 'empty.yaml'
-    #     )
-    # )
 
     return ld
