@@ -47,9 +47,9 @@ class VelocityControlNode(Node):
                 ('vessel.draft', 0.05),
 
                 # Control gains
-                ('control.p_gain.surge', 5.0),
-                ('control.p_gain.sway', 5.0),
-                ('control.p_gain.yaw', 5.0),
+                ('control.p_gain.surge', 1.0),
+                ('control.p_gain.sway', 1.0),
+                ('control.p_gain.yaw', 1.0),
 
                 ('control.i_gain.surge', 0.0),
                 ('control.i_gain.sway', 0.0),
@@ -59,7 +59,7 @@ class VelocityControlNode(Node):
                 ('control.d_gain.sway', 0.3),
                 ('control.d_gain.yaw', 0.3),
 
-                ('control.i_max', 20.0),
+                ('control.i_max', 1.0),
                 ('control.smooth_limit', True),
                 ('control.filter_alpha', 0.1),
 
@@ -210,6 +210,8 @@ class VelocityControlNode(Node):
     def parameters_callback(self, params):
         """Handle parameter updates"""
         update_needed = False
+
+        # Log parameter changes
 
         for param in params:
             if param.name in [

@@ -20,7 +20,7 @@
       p_gain:
         surge: 0.5   # Forward/backward motion (u)
         sway: 0.3    # Left/right motion (v)
-        yaw: 0.3     # Rotational motion (r)
+        yaw: 0.7     # Rotational motion (r)
 
       # Integral gains for each DOF
       # Helps eliminate steady-state errors
@@ -48,4 +48,4 @@
       interval: 5.0         # Time between metrics calculations (seconds)
 
     # Timing parameters
-    dt: 0.2                 # Control loop time step (seconds) - affects timer frequency
+    dt: 0.05                 # Control loop time step (seconds) - affects timer frequency
