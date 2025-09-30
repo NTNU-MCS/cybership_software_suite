@@ -35,7 +35,7 @@
     i2c_addr: 0x28
     data_query_frequency: 100
     calib_status_frequency: 0.1
-    frame_id: "imu_link"
+    frame_id: "voyager/imu_link"
     operation_mode: 0x0C
     placement_axis_remap: "P2"
     acc_factor: 100.0

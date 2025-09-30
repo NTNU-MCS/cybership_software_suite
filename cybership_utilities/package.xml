@@ -9,12 +9,8 @@
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
-  <depend>joy</depend>
-  <depend>sensor_msgs</depend>
   <depend>rclpy</depend>
-  <depend>geometry_msgs</depend>
-  <depend>tf2_ros</depend>
-  <depend>ros_base</depend>
+  <depend>topic_tools_interfaces</depend>
   <buildtool_depend>ament_cmake_python</buildtool_depend>
 
   <export>

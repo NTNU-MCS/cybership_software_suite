@@ -2,13 +2,33 @@
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="cybership_voyager">
 
     <link name="base_link">
+        <visual>
+            <origin
+                xyz="0.0 0.0 0.0"
+                rpy="0.0 0.0 0.0"
+            />
+            <geometry>
+                <mesh
+                    filename="package://cybership_description/meshes/drillship/model.stl"
+                    scale="1.0 1.0 1.0"
+                />
 
+            </geometry>
+        </visual>
     </link>
+
+    <link name="base_link_ned"/>
+    <joint name="base_link_to_ned" type="fixed">
+        <child link="base_link"/>
+        <parent link="base_link_ned"/>
+        <origin xyz="0 0 0" rpy="-3.1415926 0 0.0"/>
+    </joint>
 
     <link name="mocap_link"></link>
     <joint name="mocap_link_joint" type="fixed">
-        <parent link="base_link" />
+        <parent link="base_link_ned" />
         <child link="mocap_link" />
+        <!-- <origin xyz="0.0 0.0 0.3" rpy="0.0 0.0 0.0" /> -->
         <origin xyz="0.0 0.0 0.3" rpy="0.0 3.14159265358979 1.5707963267948966" />
     </joint>
 

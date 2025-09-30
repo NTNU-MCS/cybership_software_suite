@@ -1,0 +1,11 @@
+# Goal definition: path to follow
+nav_msgs/Path path
+# Result: final reached? not used
+bool success
+---
+# Empty result currently
+bool success
+---
+# Feedback: current heading and velocity command
+float64 heading
+geometry_msgs/Vector3 vel_cmd

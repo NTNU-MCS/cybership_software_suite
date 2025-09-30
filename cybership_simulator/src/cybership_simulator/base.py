@@ -46,15 +46,16 @@ class BaseSimulator(Node, ABC):
         # Thruster command vector (u) will be defined by the subclass since its dimension can vary.
         self.u = None
 
+        # Declare and read parameters for initial conditions
+        self._declare_parameters()
+        self._read_parameters()
+        self.add_on_set_parameters_callback(self._on_parameter_change)
+
         # Create vessel and allocator (subclasses provide concrete implementations)
         self.vessel = self._create_vessel()
         self.allocator = self._init_allocator()
         self.allocator.compute_configuration_matrix()
 
-        # Declare and read parameters for initial conditions
-        self._declare_parameters()
-        self._read_parameters()
-        self.add_on_set_parameters_callback(self._on_parameter_change)
 
         # Common publishers for odometry and TF
         self.odom = Odometry()
@@ -124,6 +125,10 @@ class BaseSimulator(Node, ABC):
                 ('yaw_rate', 0.0),
             ]
         )
+        self.declare_parameter('world_frame_id', 'world')
+        self.declare_parameter('body_frame_id', 'base_link_ned')
+        self.declare_parameter('tf_prefix', '')
+
 
     def _read_parameters(self):
         self.eta0[0] = self.get_parameter('initial_conditions.position.x').value
@@ -133,6 +138,12 @@ class BaseSimulator(Node, ABC):
         self.nu0[0] = self.get_parameter('initial_conditions.velocity.surge').value
         self.nu0[1] = self.get_parameter('initial_conditions.velocity.sway').value
         self.nu0[5] = self.get_parameter('initial_conditions.velocity.yaw_rate').value
+
+        self.world_frame_id = self.get_parameter('world_frame_id').value
+        self.body_frame_id = self.get_parameter('body_frame_id').value
+        self.tf_prefix = self.get_parameter('tf_prefix').value
+
+        self.get_logger().info(f"Initial conditions set: eta0={self.eta0.flatten()}, nu0={self.nu0.flatten()}")
 
     def _on_parameter_change(self, params):
         successful = True
@@ -195,7 +206,7 @@ class BaseSimulator(Node, ABC):
         # # Transform to body fixed frame
         # F[0:3] = Rz.T @ F[0:3]
 
-        self.vessel.eta[2] = 0.0
+        # self.vessel.eta[2] = 0.0
 
         self.vessel.step(tau=tau, dt=self.dt)
 
@@ -212,16 +223,16 @@ class BaseSimulator(Node, ABC):
         """
         self.clock_msg.clock.sec = int(self.sim_time)
         self.clock_msg.clock.nanosec = int((self.sim_time - int(self.sim_time)) * 1e9)
-        self.publisher_clock.publish(self.clock_msg)
+        # self.publisher_clock.publish(self.clock_msg)
 
     def publish_odom(self):
         eta, nu = self.vessel.get_states()
         rot = R.from_euler('xyz', eta[3:6], degrees=False)
         quat = rot.as_quat()  # [x, y, z, w]
 
-        self.odom.header.frame_id = "world"
         self.odom.header.stamp = self.get_clock().now().to_msg()
-        self.odom.child_frame_id = "base_link"
+        self.odom.header.frame_id = self.world_frame_id
+        self.odom.child_frame_id = self._frame(self.body_frame_id)
 
         self.odom.pose.pose.position.x = eta[0].item()
         self.odom.pose.pose.position.y = eta[1].item()
@@ -248,8 +259,8 @@ class BaseSimulator(Node, ABC):
     def publish_tf(self):
         t = TransformStamped()
         t.header.stamp = self.get_clock().now().to_msg()
-        t.header.frame_id = "world"
-        t.child_frame_id = "base_link"
+        t.header.frame_id = self.world_frame_id
+        t.child_frame_id = self._frame(self.body_frame_id)
 
         t.transform.translation.x = self.odom.pose.pose.position.x
         t.transform.translation.y = self.odom.pose.pose.position.y
@@ -261,3 +272,8 @@ class BaseSimulator(Node, ABC):
 
         self.tf_broadcaster.sendTransform(t)
 
+    def _frame(self, link: str) -> str:
+        """Return namespaced frame id if body_frame_id is set, else the link itself."""
+        if isinstance(self.tf_prefix, str) and self.tf_prefix.strip():
+            return f"{self.tf_prefix.rstrip('/')}/{link}"
+        return link

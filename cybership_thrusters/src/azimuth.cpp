@@ -25,6 +25,11 @@ Azimuth::Azimuth(rclcpp::Node::SharedPtr node, std::string name) : ThrusterBase(
     m_disable_service = m_node->create_service<std_srvs::srv::Empty>("thruster/disable",
         std::bind(&Azimuth::f_disable_callback, this, std::placeholders::_1, std::placeholders::_2));
 
+    // Safety watchdog setup
+    m_node->get_parameter_or<double>("thrusters." + m_config.name + ".safety_timeout", m_safety_timeout_sec, 2.0);
+    m_last_cmd_time = m_node->now();
+    m_watchdog_timer = m_node->create_wall_timer(std::chrono::milliseconds(500), std::bind(&Azimuth::f_watchdog_check, this));
+
 }
 
 void Azimuth::f_enable_callback(const std::shared_ptr<std_srvs::srv::Empty::Request> request,
@@ -41,10 +46,12 @@ void Azimuth::f_disable_callback(const std::shared_ptr<std_srvs::srv::Empty::Req
     (void) request;
     (void) response;
     m_enabled = false;
+    f_publish_zero();
 }
 
 void Azimuth::f_force_callback(const geometry_msgs::msg::Wrench::SharedPtr msg)
 {
+    m_last_cmd_time = m_node->now();
     if (!m_enabled)
     {
         std_msgs::msg::Float32 zero_msg;
@@ -62,6 +69,10 @@ void Azimuth::f_force_callback(const geometry_msgs::msg::Wrench::SharedPtr msg)
     auto angle = std::atan2(msg->force.y, msg->force.x);
     auto rpm = std::sqrt(std::pow(msg->force.y,2) + std::pow(msg->force.x,2));
 
+    if (m_config.angle_inverted) {
+        angle = -angle;
+    }
+
     angle_msg.data = angle;
     rpm_msg.data = rpm;
 
@@ -71,6 +82,23 @@ void Azimuth::f_force_callback(const geometry_msgs::msg::Wrench::SharedPtr msg)
     }
     m_angle_pub->publish(angle_msg);
 
+}
+
+void Azimuth::f_watchdog_check()
+{
+    auto now = m_node->now();
+    auto elapsed = (now - m_last_cmd_time).seconds();
+    if (elapsed > m_safety_timeout_sec) {
+        f_publish_zero();
+    }
+}
+
+void Azimuth::f_publish_zero()
+{
+    std_msgs::msg::Float32 zero_msg;
+    zero_msg.data = 0.0f;
+    m_angle_pub->publish(zero_msg);
+    m_rpm_pub->publish(zero_msg);
 }
 
 void Azimuth::Config::declare(rclcpp::Node::SharedPtr  node)

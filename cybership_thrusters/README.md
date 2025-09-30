@@ -78,6 +78,28 @@ The ROS2 parameters for configuring each thruster are defined under the `thruste
 - **`signal_inverted`**:
   A boolean flag indicating whether the output signal should be inverted.
 
+## Safety Watchdog
+
+- All thruster controllers implement a safety watchdog. If no command message is received on the configured `force_topic` for more than `2.0` seconds, the thruster automatically publishes zero commands on its output topics (e.g., `signal`, `rpm`, `angle`, `arm_x`, `arm_y`).
+- The timeout is configurable per thruster via `thrusters.<name>.safety_timeout` (seconds). Default: `2.0`.
+
+Example YAML:
+
+```yaml
+thrusters:
+  thruster1:
+    type: "fixed"
+    force_topic: "/thruster1/force"
+    signal_topic: "/thruster1/signal"
+    force_max: 5.0
+    force_min: -5.0
+    safety_timeout: 2.0   # seconds
+```
+
+Behavior notes:
+- When a thruster is disabled via service, it immediately publishes zero commands as well.
+- The watchdog runs at 10 Hz and only publishes when a timeout occurs.
+
 ## Usage
 
 The node will read parameters from the ROS2 parameter server and create instances of thrusters based on their configurations.
@@ -119,7 +141,7 @@ thrusters:
     signal_inverted: true
 ```
 
-You can load this configuration via a YAML file and pass it as an argument to your node or use ROS2’s parameter mechanisms to set these values dynamically.
+You can load this configuration via a YAML file and pass it as an argument to your node or use ROS2's parameter mechanisms to set these values dynamically.
 
 ## Additional Information
 

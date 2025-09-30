@@ -1,0 +1,51 @@
+# Configuration for velocity_control.py node
+# Node: /cybership/velocity_control_node
+# This configuration supports the reference feedforward velocity controller
+
+/**:
+  ros__parameters:
+    # Vessel physical dimensions (meters)
+    # These parameters define the physical characteristics of the vessel
+    # and are used to calculate the vessel's dynamic model
+    vessel:
+      length: 1.0    # Length of vessel (L) in meters
+      beam: 0.3      # Width of vessel (B) in meters
+      draft: 0.05    # Draft (depth) of vessel (T) in meters
+
+    # Control parameters for PID velocity controller
+    # The controller uses reference feedforward with PID feedback
+    control:
+      # Proportional gains for each degree of freedom (DOF)
+      # Higher values provide faster response but may cause oscillations
+      p_gain:
+        surge: 0.5   # Forward/backward motion (u)
+        sway: 0.3    # Left/right motion (v)
+        yaw: 0.7     # Rotational motion (r)
+
+      # Integral gains for each DOF
+      # Helps eliminate steady-state errors
+      i_gain:
+        surge: 0.0   # Usually kept low or zero for velocity control
+        sway: 0.0
+        yaw: 0.0
+
+      # Derivative gains for each DOF
+      # Provides damping and improves stability
+      d_gain:
+        surge: 0.3   # Helps reduce overshoot
+        sway: 0.3
+        yaw: 0.3
+
+      # Control limits and filtering
+      i_max: 0.0          # Maximum integral contribution (anti-windup)
+      smooth_limit: true   # Enable smooth limiting for control outputs
+      filter_alpha: 0.1    # Smoothing factor for desired velocity (0-1, lower = more smoothing)
+
+    # Performance metrics configuration
+    # Used for monitoring and debugging controller performance
+    metrics:
+      window_size: 10       # Number of samples in moving window for statistics
+      interval: 5.0         # Time between metrics calculations (seconds)
+
+    # Timing parameters
+    dt: 0.05                 # Control loop time step (seconds) - affects timer frequency

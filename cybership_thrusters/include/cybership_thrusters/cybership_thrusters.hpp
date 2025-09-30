@@ -102,6 +102,13 @@ class VoithSchneider : public ThrusterBase {
 
     void f_force_callback(const geometry_msgs::msg::Wrench::SharedPtr msg);
 
+    // Safety watchdog
+    rclcpp::TimerBase::SharedPtr m_watchdog_timer;
+    rclcpp::Time m_last_cmd_time;
+    double m_safety_timeout_sec = 2.0;
+    void f_watchdog_check();
+    void f_publish_zero();
+
 public:
     VoithSchneider(rclcpp::Node::SharedPtr node, std::string thruster_name);
 
@@ -137,6 +144,13 @@ class Fixed : public ThrusterBase {
     rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr m_signal_pub;
 
     void f_force_callback(const geometry_msgs::msg::Wrench::SharedPtr msg);
+
+    // Safety watchdog
+    rclcpp::TimerBase::SharedPtr m_watchdog_timer;
+    rclcpp::Time m_last_cmd_time;
+    double m_safety_timeout_sec = 2.0;
+    void f_watchdog_check();
+    void f_publish_zero();
 
     rclcpp::Service<std_srvs::srv::Empty>::SharedPtr m_enable_service;
 
@@ -199,6 +213,13 @@ class Azimuth : public ThrusterBase {
                             std::shared_ptr<std_srvs::srv::Empty::Response> response);
 
     void f_force_callback(const geometry_msgs::msg::Wrench::SharedPtr msg);
+
+    // Safety watchdog
+    rclcpp::TimerBase::SharedPtr m_watchdog_timer;
+    rclcpp::Time m_last_cmd_time;
+    double m_safety_timeout_sec = 2.0;
+    void f_watchdog_check();
+    void f_publish_zero();
 
 public:
     Azimuth(rclcpp::Node::SharedPtr node, std::string thruster_name);

@@ -11,31 +11,6 @@ The `cybership_dp` package implements control algorithms for dynamic positioning
 
 Both controllers are implemented as ROS 2 nodes and can be configured for different vessel models.
 
-## Structure
-
-```
-cybership_dp/
-├── CMakeLists.txt            # Build configuration
-├── package.xml               # Package metadata and dependencies
-├── requirements.txt          # Python dependencies
-├── config/                   # Controller configurations
-│   ├── force_controller.yaml
-│   ├── velocity_controller.yaml
-│   └── [vessel_models]/      # Vessel-specific configs
-├── cybership_dp/             # Python module
-│   ├── __init__.py
-│   ├── drillship/            # Drillship-specific implementations
-│   ├── enterprise/           # Enterprise-specific implementations
-│   └── voyager/              # Voyager-specific implementations
-├── launch/                   # Launch files
-│   ├── dp.launch.py          # Combined DP system launch
-│   ├── force_controller.launch.py
-│   └── velocity_controller.launch.py
-└── nodes/                    # ROS executable nodes
-    ├── force_controller.py
-    └── velocity_controller.py
-```
-
 ## Usage
 
 ### Launch Files

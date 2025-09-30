@@ -2,11 +2,11 @@
   ros__parameters:
     thrusters:
 
-      azimuth_1:
+      bow_port:
         type: azimuth
-        force_topic: thruster/azimuth_1/command
+        force_topic: thruster/bow_port/command
         force_max: 1.0
-        force_min: -1.0
+        force_min: 0.0
         rpm:
           topic: hardware/prop/esc_1/scaled
           inverted: false
@@ -14,11 +14,11 @@
           topic: hardware/joint/servo_1/angle
           inverted: false
 
-      azimuth_2:
+      bow_center:
         type: azimuth
-        force_topic: thruster/azimuth_2/command
+        force_topic: thruster/bow_center/command
         force_max: 1.0
-        force_min: -1.0
+        force_min: 0.0
         rpm:
           topic: hardware/prop/esc_2/scaled
           inverted: false
@@ -26,11 +26,11 @@
           topic: hardware/joint/servo_2/angle
           inverted: false
 
-      azimuth_3:
+      bow_starboard:
         type: azimuth
-        force_topic: thruster/azimuth_3/command
+        force_topic: thruster/bow_starboard/command
         force_max: 1.0
-        force_min: -1.0
+        force_min: 0.0
         rpm:
           topic: hardware/prop/esc_3/scaled
           inverted: false
@@ -38,38 +38,38 @@
           topic: hardware/joint/servo_3/angle
           inverted: false
 
-      azimuth_4:
+      stern_port:
         type: azimuth
-        force_topic: thruster/azimuth_4/command
+        force_topic: thruster/stern_port/command
         force_max: 1.0
-        force_min: -1.0
+        force_min: 0.0
         rpm:
           topic: hardware/prop/esc_4/scaled
-          inverted: false
-        angle:
-          topic: hardware/joint/servo_4/angle
-          inverted: false
-
-      azimuth_5:
-        type: azimuth
-        force_topic: thruster/azimuth_5/command
-        force_max: 1.0
-        force_min: -1.0
-        rpm:
-          topic: hardware/prop/esc_5/scaled
           inverted: false
         angle:
           topic: hardware/joint/servo_5/angle
           inverted: false
 
-      azimuth_6:
+      stern_center:
         type: azimuth
-        force_topic: thruster/azimuth_6/command
+        force_topic: thruster/stern_center/command
         force_max: 1.0
-        force_min: -1.0
+        force_min: 0.0
+        rpm:
+          topic: hardware/prop/esc_5/scaled
+          inverted: false
+        angle:
+          topic: hardware/joint/servo_6/angle
+          inverted: false
+
+      stern_starboard:
+        type: azimuth
+        force_topic: thruster/stern_starboard/command
+        force_max: 1.0
+        force_min: 0.0
         rpm:
           topic: hardware/prop/esc_6/scaled
           inverted: false
         angle:
-          topic: hardware/joint/servo_6/angle
+          topic: hardware/joint/servo_4/angle
           inverted: false

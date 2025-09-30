@@ -1,6 +1,13 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="cybership_enterprise">
 
+    <!-- TODO: Fix thruster frame orientations and coordinate systems
+         - Thruster frames are not correctly oriented according to their actual thrust directions
+         - Missing base_link_ned link for proper NED (North-East-Down) coordinate frame convention
+         - Thruster positions and orientations need to be verified against actual vessel geometry
+         - Consider adding proper coordinate frame transformations for marine robotics conventions
+    -->
+
     <link name="base_link">
         <visual>
             <origin

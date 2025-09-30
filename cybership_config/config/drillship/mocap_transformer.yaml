@@ -1,7 +1,7 @@
 /**:
   ros__parameters:
-    world_frame: world_ned
-    base_frame: mocap_link
+    world_frame: world
+    base_frame: drillship/mocap_link
     rigid_body_name: "2"
     topic_name: measurement/pose
     publish_tf: false

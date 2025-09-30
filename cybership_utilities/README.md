@@ -21,3 +21,13 @@ from cybership_utilities import launch
 ```
 
 Then use `sanitize_hostname_for_ros2` or `anon` in your launch configurations, and include `COMMON_ARGUMENTS` to standardize launch argument handling.
+
+### Force Mux GUI
+
+The script `nodes/force_mux_gui.py` provides a small PyQt GUI to inspect and switch the `topic_tools` force mux source for a selected vehicle namespace.
+
+- Lists available input topics via `MuxList`
+- Switches active topic via `MuxSelect`
+- Namespace can be typed (e.g., `/enterprise`) or set with `VEHICLE_NS` env var.
+
+Run it with your preferred Python, ensuring your ROS 2 environment is sourced so service types are discoverable.

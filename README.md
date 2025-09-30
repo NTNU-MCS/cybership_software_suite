@@ -1,8 +1,8 @@
 # cybership_common
 
-This repository is the home of the CyberShip Software Suite – a collection of ROS 2 packages that together provide the tools to simulate, visualize, and control autonomous maritime vessels. The suite covers everything from the digital twin (URDF models and visualization) to real-time sensor integration (IMU, motion capture, etc.) and advanced control (dynamic positioning and thrust allocation).
+This repository is the home of the CyberShip Software Suite - a collection of ROS 2 packages that together provide the tools to simulate, visualize, and control autonomous maritime vessels. The suite covers everything from the digital twin (URDF models and visualization) to real-time sensor integration (IMU, motion capture, etc.) and advanced control (dynamic positioning and thrust allocation).
 
-## What’s Included
+## What's Included
 
 - **cybership_bringup**: Launch files to initialize all the necessary nodes for bringing up a vessel in a ROS 2 environment. This includes hardware drivers, localization, and sensor integration.
 - **cybership_simulator**: Simple Python scripts for vessel simulation using basic physics. Use these scripts to test vessel behavior in simulation.
@@ -84,7 +84,7 @@ For Simulation:
 Use the cybership_simulator package. This runs simplified physics scripts:
 
 ### 3. Visualization
-Visualize your vessel using the RViz visualization tools provided in the suite. The cybership_viz package sets up RViz with a preconfigured scene showing your vessel’s URDF model and sensor data overlays. To launch visualization:
+Visualize your vessel using the RViz visualization tools provided in the suite. The cybership_viz package sets up RViz with a preconfigured scene showing your vessel's URDF model and sensor data overlays. To launch visualization:
 
 Additionally, the cybership_description package can publish the URDF model via:
 

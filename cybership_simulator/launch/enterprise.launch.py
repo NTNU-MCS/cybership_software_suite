@@ -45,7 +45,8 @@ def generate_launch_description():
                     "config",
                     "simulation.yaml",
                 ]
-            )
+            ),
+            {"tf_prefix": launch.substitutions.LaunchConfiguration("vessel_name")},
         ],
         name=f"sim_{anon()}",
     )

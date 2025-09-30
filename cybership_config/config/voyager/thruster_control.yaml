@@ -11,7 +11,7 @@
           inverted: false
         angle:
           topic: hardware/joint/servo_2/angle
-          inverted: false
+          inverted:  true
 
       azimuth_starboard:
         type: azimuth
@@ -23,7 +23,7 @@
           inverted: false
         angle:
           topic: hardware/joint/servo_1/angle
-          inverted: false
+          inverted: true
 
       tunnel:
         type: fixed
@@ -32,4 +32,4 @@
         force_topic: thruster/tunnel/command
         signal:
           topic: hardware/prop/esc_0/scaled
-          inverted: false
+          inverted: true

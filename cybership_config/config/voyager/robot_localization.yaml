@@ -1,4 +1,3 @@
-### ekf config file ###
 /**:
   ros__parameters:
     # The frequency, in Hz, at which the filter will output a position estimate. Note that the filter will not begin
@@ -68,7 +67,7 @@
     #         estimation node from robot_localization! However, that instance should *not* fuse the global data.
     map_frame: map              # Defaults to "map" if unspecified
     odom_frame: world            # Defaults to "odom" if unspecified
-    base_link_frame: base_link  # Defaults to "base_link" if unspecified
+    base_link_frame: voyager/base_link_ned  # Defaults to "base_link" if unspecified
     world_frame: world           # Defaults to the value of odom_frame if unspecified
 
     # The filter accepts an arbitrary number of inputs from each input message type (nav_msgs/Odometry,

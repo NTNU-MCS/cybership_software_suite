@@ -6,7 +6,13 @@ Panels:
       Expanded:
         - /Global Options1
         - /Status1
+        - /TF1
+        - /TF1/Frames1
+        - /TF1/Tree1
         - /Odometry1/Shape1
+        - /RobotModel1
+        - /RobotModel1/Status1
+        - /RobotModel1/Description Topic1
       Splitter Ratio: 0.5596868991851807
     Tree Height: 1132
   - Class: rviz_common/Selection
@@ -50,26 +56,30 @@ Visualization Manager:
       Value: true
     - Class: rviz_default_plugins/TF
       Enabled: true
+      Filter (blacklist): ""
+      Filter (whitelist): ""
       Frame Timeout: 15
       Frames:
         All Enabled: true
-        aft_center_thruster_link:
+        drillship/aft_center_thruster_link:
           Value: true
-        aft_port_thruster_link:
+        drillship/aft_port_thruster_link:
           Value: true
-        aft_starboard_thruster_link:
+        drillship/aft_starboard_thruster_link:
           Value: true
-        base_link:
+        drillship/base_link:
           Value: true
-        bow_center_thruster_link:
+        drillship/base_link_ned:
           Value: true
-        bow_port_thruster_link:
+        drillship/bow_center_thruster_link:
           Value: true
-        bow_starboard_thruster_link:
+        drillship/bow_port_thruster_link:
           Value: true
-        imu_link:
+        drillship/bow_starboard_thruster_link:
           Value: true
-        mocap_link:
+        drillship/imu_link:
+          Value: true
+        drillship/mocap_link:
           Value: true
         world:
           Value: true
@@ -80,22 +90,23 @@ Visualization Manager:
       Show Names: true
       Tree:
         world:
-          base_link:
-            aft_center_thruster_link:
-              {}
-            aft_port_thruster_link:
-              {}
-            aft_starboard_thruster_link:
-              {}
-            bow_center_thruster_link:
-              {}
-            bow_port_thruster_link:
-              {}
-            bow_starboard_thruster_link:
-              {}
-            imu_link:
-              {}
-            mocap_link:
+          drillship/base_link_ned:
+            drillship/base_link:
+              drillship/aft_center_thruster_link:
+                {}
+              drillship/aft_port_thruster_link:
+                {}
+              drillship/aft_starboard_thruster_link:
+                {}
+              drillship/bow_center_thruster_link:
+                {}
+              drillship/bow_port_thruster_link:
+                {}
+              drillship/bow_starboard_thruster_link:
+                {}
+              drillship/imu_link:
+                {}
+            drillship/mocap_link:
               {}
       Update Interval: 0
       Value: true
@@ -287,6 +298,73 @@ Visualization Manager:
         Reliability Policy: Reliable
         Value: measurement/odom
       Value: true
+    - Alpha: 0.5
+      Class: rviz_default_plugins/RobotModel
+      Collision Enabled: true
+      Description File: ""
+      Description Source: Topic
+      Description Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /drillship/robot_description
+      Enabled: true
+      Links:
+        All Links Enabled: true
+        Expand Joint Details: false
+        Expand Link Details: false
+        Expand Tree: false
+        Link Tree Style: Links in Alphabetic Order
+        aft_center_thruster_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        aft_port_thruster_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        aft_starboard_thruster_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        base_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        base_link_ned:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        bow_center_thruster_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        bow_port_thruster_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        bow_starboard_thruster_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        imu_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        mocap_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+      Mass Properties:
+        Inertia: false
+        Mass: false
+      Name: RobotModel
+      TF Prefix: drillship
+      Update Interval: 0
+      Value: true
+      Visual Enabled: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -333,7 +411,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 8.380566596984863
+      Distance: 4.215280055999756
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -345,21 +423,21 @@ Visualization Manager:
         Z: 0
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
-      Invert Z Axis: false
+      Invert Z Axis: true
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.6697965264320374
+      Pitch: 0.7303979992866516
       Target Frame: base_link
       Value: Orbit (rviz)
-      Yaw: 2.2503936290740967
+      Yaw: 0.4803977608680725
     Saved: ~
 Window Geometry:
   Displays:
     collapsed: false
   Height: 1423
   Hide Left Dock: false
-  Hide Right Dock: true
-  QMainWindow State: 000000ff00000000fd000000040000000000000201000004f5fc0200000008fb0000001200530065006c0065006300740069006f006e00000001e10000009b0000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000003b000004f5000000c700fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c000002610000000100000100000002b4fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073000000003b000002b4000000a000fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000008330000003efc0100000002fb0000000800540069006d00650100000000000008330000025300fffffffb0000000800540069006d006501000000000000045000000000000000000000062c000004f500000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  Hide Right Dock: false
+  QMainWindow State: 000000ff00000000fd000000040000000000000304000004f5fc0200000008fb0000001200530065006c0065006300740069006f006e00000001e10000009b0000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000003b000004f5000000c700fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c000002610000000100000100000004f5fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073010000003b000004f5000000a000fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000008330000003efc0100000002fb0000000800540069006d00650100000000000008330000025300fffffffb0000000800540069006d0065010000000000000450000000000000000000000423000004f500000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Selection:
     collapsed: false
   Time:
@@ -367,7 +445,7 @@ Window Geometry:
   Tool Properties:
     collapsed: false
   Views:
-    collapsed: true
+    collapsed: false
   Width: 2099
-  X: 4319
-  Y: 224
+  X: 4255
+  Y: 160

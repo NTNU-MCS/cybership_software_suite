@@ -1,0 +1,30 @@
+
+/voyager/voyager_simulation:
+  ros__parameters:
+    initial_conditions:
+      position:
+        x: 5.0
+        y: 1.0
+        yaw: 3.14159
+      velocity:
+        surge: 0.0
+        sway: 0.0
+        yaw_rate: 0.0
+    tf_prefix: voyager
+    body_frame_id: base_link_ned
+    world_frame_id: world
+
+/drillship/drillship_simulation:
+  ros__parameters:
+    initial_conditions:
+      position:
+        x: -2.5
+        y: 0.5
+        yaw: 0.0
+      velocity:
+        surge: 0.0
+        sway: 0.0
+        yaw_rate: 0.0
+    tf_prefix: drillship
+    body_frame_id: base_link_ned
+    world_frame_id: world

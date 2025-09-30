@@ -6,7 +6,7 @@
     servos:
       # Starboard
       servo_1:
-        frame_id: starboard_azimuth_link
+        frame_id: voyager/starboard_azimuth_link
         control_topic: hardware/joint/servo_1/angle
         device_id: 1
         gain: 100.0
@@ -14,7 +14,7 @@
         offset: -2.6
       # Port
       servo_2:
-        frame_id: port_azimuth_link
+        frame_id: voyager/port_azimuth_link
         control_topic: hardware/joint/servo_2/angle
         device_id: 2
         gain: 100.0

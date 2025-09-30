@@ -29,11 +29,20 @@ def generate_launch_description():
         description="Joystick configuration file",
     )
 
+    arg_joy_id = launch.actions.DeclareLaunchArgument(
+        "joy_id",
+        default_value="0",
+        description="Joystick id",
+    )
+
     node_joy = Node(
         namespace=launch.substitutions.LaunchConfiguration("vessel_name"),
         package="joy",
         executable="game_controller_node",
         name=f"vessel_joy_node_{anon()}",
+        parameters=[
+            {"device_id": launch.substitutions.LaunchConfiguration("joy_id")}
+        ],
         output="screen",
     )
 
@@ -46,6 +55,7 @@ def generate_launch_description():
         parameters=[launch.substitutions.LaunchConfiguration("joy_config")],
     )
 
+    ld.add_action(arg_joy_id)
     ld.add_action(arg_joy_config)
     ld.add_action(node_joy)
     ld.add_action(node_joy_teleop)
