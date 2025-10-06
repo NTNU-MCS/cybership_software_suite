@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/811773554.svg)](https://doi.org/10.5281/zenodo.17233653)
+
 # cybership_common
 
 This repository is the home of the CyberShip Software Suite - a collection of ROS 2 packages that together provide the tools to simulate, visualize, and control autonomous maritime vessels. The suite covers everything from the digital twin (URDF models and visualization) to real-time sensor integration (IMU, motion capture, etc.) and advanced control (dynamic positioning and thrust allocation).
