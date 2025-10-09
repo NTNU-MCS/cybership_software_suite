@@ -8,7 +8,7 @@
     # These parameters define the physical characteristics of the vessel
     # and are used to calculate the vessel's dynamic model
     vessel:
-      length: 1.0    # Length of vessel (L) in meters
+      length: 2.0    # Length of vessel (L) in meters
       beam: 0.3      # Width of vessel (B) in meters
       draft: 0.05    # Draft (depth) of vessel (T) in meters
 
@@ -18,9 +18,9 @@
       # Proportional gains for each degree of freedom (DOF)
       # Higher values provide faster response but may cause oscillations
       p_gain:
-        surge: 5.0   # Forward/backward motion (u)
-        sway: 5.0    # Left/right motion (v)
-        yaw: 5.0     # Rotational motion (r)
+        surge: 1.0   # Forward/backward motion (u)
+        sway: 1.0    # Left/right motion (v)
+        yaw: 1.0     # Rotational motion (r)
 
       # Integral gains for each DOF
       # Helps eliminate steady-state errors

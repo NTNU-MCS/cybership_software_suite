@@ -55,11 +55,11 @@
     <xacro:thruster thruster_name="bow_starboard_thruster" origin_xyz="0.9344 0.11 -0.1"
         origin_rpy="0 0 0" />
 
-    <xacro:thruster thruster_name="aft_port_thruster" origin_xyz="-0.9911 -0.1644 -0.1"
+    <xacro:thruster thruster_name="stern_port_thruster" origin_xyz="-0.9911 -0.1644 -0.1"
         origin_rpy="0 0 0" />
-    <xacro:thruster thruster_name="aft_center_thruster" origin_xyz="-1.1644 0.0 -0.1"
+    <xacro:thruster thruster_name="stern_center_thruster" origin_xyz="-1.1644 0.0 -0.1"
         origin_rpy="0 0 0" />
-    <xacro:thruster thruster_name="aft_starboard_thruster" origin_xyz="-0.9911 0.1644 -0.1"
+    <xacro:thruster thruster_name="stern_starboard_thruster" origin_xyz="-0.9911 0.1644 -0.1"
         origin_rpy="0 0 0" />
 
 </robot>
