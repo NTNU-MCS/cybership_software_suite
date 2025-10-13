@@ -731,21 +731,17 @@ class PositionController(Node):
 def main(args=None):
     rclpy.init(args=args)
     server_node = PositionController()
-    client_node = NavigateToPoseClient()
     executor = (
         MultiThreadedExecutor()
     )  # Allows processing multiple callbacks concurrently
     executor.add_node(server_node)
-    executor.add_node(client_node)
     try:
         executor.spin()
     except KeyboardInterrupt:
         server_node.get_logger().info("Keyboard interrupt, shutting down...")
-        client_node.get_logger().info("Keyboard interrupt, shutting down...")
 
     finally:
         server_node.destroy_node()
-        client_node.destroy_node()
         executor.shutdown()
         rclpy.shutdown()
 

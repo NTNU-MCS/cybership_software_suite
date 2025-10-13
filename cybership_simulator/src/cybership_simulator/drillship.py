@@ -11,7 +11,7 @@ import geometry_msgs.msg
 #FIXME: Please x1000 conduct a pull test to verify the thruster forces and directions.
 #       Below value roughly matches the expected behavior in a simple test.
 
-TEMPORARY_MULTIPLIER_FOR_THRUSTER_FORCE = 7.0
+TEMPORARY_MULTIPLIER_FOR_THRUSTER_FORCE = 6.0
 
 class DrillshipSimulator(BaseSimulator):
     """
