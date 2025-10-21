@@ -45,6 +45,17 @@ def generate_launch_description():
         respawn_delay=5,
     )
 
+    node_position_client_node = launch_ros.actions.Node(
+        namespace=launch.substitutions.LaunchConfiguration("vessel_name"),
+        package="cybership_dp",
+        executable="position_control_client_node.py",
+        name=f"position_control_client",
+        output="screen",
+        respawn=True,
+        respawn_delay=5,
+    )
+
     ld.add_action(node_position_controller)
+    ld.add_action(node_position_client_node)
 
     return ld

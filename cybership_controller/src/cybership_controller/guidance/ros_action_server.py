@@ -133,6 +133,7 @@ class LOSGuidanceROS(Node):
         dt = 1.0 / hz
 
         canceled = False
+        reached_goal = False
         while rclpy.ok():
             self.get_logger().info(f"{self.goal_uuids}")
             if tuple(goal_handle.goal_id.uuid) not in self.goal_uuids:
@@ -182,12 +183,24 @@ class LOSGuidanceROS(Node):
             # self.publish_lookahead_line(x, y, x_la, y_la)
             # Check completion
             if math.hypot(x - last_wp[0], y - last_wp[1]) < delta:
+                reached_goal = True
                 break
             rate.sleep()
 
-        if not canceled:
+        # Decide final goal state based on how we exited the loop
+        if canceled:
+            # Already marked as canceled above
+            pass
+        elif reached_goal:
             goal_handle.succeed()
             self.get_logger().info("LOS guidance finished (result empty).")
+        else:
+            # Aborted due to shutdown or goal becoming inactive
+            if not rclpy.ok():
+                self.get_logger().info("Aborting LOS guidance due to shutdown (SIGINT).")
+            else:
+                self.get_logger().warn("Aborting LOS guidance: goal inactive or interrupted.")
+            goal_handle.abort()
         return LOSGuidance.Result()
 
     def publish_path_marker(self, path_msg: Path):
@@ -292,11 +305,15 @@ def main(args=None):
     rclpy.init(args=args)
     node = LOSGuidanceROS()
     executor = MultiThreadedExecutor()
-    executor.add_node(node)
-    executor.spin()
-    executor.shutdown()
-    node.destroy_node()
-    rclpy.shutdown()
+    try:
+        executor.add_node(node)
+        executor.spin()
+    except KeyboardInterrupt:
+        node.get_logger().info('Shutting down on SIGINT (Ctrl+C)')
+    finally:
+        executor.shutdown()
+        node.destroy_node()
+        rclpy.shutdown()
 
 
 if __name__ == '__main__':

@@ -8,6 +8,11 @@ import skadipy
 import rclpy
 import geometry_msgs.msg
 
+#FIXME: Please x1000 conduct a pull test to verify the thruster forces and directions.
+#       Below value roughly matches the expected behavior in a simple test.
+
+TEMPORARY_MULTIPLIER_FOR_THRUSTER_FORCE = 6.0
+
 class DrillshipSimulator(BaseSimulator):
     """
     Concrete simulator for the Drillship vessel.
@@ -35,13 +40,13 @@ class DrillshipSimulator(BaseSimulator):
             position=skadipy.toolbox.Point([0.9344, 0.11, -0.1]),
         )
 
-        aft_port_azimuth = skadipy.actuator.Azimuth(
+        stern_port_azimuth = skadipy.actuator.Azimuth(
             position=skadipy.toolbox.Point([-0.9911, -0.1644, -0.1]),
         )
-        aft_center_azimuth = skadipy.actuator.Azimuth(
+        stern_center_azimuth = skadipy.actuator.Azimuth(
             position=skadipy.toolbox.Point([-1.1644, 0.0, -0.01]),
         )
-        aft_starboard_azimuth = skadipy.actuator.Azimuth(
+        stern_starboard_azimuth = skadipy.actuator.Azimuth(
             position=skadipy.toolbox.Point([-0.9911, 0.1644, -0.1]),
         )
 
@@ -49,9 +54,9 @@ class DrillshipSimulator(BaseSimulator):
             bow_port_azimuth,
             bow_center_azimuth,
             bow_starboard_azimuth,
-            aft_port_azimuth,
-            aft_center_azimuth,
-            aft_starboard_azimuth
+            stern_port_azimuth,
+            stern_center_azimuth,
+            stern_starboard_azimuth
         ]
 
         dofs = [
@@ -82,14 +87,14 @@ class DrillshipSimulator(BaseSimulator):
         self.subscriber_bow_starboard_thruster = self.create_subscription(
             geometry_msgs.msg.Wrench, "thruster/bow_starboard/command", self.cb_bow_starboard_thruster, 10
         )
-        self.subscriber_aft_port_thruster = self.create_subscription(
-            geometry_msgs.msg.Wrench, "thruster/aft_port/command", self.cb_aft_port_thruster, 10
+        self.subscriber_stern_port_thruster = self.create_subscription(
+            geometry_msgs.msg.Wrench, "thruster/stern_port/command", self.cb_stern_port_thruster, 10
         )
-        self.subscriber_aft_center_thruster = self.create_subscription(
-            geometry_msgs.msg.Wrench, "thruster/aft_center/command", self.cb_aft_center_thruster, 10
+        self.subscriber_stern_center_thruster = self.create_subscription(
+            geometry_msgs.msg.Wrench, "thruster/stern_center/command", self.cb_stern_center_thruster, 10
         )
-        self.subscriber_aft_starboard_thruster = self.create_subscription(
-            geometry_msgs.msg.Wrench, "thruster/aft_starboard/command", self.cb_aft_starboard_thruster, 10
+        self.subscriber_stern_starboard_thruster = self.create_subscription(
+            geometry_msgs.msg.Wrench, "thruster/stern_starboard/command", self.cb_stern_starboard_thruster, 10
         )
 
         self.publisher_bow_port_thruster = self.create_publisher(
@@ -101,20 +106,22 @@ class DrillshipSimulator(BaseSimulator):
         self.publisher_bow_starboard_thruster = self.create_publisher(
             geometry_msgs.msg.WrenchStamped, "thruster/bow_starboard/issued", 1
         )
-        self.publisher_aft_port_thruster = self.create_publisher(
-            geometry_msgs.msg.WrenchStamped, "thruster/aft_port/issued", 1
+        self.publisher_stern_port_thruster = self.create_publisher(
+            geometry_msgs.msg.WrenchStamped, "thruster/stern_port/issued", 1
         )
-        self.publisher_aft_center_thruster = self.create_publisher(
-            geometry_msgs.msg.WrenchStamped, "thruster/aft_center/issued", 1
+        self.publisher_stern_center_thruster = self.create_publisher(
+            geometry_msgs.msg.WrenchStamped, "thruster/stern_center/issued", 1
         )
-        self.publisher_aft_starboard_thruster = self.create_publisher(
-            geometry_msgs.msg.WrenchStamped, "thruster/aft_starboard/issued", 1
+        self.publisher_stern_starboard_thruster = self.create_publisher(
+            geometry_msgs.msg.WrenchStamped, "thruster/stern_starboard/issued", 1
         )
 
 
     def cb_bow_port_thruster(self, msg: geometry_msgs.msg.Wrench):
         self.u[0] = np.clip(msg.force.x, -1.0, 1.0)
         self.u[1] = np.clip(msg.force.y, -1.0, 1.0)
+        self.u[0] *= TEMPORARY_MULTIPLIER_FOR_THRUSTER_FORCE
+        self.u[1] *= TEMPORARY_MULTIPLIER_FOR_THRUSTER_FORCE
         issued = geometry_msgs.msg.WrenchStamped()
         issued.header.frame_id = self._frame("bow_port_thruster_link")
         issued.header.stamp = self.get_clock().now().to_msg()
@@ -125,6 +132,8 @@ class DrillshipSimulator(BaseSimulator):
     def cb_bow_center_thruster(self, msg: geometry_msgs.msg.Wrench):
         self.u[2] = np.clip(msg.force.x, -1.0, 1.0)
         self.u[3] = np.clip(msg.force.y, -1.0, 1.0)
+        self.u[2] *= TEMPORARY_MULTIPLIER_FOR_THRUSTER_FORCE
+        self.u[3] *= TEMPORARY_MULTIPLIER_FOR_THRUSTER_FORCE
         issued = geometry_msgs.msg.WrenchStamped()
         issued.header.frame_id = self._frame("bow_center_thruster_link")
         issued.header.stamp = self.get_clock().now().to_msg()
@@ -135,6 +144,8 @@ class DrillshipSimulator(BaseSimulator):
     def cb_bow_starboard_thruster(self, msg: geometry_msgs.msg.Wrench):
         self.u[4] = np.clip(msg.force.x, -1.0, 1.0)
         self.u[5] = np.clip(msg.force.y, -1.0, 1.0)
+        self.u[4] *= TEMPORARY_MULTIPLIER_FOR_THRUSTER_FORCE
+        self.u[5] *= TEMPORARY_MULTIPLIER_FOR_THRUSTER_FORCE
         issued = geometry_msgs.msg.WrenchStamped()
         issued.header.frame_id = self._frame("bow_starboard_thruster_link")
         issued.header.stamp = self.get_clock().now().to_msg()
@@ -142,35 +153,41 @@ class DrillshipSimulator(BaseSimulator):
         issued.wrench.force.y = msg.force.y
         self.publisher_bow_starboard_thruster.publish(issued)
 
-    def cb_aft_port_thruster(self, msg: geometry_msgs.msg.Wrench):
+    def cb_stern_port_thruster(self, msg: geometry_msgs.msg.Wrench):
         self.u[6] = np.clip(msg.force.x, -1.0, 1.0)
         self.u[7] = np.clip(msg.force.y, -1.0, 1.0)
+        self.u[6] *= TEMPORARY_MULTIPLIER_FOR_THRUSTER_FORCE
+        self.u[7] *= TEMPORARY_MULTIPLIER_FOR_THRUSTER_FORCE
         issued = geometry_msgs.msg.WrenchStamped()
-        issued.header.frame_id = self._frame("aft_port_thruster_link")
+        issued.header.frame_id = self._frame("stern_port_thruster_link")
         issued.header.stamp = self.get_clock().now().to_msg()
         issued.wrench.force.x = msg.force.x
         issued.wrench.force.y = msg.force.y
-        self.publisher_aft_port_thruster.publish(issued)
+        self.publisher_stern_port_thruster.publish(issued)
 
-    def cb_aft_center_thruster(self, msg: geometry_msgs.msg.Wrench):
+    def cb_stern_center_thruster(self, msg: geometry_msgs.msg.Wrench):
         self.u[8] = np.clip(msg.force.x, -1.0, 1.0)
         self.u[9] = np.clip(msg.force.y, -1.0, 1.0)
+        self.u[8] *= TEMPORARY_MULTIPLIER_FOR_THRUSTER_FORCE
+        self.u[9] *= TEMPORARY_MULTIPLIER_FOR_THRUSTER_FORCE
         issued = geometry_msgs.msg.WrenchStamped()
-        issued.header.frame_id = self._frame("aft_center_thruster_link")
+        issued.header.frame_id = self._frame("stern_center_thruster_link")
         issued.header.stamp = self.get_clock().now().to_msg()
         issued.wrench.force.x = msg.force.x
         issued.wrench.force.y = msg.force.y
-        self.publisher_aft_center_thruster.publish(issued)
+        self.publisher_stern_center_thruster.publish(issued)
 
-    def cb_aft_starboard_thruster(self, msg: geometry_msgs.msg.Wrench):
+    def cb_stern_starboard_thruster(self, msg: geometry_msgs.msg.Wrench):
         self.u[10] = np.clip(msg.force.x, -1.0, 1.0)
         self.u[11] = np.clip(msg.force.y, -1.0, 1.0)
+        self.u[10] *= TEMPORARY_MULTIPLIER_FOR_THRUSTER_FORCE
+        self.u[11] *= TEMPORARY_MULTIPLIER_FOR_THRUSTER_FORCE
         issued = geometry_msgs.msg.WrenchStamped()
-        issued.header.frame_id = self._frame("aft_starboard_thruster_link")
+        issued.header.frame_id = self._frame("stern_starboard_thruster_link")
         issued.header.stamp = self.get_clock().now().to_msg()
         issued.wrench.force.x = msg.force.x
         issued.wrench.force.y = msg.force.y
-        self.publisher_aft_starboard_thruster.publish(issued)
+        self.publisher_stern_starboard_thruster.publish(issued)
 
 
 def main(args=None):

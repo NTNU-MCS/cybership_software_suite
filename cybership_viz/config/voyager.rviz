@@ -61,11 +61,11 @@ Visualization Manager:
       Frame Timeout: 15
       Frames:
         All Enabled: true
-        drillship/aft_center_thruster_link:
+        drillship/stern_center_thruster_link:
           Value: true
-        drillship/aft_port_thruster_link:
+        drillship/stern_port_thruster_link:
           Value: true
-        drillship/aft_starboard_thruster_link:
+        drillship/stern_starboard_thruster_link:
           Value: true
         drillship/base_link:
           Value: true
