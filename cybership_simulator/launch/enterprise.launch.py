@@ -18,6 +18,8 @@ def generate_launch_description():
     for argument in ARGUMENTS:
         ld.add_action(argument)
 
+    set_parameter_action = launch_ros.actions.SetParameter(name='use_sim_time', value=True)
+
     description_launch = launch.actions.IncludeLaunchDescription(
         launch.launch_description_sources.PythonLaunchDescriptionSource(
             launch.substitutions.PathJoinSubstitution(
@@ -71,9 +73,10 @@ def generate_launch_description():
     )
 
     # Add the actions to the launch description
+    ld.add_action(sim_node)
+    ld.add_action(set_parameter_action)
     ld.add_action(group_gui)
     ld.add_action(description_launch)
-    ld.add_action(sim_node)
 
     for argument in ARGUMENTS:
         ld.add_action(argument)

@@ -21,6 +21,8 @@ def generate_launch_description() -> LaunchDescription:
         'use_gui', default_value='true', description='Launch visualization for both vessels'
     )
 
+    # set_parameter_action = launch_ros.actions.SetParameter(name='use_sim_time', value=True)
+
     ld.add_action(arg_use_gui)
 
     # Resolve parameter file path
@@ -91,10 +93,13 @@ def generate_launch_description() -> LaunchDescription:
     )
 
     # Order: viz (optional) -> descriptions -> simulation nodes
+
+    ld.add_action(voyager_node)
+    ld.add_action(drillship_node)
+    ld.add_action(set_parameter_action)
+
     ld.add_action(group_gui)
     ld.add_action(description_launch_voyager)
     ld.add_action(description_launch_drillship)
-    ld.add_action(voyager_node)
-    ld.add_action(drillship_node)
 
     return ld

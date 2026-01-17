@@ -50,6 +50,7 @@ def generate_launch_description():
         ],
         name=f"sim_{anon()}",
     )
+    set_parameter_action = launch_ros.actions.SetParameter(name='use_sim_time', value=True)
 
     # Include the viz launch file
     viz_launch = IncludeLaunchDescription(
@@ -71,9 +72,10 @@ def generate_launch_description():
     )
 
     # Add the actions to the launch description
+    ld.add_action(sim_node)
+    ld.add_action(set_parameter_action)
     ld.add_action(group_gui)
     ld.add_action(description_launch)
-    ld.add_action(sim_node)
 
     for argument in ARGUMENTS:
         ld.add_action(argument)

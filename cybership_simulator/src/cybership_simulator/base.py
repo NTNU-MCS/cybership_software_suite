@@ -26,10 +26,6 @@ import shoeboxpy.model6dof
 import skadipy.actuator
 import skadipy.allocator
 
-# ----------------------------------------------------------------------------
-# Abstract Base Class
-# ----------------------------------------------------------------------------
-
 class BaseSimulator(Node, ABC):
     """
     Abstract base class for a vessel simulator.
@@ -172,10 +168,6 @@ class BaseSimulator(Node, ABC):
 
         return SetParametersResult(successful=successful)
 
-    # ------------------------------------------------------------------------
-    # SIMULATION ITERATION & RESET (common)
-    # ------------------------------------------------------------------------
-
     def reset_simulation(self, request, response):
         self.eta0 = np.zeros((6, 1))
         self.nu0 = np.zeros((6, 1))
@@ -223,7 +215,9 @@ class BaseSimulator(Node, ABC):
         """
         self.clock_msg.clock.sec = int(self.sim_time)
         self.clock_msg.clock.nanosec = int((self.sim_time - int(self.sim_time)) * 1e9)
-        # self.publisher_clock.publish(self.clock_msg)
+        self.publisher_clock.publish(self.clock_msg)
+
+        print(f"Sim time: {self.sim_time:.2f} s")
 
     def publish_odom(self):
         eta, nu = self.vessel.get_states()
