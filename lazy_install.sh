@@ -45,6 +45,8 @@ if [[ ! -d "/opt/ros/$ROS_DISTRO" ]]; then
     err "ROS 2 ($ROS_DISTRO) is not installed. Install ROS before running this script."
 fi
 
+source "/opt/ros/$ROS_DISTRO/setup.bash"
+
 msg "System looks good."
 
 ##############################################
