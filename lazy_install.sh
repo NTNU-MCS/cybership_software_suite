@@ -47,6 +47,11 @@ fi
 
 source "/opt/ros/$ROS_DISTRO/setup.bash"
 
+# Capture the ROS Python search path contributed by the ROS setup.
+# Note: `--system-site-packages` exposes /usr/* site-packages, but ROS Python
+# modules live under /opt/ros and are typically made discoverable via PYTHONPATH.
+ROS_PYTHONPATH="${PYTHONPATH:-}"
+
 msg "System looks good."
 
 ##############################################
@@ -118,6 +123,35 @@ fi
 
 source "$VENV_NAME/bin/activate"
 touch "$VENV_NAME/COLCON_IGNORE"
+
+# Make ROS Python modules importable from within the venv even if PYTHONPATH is
+# not propagated into subprocesses (e.g., some CMake execute_process usages).
+python - <<'PY'
+import os
+import site
+
+ros_pythonpath = os.environ.get("ROS_PYTHONPATH", "")
+paths = [p for p in ros_pythonpath.split(":") if p and p.startswith("/opt/ros/")]
+if not paths:
+    raise SystemExit(0)
+
+if hasattr(site, "getsitepackages"):
+    candidates = site.getsitepackages()
+else:
+    candidates = []
+
+site_dir = candidates[0] if candidates else site.getusersitepackages()
+pth_file = os.path.join(site_dir, "ros2_opt_ros.pth")
+
+with open(pth_file, "w", encoding="utf-8") as f:
+    for p in paths:
+        f.write(p + "\n")
+
+print(f"[INFO] Wrote ROS Python paths to: {pth_file}")
+PY
+
+# Fail early with a clear message if the build toolchain cannot find ament python.
+python -c "import ament_package" 2>/dev/null || err "Python in the virtual environment cannot import 'ament_package'. This usually means ROS Python paths were not picked up. Verify that '/opt/ros/$ROS_DISTRO/setup.bash' was sourced and that /opt/ros is present in the venv's sys.path."
 
 ##############################################
 # INSTALL PYTHON DEPENDENCIES
