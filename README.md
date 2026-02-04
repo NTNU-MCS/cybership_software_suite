@@ -16,17 +16,41 @@ This repository is the home of the CyberShip Software Suite - a collection of RO
 
 ## How to Get Started
 
-### 1. Installation
+### 0. Notes
 
 Follow these steps to set up your ROS 2 workspace with the CyberShip Software Suite:
  > [!IMPORTANT]
  > Make sure that you have sourced the ROS 2 installation
+ >
  > ```bash
  > source /opt/ros/<distro>/setup.bash
  > ```
+ >
  > Replace `<distro>` with your ROS 2 distribution (e.g., `humble`, `jazzy`, etc.).
 
+ > [!NOTE]
+ > Guides assumes you have `$ROS_WORKSPACE` environment variable set to the root of your ROS 2 workspace. ROS workspace is usually is at `~/ros_ws` or similar. You can set this variable
+ >
+ > ```bash
+ > export ROS_WORKSPACE=~/ros_ws
+ > ```
+ >
+ > or add it to your shell configuration file (e.g., `~/.bashrc`) for persistence.
+
+ > [!NOTE]
+ > The following instructions assume you have already set up a ROS 2 workspace. If you haven't done so, you can create one using the following commands:
+ >
+ >```bash
+ > mkdir -p $ROS_WORKSPACE/src
+ > cd $ROS_WORKSPACE
+ > colcon build
+ > source install/setup.bash
+ > ```
+
+### 1. Installation
+
 1. **Clone the Repository and Submodules**
+
    ```bash
    cd $ROS_WORKSPACE/src
    git clone https://github.com/NTNU-MCS/cybership_software_suite
@@ -34,6 +58,7 @@ Follow these steps to set up your ROS 2 workspace with the CyberShip Software Su
    git submodule update --init --recursive
 
 2. Set Up a Python Virtual Environment
+
     ```bash
     cd $ROS_WORKSPACE
     python3 -m venv venv --system-site-packages --symlinks
@@ -41,7 +66,8 @@ Follow these steps to set up your ROS 2 workspace with the CyberShip Software Su
     touch venv/COLCON_IGNORE
     ```
 
-3.  Install Python Dependencies
+3. Install Python Dependencies
+
     ```bash
     cd $ROS_WORKSPACE
     source venv/bin/activate
@@ -49,22 +75,26 @@ Follow these steps to set up your ROS 2 workspace with the CyberShip Software Su
     ```
 
 4. Install ROS Dependencies and Build
+
     ```bash
     cd $ROS_WORKSPACE
     rosdep install --from-paths src -i
     colcon build --symlink-install
     ```
+
  > [!WARNING]
  > Make sure that you have initialized rosdep and sourced the ROS 2 environment before running the above command. You can do this by running:
+>
  > ```bash
  > source /opt/ros/<distro>/setup.bash
  > sudo rosdep init
  > rosdep update
  > ```
+>
  > Replace `<distro>` with your ROS 2 distribution (e.g., `humble`, `jazzy`, etc.).
  > If you encounter any issues with dependencies, please refer to the documentation of the specific package for additional instructions.
 
-5. Source the Environment
+1. Source the Environment
 
     ```bash
     source $ROS_WORKSPACE/venv/bin/activate
@@ -77,27 +107,33 @@ There are two main modes to bring up a vessel: physical and simulation.
 
 For a Physical Deployment:
 Use the cybership_bringup package. For example, to bring up the Voyager vessel, run:
+
 ```bash
 ros2 launch cybership_bringup voyager.launch.py vessel_name:=voyager vessel_model:=voyager
 ```
+
 You can similarly launch other vessel types like Enterprise or Drillship by choosing the corresponding launch file in cybership_bringup.
 
 For Simulation:
 Use the cybership_simulator package. This runs simplified physics scripts:
 
 ### 3. Visualization
+
 Visualize your vessel using the RViz visualization tools provided in the suite. The cybership_viz package sets up RViz with a preconfigured scene showing your vessel's URDF model and sensor data overlays. To launch visualization:
 
 Additionally, the cybership_description package can publish the URDF model via:
 
 ### Additional Notes
+
 Dynamic Positioning:
 The cybership_dp package provides controllers for dynamic positioning. Launch the complete DP system or individual controllers as needed.
 
-### Sensor Integration & Drivers:
+### Sensor Integration & Drivers
+
 The suite integrates various sensors such as the BNO055 IMU and motion capture systems. Please refer to corresponding packages (e.g., cybership_external/bno055 and cybership_mocap) for detailed instructions.
 
-### Utilities and Interfaces:
+### Utilities and Interfaces
+
 Use the utility functions in cybership_utilities for standardized launch arguments and helper functions across your launch files. Common interfaces are provided in cybership_interfaces.
 
 ## Docker
