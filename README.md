@@ -49,6 +49,8 @@ Follow these steps to set up your ROS 2 workspace with the CyberShip Software Su
 
 ### 1. Installation
 
+#### For the ones who like to read
+
 1. **Clone the Repository and Submodules**
 
    ```bash
@@ -100,6 +102,48 @@ Follow these steps to set up your ROS 2 workspace with the CyberShip Software Su
     source $ROS_WORKSPACE/venv/bin/activate
     source $ROS_WORKSPACE/install/setup.bash
     ```
+
+#### For the lazy ones
+
+You can use the provided installation script to automate the setup process:
+
+```bash
+export ROS_DISTRO=jazzy
+source /opt/ros/$ROS_DISTRO/setup.bash  # Replace <distro> with your ROS 2 distribution
+export ROS_WORKSPACE=~/ros_ws  # or your desired workspace path
+
+# Create the workspace if it doesn't exist
+mkdir -p $ROS_WORKSPACE/src
+cd $ROS_WORKSPACE
+colcon build --symlink-install
+source install/setup.bash
+
+# Clone the repository and its submodules
+cd $ROS_WORKSPACE/src
+git clone https://github.com/NTNU-MCS/cybership_software_suite
+cd cybership_software_suite
+git submodule update --init --recursive
+
+# Set up the Python virtual environment and install dependencies
+sudo apt install python3-venv -y
+cd $ROS_WORKSPACE
+python3 -m venv venv --system-site-packages --symlinks
+source venv/bin/activate
+touch venv/COLCON_IGNORE
+
+# Install Python dependencies
+find src/cybership_software_suite -name "requirements*txt" -exec pip install -r {} \;
+
+# Install ROS dependencies
+rosdep install --from-paths src -i -y
+
+# Build the workspace
+colcon build --symlink-install
+
+# Source the environment
+source venv/bin/activate
+source install/setup.bash
+```
 
 ### 2. Bringing Up a Vessel
 

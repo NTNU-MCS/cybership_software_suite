@@ -1,0 +1,163 @@
+name: Install & Build via lazy_install.sh (ROS 2 Jazzy, Ubuntu 24.04)
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+env:
+  ROS_DISTRO: jazzy
+  # Keep workspace inside runner home by default; override here if your script supports it
+  ROS_WS: ${{ github.workspace }}/ros_ws
+  DEBIAN_FRONTEND: noninteractive
+  LANG: en_US.UTF-8
+
+jobs:
+  install-and-build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Show runner info
+        run: |
+          uname -a
+          cat /etc/os-release
+          df -h
+
+      - name: Prepare UTF-8 locale (recommended by ROS)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y locales
+          sudo locale-gen en_US en_US.UTF-8
+          sudo update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
+
+      - name: Install ROS 2 Jazzy + tooling (modern ros-apt-source method)
+        shell: bash
+        env:
+          LANG: en_US.UTF-8
+        run: |
+          set -euxo pipefail
+
+          sudo apt update
+          sudo apt install -y locales
+          sudo locale-gen en_US en_US.UTF-8
+          sudo update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
+
+          # Enable Universe (required)
+          sudo apt install -y software-properties-common
+          sudo add-apt-repository universe
+
+          sudo apt update
+          sudo apt install -y curl
+
+          # Install ros-apt-source (the NEW correct way)
+          export ROS_APT_SOURCE_VERSION=$(curl -s https://api.github.com/repos/ros-infrastructure/ros-apt-source/releases/latest \
+              | grep -F "tag_name" | awk -F '"' '{print $4}')
+
+          curl -L -o /tmp/ros2-apt-source.deb \
+            "https://github.com/ros-infrastructure/ros-apt-source/releases/download/${ROS_APT_SOURCE_VERSION}/ros2-apt-source_${ROS_APT_SOURCE_VERSION}.$(. /etc/os-release && echo ${UBUNTU_CODENAME:-${VERSION_CODENAME}})_all.deb"
+
+          sudo dpkg -i /tmp/ros2-apt-source.deb
+          sudo apt update
+
+          # IMPORTANT: upgrade before installing ROS (required in ROS docs)
+          sudo apt upgrade -y
+
+          # Install ROS 2 Jazzy Desktop
+          sudo apt install -y ros-jazzy-desktop
+
+          # Development tools (recommended for builds)
+          sudo apt install -y ros-dev-tools
+
+          # Verify installation
+          source /opt/ros/jazzy/setup.bash
+          ros2 --version
+
+      - name: Verify ROS installation
+        shell: bash
+        run: |
+          if [ ! -d "/opt/ros/${ROS_DISTRO}" ]; then
+            echo "ROS 2 ${ROS_DISTRO} not found at /opt/ros/${ROS_DISTRO}" >&2
+            exit 1
+          fi
+          source /opt/ros/${ROS_DISTRO}/setup.bash
+          which ros2
+          ros2 --version
+          which colcon
+
+      - name: Ensure lazy_install.sh is executable
+        run: chmod +x ./lazy_install.sh
+
+      - name: Run lazy_install.sh (first pass)
+        shell: bash
+        env:
+          ROS_DISTRO: ${{ env.ROS_DISTRO }}
+          # If your script respects ROS_WORKSPACE, we direct it to a contained path
+          ROS_WORKSPACE: ${{ env.ROS_WS }}
+        run: |
+          set -euo pipefail
+          source /opt/ros/${ROS_DISTRO}/setup.bash
+          ./lazy_install.sh
+
+      - name: Assert workspace and repo presence
+        run: |
+          test -d "${ROS_WS}" || (echo "Workspace missing: ${ROS_WS}" >&2; exit 1)
+          test -d "${ROS_WS}/src/cybership_software_suite" || (echo "Repo not cloned into workspace." >&2; exit 1)
+          echo "Workspace and repository exist"
+
+      - name: Run lazy_install.sh again (idempotency check)
+        shell: bash
+        env:
+          ROS_DISTRO: ${{ env.ROS_DISTRO }}
+          ROS_WORKSPACE: ${{ env.ROS_WS }}
+        run: |
+          set -euo pipefail
+          source /opt/ros/${ROS_DISTRO}/setup.bash
+          ./lazy_install.sh
+          echo "Second run completed (idempotent)"
+
+      - name: Smoke test the overlay
+        shell: bash
+        env:
+          ROS_WORKSPACE: ${{ env.ROS_WS }}
+        run: |
+          set -euo pipefail
+          source "${ROS_WORKSPACE}/venv/bin/activate"
+          source "${ROS_WORKSPACE}/install/setup.bash"
+
+          which python
+          python -V
+          python -c "import rclpy; print('rclpy import OK')"
+
+          which ros2
+          ros2 --version
+
+          echo "Listing packages in the overlay (if any were built):"
+          colcon list || true
+          echo "Environment OK"
+
+      - name: Disk usage snapshot (always)
+        if: always()
+        run: |
+          df -h
+          du -h -d1 $HOME | sort -hr | head -n 50
+
+      # Optional caches/artifacts:
+      # - name: Cache pip
+      #   uses: actions/cache@v4
+      #   with:
+      #     path: ~/.cache/pip
+      #     key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+      #     restore-keys: ${{ runner.os }}-pip-
+      #
+      # - name: Upload colcon build logs
+      #   if: failure()
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: colcon-logs
+      #     path: ${{ env.ROS_WS }}/log
