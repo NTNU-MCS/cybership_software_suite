@@ -56,7 +56,7 @@ msg "System looks good."
 msg "Installing required apt packages..."
 sudo apt update
 sudo apt install -y git python3-venv python3-pip build-essential \
-    ros-$ROS_DISTRO-desktop ros-$ROS_DISTRO-ros-base
+    ros-$ROS_DISTRO-desktop ros-$ROS_DISTRO-ros-base ros-dev-tools
 
 ##############################################
 # ROSDEP INIT
