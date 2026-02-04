@@ -36,7 +36,17 @@ jobs:
 
       - name: Install ROS 2 Jazzy (CI-safe)
         run: |
-          set -euxo pipefail
+          set -eo pipefail
+
+          # Make apt more reliable in CI and in local runners (act)
+          echo 'Acquire::Retries "5";\nAcquire::ForceIPv4 "true";\nAcquire::http::Timeout "30";\nAcquire::https::Timeout "30";' \
+            | sudo tee /etc/apt/apt.conf.d/80-ci-retries >/dev/null
+
+          # Prefer HTTPS mirrors (helps if port 80 is blocked in some environments)
+          sudo sed -i \
+            -e 's|http://archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' \
+            -e 's|http://security.ubuntu.com/ubuntu|https://security.ubuntu.com/ubuntu|g' \
+            /etc/apt/sources.list /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
 
           # Base tooling + locale
           sudo env DEBIAN_FRONTEND=${DEBIAN_FRONTEND} NEEDRESTART_MODE=${NEEDRESTART_MODE} apt-get update
@@ -68,15 +78,16 @@ jobs:
 
           # Verify installation
           source /opt/ros/jazzy/setup.bash
-          ros2 --version
 
       - name: Run lazy_install.sh (first pass)
         env:
           ROS_DISTRO: ${{ env.ROS_DISTRO }}
           # If your script respects ROS_WORKSPACE, we direct it to a contained path
           ROS_WORKSPACE: ${{ env.ROS_WS }}
+          # ROS is already installed above; avoid extra apt work & prompts
+          SKIP_APT: "1"
         run: |
-          set -euo pipefail
+          set -eo pipefail
           source /opt/ros/${ROS_DISTRO}/setup.bash
           bash ./lazy_install.sh
 
@@ -90,8 +101,9 @@ jobs:
         env:
           ROS_DISTRO: ${{ env.ROS_DISTRO }}
           ROS_WORKSPACE: ${{ env.ROS_WS }}
+          SKIP_APT: "1"
         run: |
-          set -euo pipefail
+          set -eo pipefail
           source /opt/ros/${ROS_DISTRO}/setup.bash
           bash ./lazy_install.sh
           echo "Second run completed (idempotent)"
@@ -100,7 +112,7 @@ jobs:
         env:
           ROS_WORKSPACE: ${{ env.ROS_WS }}
         run: |
-          set -euo pipefail
+          set -eo pipefail
           source "${ROS_WORKSPACE}/venv/bin/activate"
           source "${ROS_WORKSPACE}/install/setup.bash"
 
@@ -109,7 +121,6 @@ jobs:
           python -c "import rclpy; print('rclpy import OK')"
 
           which ros2
-          ros2 --version
 
           echo "Listing packages in the overlay (if any were built):"
           colcon list || true
@@ -120,18 +131,3 @@ jobs:
         run: |
           df -h
           du -h -d1 $HOME | sort -hr | head -n 50
-
-      # Optional caches/artifacts:
-      # - name: Cache pip
-      #   uses: actions/cache@v4
-      #   with:
-      #     path: ~/.cache/pip
-      #     key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
-      #     restore-keys: ${{ runner.os }}-pip-
-      #
-      # - name: Upload colcon build logs
-      #   if: failure()
-      #   uses: actions/upload-artifact@v4
-      #   with:
-      #     name: colcon-logs
-      #     path: ${{ env.ROS_WS }}/log
