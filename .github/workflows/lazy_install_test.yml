@@ -36,7 +36,7 @@ jobs:
           sudo locale-gen en_US en_US.UTF-8
           sudo update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
 
-      - name: Install ROS 2 Jazzy + tooling (modern ros-apt-source method)
+      - name: Install ROS 2 Jazzy + tooling (modern ros-apt-source method, CI-safe)
         shell: bash
         env:
           LANG: en_US.UTF-8
@@ -55,7 +55,7 @@ jobs:
           sudo apt update
           sudo apt install -y curl
 
-          # Install ros-apt-source (the NEW correct way)
+          # Install ros-apt-source (official new method)
           export ROS_APT_SOURCE_VERSION=$(curl -s https://api.github.com/repos/ros-infrastructure/ros-apt-source/releases/latest \
               | grep -F "tag_name" | awk -F '"' '{print $4}')
 
@@ -65,13 +65,16 @@ jobs:
           sudo dpkg -i /tmp/ros2-apt-source.deb
           sudo apt update
 
-          # IMPORTANT: upgrade before installing ROS (required in ROS docs)
+          # FIX: Prevent interactive needrestart prompts (this line fixes your failure)
+          sudo bash -c 'echo "NEEDRESTART_MODE=a" > /etc/needrestart/needrestart.conf'
+
+          # Required per ROS docs: upgrade before installing ROS
           sudo apt upgrade -y
 
           # Install ROS 2 Jazzy Desktop
           sudo apt install -y ros-jazzy-desktop
 
-          # Development tools (recommended for builds)
+          # Development tools (recommended)
           sudo apt install -y ros-dev-tools
 
           # Verify installation
