@@ -6,11 +6,11 @@ set -o pipefail
 # USER‑CONFIGURABLE VARIABLES
 ##############################################
 
-ROS_DISTRO="jazzy"
-ROS_WORKSPACE="$HOME/ros_ws"
-REPO_URL="https://github.com/NTNU-MCS/cybership_software_suite"
-REPO_NAME="cybership_software_suite"
-VENV_NAME="venv"
+ROS_DISTRO="${ROS_DISTRO:-jazzy}"
+ROS_WORKSPACE="${ROS_WORKSPACE:-$HOME/ros_ws}"
+REPO_URL="${REPO_URL:-https://github.com/NTNU-MCS/cybership_software_suite}"
+REPO_NAME="${REPO_NAME:-cybership_software_suite}"
+VENV_NAME="${VENV_NAME:-venv}"
 
 ##############################################
 # HELPER FUNCTIONS

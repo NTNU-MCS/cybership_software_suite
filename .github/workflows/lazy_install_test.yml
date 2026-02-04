@@ -10,12 +10,17 @@ env:
   # Keep workspace inside runner home by default; override here if your script supports it
   ROS_WS: ${{ github.workspace }}/ros_ws
   DEBIAN_FRONTEND: noninteractive
+  NEEDRESTART_MODE: a
   LANG: en_US.UTF-8
 
 jobs:
   install-and-build:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     timeout-minutes: 60
+
+    defaults:
+      run:
+        shell: bash
 
     steps:
       - name: Checkout repository
@@ -29,31 +34,17 @@ jobs:
           cat /etc/os-release
           df -h
 
-      - name: Prepare UTF-8 locale (recommended by ROS)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y locales
-          sudo locale-gen en_US en_US.UTF-8
-          sudo update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
-
-      - name: Install ROS 2 Jazzy + tooling (modern ros-apt-source method, CI-safe)
-        shell: bash
-        env:
-          LANG: en_US.UTF-8
+      - name: Install ROS 2 Jazzy (CI-safe)
         run: |
           set -euxo pipefail
 
-          sudo apt update
-          sudo apt install -y locales
-          sudo locale-gen en_US en_US.UTF-8
+          # Base tooling + locale
+          sudo env DEBIAN_FRONTEND=${DEBIAN_FRONTEND} NEEDRESTART_MODE=${NEEDRESTART_MODE} apt-get update
+          sudo env DEBIAN_FRONTEND=${DEBIAN_FRONTEND} NEEDRESTART_MODE=${NEEDRESTART_MODE} apt-get install -y --no-install-recommends \
+            ca-certificates curl locales software-properties-common
+          sudo locale-gen en_US.UTF-8
           sudo update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
-
-          # Enable Universe (required)
-          sudo apt install -y software-properties-common
-          sudo add-apt-repository universe
-
-          sudo apt update
-          sudo apt install -y curl
+          sudo add-apt-repository -y universe
 
           # Install ros-apt-source (official new method)
           export ROS_APT_SOURCE_VERSION=$(curl -s https://api.github.com/repos/ros-infrastructure/ros-apt-source/releases/latest \
@@ -63,41 +54,23 @@ jobs:
             "https://github.com/ros-infrastructure/ros-apt-source/releases/download/${ROS_APT_SOURCE_VERSION}/ros2-apt-source_${ROS_APT_SOURCE_VERSION}.$(. /etc/os-release && echo ${UBUNTU_CODENAME:-${VERSION_CODENAME}})_all.deb"
 
           sudo dpkg -i /tmp/ros2-apt-source.deb
-          sudo apt update
 
-          # FIX: Prevent interactive needrestart prompts (this line fixes your failure)
-          sudo bash -c 'echo "NEEDRESTART_MODE=a" > /etc/needrestart/needrestart.conf'
+          sudo env DEBIAN_FRONTEND=${DEBIAN_FRONTEND} NEEDRESTART_MODE=${NEEDRESTART_MODE} apt-get update
 
           # Required per ROS docs: upgrade before installing ROS
-          sudo apt upgrade -y
+          sudo env DEBIAN_FRONTEND=${DEBIAN_FRONTEND} NEEDRESTART_MODE=${NEEDRESTART_MODE} apt-get upgrade -y
 
           # Install ROS 2 Jazzy Desktop
-          sudo apt install -y ros-jazzy-desktop
+          sudo env DEBIAN_FRONTEND=${DEBIAN_FRONTEND} NEEDRESTART_MODE=${NEEDRESTART_MODE} apt-get install -y ros-jazzy-desktop
 
           # Development tools (recommended)
-          sudo apt install -y ros-dev-tools
+          sudo env DEBIAN_FRONTEND=${DEBIAN_FRONTEND} NEEDRESTART_MODE=${NEEDRESTART_MODE} apt-get install -y ros-dev-tools
 
           # Verify installation
           source /opt/ros/jazzy/setup.bash
           ros2 --version
 
-      - name: Verify ROS installation
-        shell: bash
-        run: |
-          if [ ! -d "/opt/ros/${ROS_DISTRO}" ]; then
-            echo "ROS 2 ${ROS_DISTRO} not found at /opt/ros/${ROS_DISTRO}" >&2
-            exit 1
-          fi
-          source /opt/ros/${ROS_DISTRO}/setup.bash
-          which ros2
-          ros2 --version
-          which colcon
-
-      - name: Ensure lazy_install.sh is executable
-        run: chmod +x ./lazy_install.sh
-
       - name: Run lazy_install.sh (first pass)
-        shell: bash
         env:
           ROS_DISTRO: ${{ env.ROS_DISTRO }}
           # If your script respects ROS_WORKSPACE, we direct it to a contained path
@@ -105,7 +78,7 @@ jobs:
         run: |
           set -euo pipefail
           source /opt/ros/${ROS_DISTRO}/setup.bash
-          ./lazy_install.sh
+          bash ./lazy_install.sh
 
       - name: Assert workspace and repo presence
         run: |
@@ -114,18 +87,16 @@ jobs:
           echo "Workspace and repository exist"
 
       - name: Run lazy_install.sh again (idempotency check)
-        shell: bash
         env:
           ROS_DISTRO: ${{ env.ROS_DISTRO }}
           ROS_WORKSPACE: ${{ env.ROS_WS }}
         run: |
           set -euo pipefail
           source /opt/ros/${ROS_DISTRO}/setup.bash
-          ./lazy_install.sh
+          bash ./lazy_install.sh
           echo "Second run completed (idempotent)"
 
       - name: Smoke test the overlay
-        shell: bash
         env:
           ROS_WORKSPACE: ${{ env.ROS_WS }}
         run: |
