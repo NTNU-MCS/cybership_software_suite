@@ -11,20 +11,20 @@ def generate_launch_description() -> LaunchDescription:
 
     html_dir = PathJoinSubstitution([FindPackageShare("cybership_utilities"), "html"])
 
-    # Simple static file server for the Web UI (serves index2.html, etc.)
+    # Simple static file server for the Web UI (serves index.html)
     http_server = ExecuteProcess(
         cmd=["python3", "-m", "http.server", http_port],
         cwd=html_dir,
         output="screen",
     )
 
-    # Foxglove WebSocket bridge (ROS 2) for service/topic access from the Web UI
-    foxglove = Node(
-        package="foxglove_bridge",
-        executable="foxglove_bridge",
-        name="foxglove_bridge",
+    # Custom WebSocket bridge (ROS 2) for service access from the Web UI
+    web_bridge = Node(
+        package="cybership_utilities",
+        executable="web_interface_server.py",
+        name="web_interface_bridge",
         output="screen",
-        arguments=["--port", ws_port],
+        parameters=[{"ws_port": ws_port}],
     )
 
     return LaunchDescription(
@@ -33,17 +33,17 @@ def generate_launch_description() -> LaunchDescription:
                 "http_port", default_value="8001", description="Port for the static HTTP server"
             ),
             DeclareLaunchArgument(
-                "ws_port", default_value="8765", description="WebSocket port for foxglove_bridge"
+                "ws_port", default_value="8765", description="WebSocket port for the ROS 2 bridge"
             ),
             LogInfo(
                 msg=[
                     TextSubstitution(text="Serving UI at http://localhost:"),
                     http_port,
-                    TextSubstitution(text="/index.html | Foxglove WS ws://localhost:"),
+                    TextSubstitution(text="/index.html | WebSocket bridge at ws://localhost:"),
                     ws_port,
                 ]
             ),
             http_server,
-            foxglove,
+            web_bridge,
         ]
     )

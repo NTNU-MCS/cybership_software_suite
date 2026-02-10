@@ -1,1 +1,2 @@
 PyQt5>=5.15
+websockets>=11.0

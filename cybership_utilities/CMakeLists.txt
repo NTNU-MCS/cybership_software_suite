@@ -21,6 +21,7 @@ install(
 
 install(PROGRAMS
   nodes/force_mux_gui.py
+  nodes/web_interface_server.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

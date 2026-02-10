@@ -1,6 +1,6 @@
 <!doctype html>
 <meta charset="utf-8" />
-<title>Mux UI (foxglove_bridge + @foxglove/cdr)</title>
+<title>ROS 2 Web Interface</title>
 <style>
     body {
         font-family: system-ui, sans-serif;
@@ -58,6 +58,7 @@
 <fieldset>
     <legend>Namespace</legend>
     <input id="ns" placeholder="/voyager" style="width: 24rem" />
+    <div id="nsButtons" style="margin-top: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;"></div>
 </fieldset>
 
 <fieldset>
@@ -103,234 +104,261 @@
 <pre id="log"></pre>
 
 <script type="module">
-    // NOTE: Implement explicit XCDR1 (little-endian) writers to avoid endianness/format
-    // mismatches that can cause Fast CDR deserialization failures on requests.
-
-    // ---------------- transport ----------------
-    const OPC = { SERVICE_CALL_REQUEST: 2, SERVICE_CALL_RESPONSE: 3 };
-    let ws; let services = []; let nextCallId = 1; const waiters = new Map();
+    // ---------------- Simple JSON WebSocket Protocol ----------------
+    let ws;
+    let services = [];
     const el = (id) => document.getElementById(id);
     const logEl = el("log");
-    const log = (...a) => { logEl.textContent += a.map(x => typeof x === 'string' ? x : JSON.stringify(x)).join(' ') + "\n"; logEl.scrollTop = logEl.scrollHeight; };
+    const log = (...a) => {
+        logEl.textContent += a.map(x => typeof x === 'string' ? x : JSON.stringify(x)).join(' ') + "\n";
+        logEl.scrollTop = logEl.scrollHeight;
+    };
     const setStatus = (s) => el("status").textContent = s;
-    const withNs = (name) => { const ns = (el("ns").value || "").trim().replace(/\/+$/, ""); const base = name.startsWith("/") ? name : "/" + name; return ns ? ns + base : base; };
+    const getNamespace = () => (el("ns").value || "").trim().replace(/\/+$/, "");
 
-    function idOf(name, re) { const n = withNs(name); const s = services.find(s => s.name === n && re.test(s.type)); return s?.id; }
-    // Flexible: try exact, else find any service under the namespace that ends with the candidate path
-    function idOfFlexible(candidates, re) {
-        // First pass: exact
-        for (const name of candidates) {
-            const id = idOf(name, re);
-            if (id) return { id, name };
-        }
-        // Second pass: suffix match under namespace
-        const ns = (el("ns").value || "").trim().replace(/\/+$/, "");
-        const nsPrefix = ns ? ns + "/" : "/"; // include trailing /
-        for (const cand of candidates) {
-            for (const s of services) {
-                if (!re.test(s.type)) continue;
-                if (!s.name.startsWith(nsPrefix)) continue;
-                if (s.name.endsWith(cand)) return { id: s.id, name: s.name };
-            }
-        }
-        return { id: undefined, name: undefined };
-    }
+    // Send a message and wait for response
+    async function sendMessage(message, timeoutMs = 5000) {
+        return new Promise((resolve, reject) => {
+            const handler = (event) => {
+                try {
+                    const response = JSON.parse(event.data);
+                    if (response.type === "error") {
+                        reject(new Error(response.message));
+                    } else {
+                        resolve(response);
+                    }
+                    ws.removeEventListener("message", handler);
+                } catch (e) {
+                    reject(e);
+                }
+            };
 
-    function makeFrame(serviceId, callId, encoding, payloadU8) {
-        const enc = new TextEncoder().encode(encoding);
-        const hdr = new Uint8Array(1 + 4 + 4 + 4 + enc.length + payloadU8.length);
-        let off = 0; hdr[off++] = OPC.SERVICE_CALL_REQUEST;
-        new DataView(hdr.buffer).setUint32(off, serviceId, true); off += 4;
-        new DataView(hdr.buffer).setUint32(off, callId, true); off += 4;
-        new DataView(hdr.buffer).setUint32(off, enc.length, true); off += 4;
-        hdr.set(enc, off); off += enc.length; hdr.set(payloadU8, off);
-        return hdr;
-    }
+            const timeout = setTimeout(() => {
+                ws.removeEventListener("message", handler);
+                reject(new Error("Request timeout"));
+            }, timeoutMs);
 
-    async function call(serviceId, payloadU8, encoding = "cdr", timeoutMs = 2000) {
-        const callId = nextCallId++;
-        const frame = makeFrame(serviceId, callId, encoding, payloadU8);
-        return await new Promise((resolve, reject) => {
-            const t = setTimeout(() => { waiters.delete(callId); reject(new Error("service call timeout")); }, timeoutMs);
-            waiters.set(callId, (payload, enc) => { clearTimeout(t); resolve(payload); });
-            ws.send(frame);
+            ws.addEventListener("message", handler);
+            ws.send(JSON.stringify(message));
+
+            // Clear timeout when done
+            ws.addEventListener("message", () => clearTimeout(timeout), { once: true });
         });
-    }
-    // ---- manual XCDR1 readers (skip @foxglove/cdr for responses) ----
-
-    // read a CDR/XCDR1 string at dv[off], returns { str, off' }
-    function readCDRString(dv, off) {
-        const len = dv.getUint32(off, true); off += 4;          // length includes NUL
-        const u8 = new Uint8Array(dv.buffer, dv.byteOffset + off, len);
-        // strip the terminating NUL if present
-        const view = len > 0 && u8[len - 1] === 0 ? u8.subarray(0, len - 1) : u8;
-        const str = new TextDecoder().decode(view);
-        off += len;
-        // align to 4 bytes
-        off = (off + 3) & ~3;
-        return { str, off };
-    }
-
-    // sequence<string>
-    function parseStringSeq(payload) {
-        // skip 4-byte CDR encapsulation header
-        const dv = new DataView(payload.buffer, payload.byteOffset + 4, payload.byteLength - 4);
-        let off = 0;
-        const n = dv.getUint32(off, true); off += 4;
-        const out = new Array(n);
-        for (let i = 0; i < n; i++) {
-            const r = readCDRString(dv, off);
-            out[i] = r.str;
-            off = r.off;
-        }
-        return out;
-    }
-
-    // response of MuxSelect: string prev_topic; uint8 success; (some variants may omit success)
-    function parseSelectRes(payload) {
-        const dv = new DataView(payload.buffer, payload.byteOffset + 4, payload.byteLength - 4);
-        let off = 0;
-        const r = readCDRString(dv, off);
-        off = r.off;
-        let success = true; // default to true if field absent in older implementations
-        if (off < dv.byteLength) {
-            try { success = dv.getUint8(off) !== 0; } catch (_) { /* keep default */ }
-        }
-        return { prev_topic: r.str, success };
     }
 
     el("connect").onclick = () => {
         const url = el("url").value.trim();
-        ws = new WebSocket(url, ["foxglove.websocket.v1"]);
-        ws.binaryType = "arraybuffer";
-        ws.onopen = () => setStatus("connected to " + url);
-        ws.onclose = () => setStatus("closed");
-        ws.onerror = (e) => { setStatus("error"); log("ws error", e?.message ?? ""); };
+        ws = new WebSocket(url);
+        ws.onopen = () => {
+            setStatus("connected to " + url);
+            log("Connected to server");
+        };
+        ws.onclose = () => {
+            setStatus("closed");
+            log("Connection closed");
+        };
+        ws.onerror = (e) => {
+            setStatus("error");
+            log("WebSocket error:", e?.message ?? "");
+        };
 
         ws.onmessage = (ev) => {
-            if (typeof ev.data === "string") {
+            try {
                 const msg = JSON.parse(ev.data);
-                if (msg.op === "advertiseServices") { services = msg.services || []; log("services:", services.length); }
-                if (msg.op === "serverInfo") log("serverInfo:", msg.name, (msg.capabilities || []).join(", "));
-                if (msg.op === "serviceCallFailure") log("serviceCallFailure:", msg.serviceId, msg.callId, msg.message || "");
-                return;
+                if (msg.type === "serverInfo") {
+                    log("Server:", msg.name, msg.version);
+                } else if (msg.type === "services") {
+                    services = msg.services || [];
+                    log(`Found ${services.length} services`);
+
+                    // Extract and populate namespace buttons
+                    populateNamespaceButtons(services);
+                }
+            } catch (e) {
+                log("Error parsing message:", e.message);
             }
-            const buf = new Uint8Array(ev.data);
-            const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
-            const opcode = dv.getUint8(0);
-            if (opcode !== OPC.SERVICE_CALL_RESPONSE) return;
-            let off = 1;
-            const serviceId = dv.getUint32(off, true); off += 4;
-            const callId = dv.getUint32(off, true); off += 4;
-            const encLen = dv.getUint32(off, true); off += 4;
-            const enc = new TextDecoder().decode(buf.subarray(off, off + encLen)); off += encLen;
-            const payload = buf.subarray(off); // includes CDR header
-            log("← SERVICE_CALL_RESPONSE", { serviceId, callId, enc, head: [...payload.subarray(0, 16)].map(b => b.toString(16).padStart(2, '0')).join(' ') });
-            const w = waiters.get(callId); if (w) { waiters.delete(callId); w(payload, enc); }
         };
     };
 
-    // ---------------- CDR helpers (no external deps) ----------------
-    // 4-byte CDR encapsulation header (XCDR1, little-endian)
-    const ENC_LE = new Uint8Array([0x00, 0x01, 0x00, 0x00]);
-    const encapsulate = (body) => {
-        const out = new Uint8Array(ENC_LE.length + body.length);
-        out.set(ENC_LE, 0);
-        out.set(body, ENC_LE.length);
-        return out;
-    };
 
-    // Write a CDR (XCDR1) string: uint32 length INCLUDING NUL, bytes, NUL, then 4-byte alignment padding
-    function writeCdrStringLE(str) {
-        const utf8 = new TextEncoder().encode(str);
-        const lenWithNul = utf8.length + 1; // includes terminating NUL
-        const size = 4 + lenWithNul;
-        const pad = (4 - (size % 4)) % 4; // align next field to 4
-        const out = new Uint8Array(size + pad);
-        const dv = new DataView(out.buffer, out.byteOffset, out.byteLength);
-        dv.setUint32(0, lenWithNul, true);
-        out.set(utf8, 4);
-        out[4 + utf8.length] = 0; // terminating NUL
-        // padding bytes already zero
-        return out;
-    }
-
-    // MuxList: header + dummy uint8 (0) (std_srvs/Empty-like)
-    const emptyReq = () => encapsulate(new Uint8Array([0]));
-
-    // MuxSelect: header + CDR string(topic)
-    const selectReq = (topic) => encapsulate(writeCdrStringLE(topic));
-
-    // std_srvs/Empty request in ROS 2 has a hidden uint8 structure_needs_at_least_one_member
-    const emptyReqStrict = () => encapsulate(new Uint8Array([0]));
-
-
-    // ---------------- UI actions ----------------
+    // ---------------- UI Helpers ----------------
     function fillSelect(selectEl, topics, countEl) {
         selectEl.innerHTML = "";
-        topics.forEach(t => { const opt = document.createElement("option"); opt.value = t; opt.textContent = t; selectEl.appendChild(opt); });
+        topics.forEach(t => {
+            const opt = document.createElement("option");
+            opt.value = t;
+            opt.textContent = t;
+            selectEl.appendChild(opt);
+        });
         countEl.textContent = `${topics.length} topic(s)`;
     }
 
+    function extractNamespaces(services) {
+        const namespaces = new Set();
+        services.forEach(svc => {
+            // Extract the first component after the root /
+            // e.g., /voyager/control/force/command/mux -> voyager
+            const parts = svc.name.split('/').filter(p => p.length > 0);
+            if (parts.length > 0) {
+                namespaces.add(parts[0]);
+            }
+        });
+        return Array.from(namespaces).sort();
+    }
+
+    function populateNamespaceButtons(services) {
+        const container = el('nsButtons');
+        container.innerHTML = '';
+        const namespaces = extractNamespaces(services);
+
+        namespaces.forEach(ns => {
+            const btn = document.createElement('button');
+            btn.textContent = ns;
+            btn.style.padding = '0.4rem 0.8rem';
+            btn.style.fontSize = '0.9rem';
+            btn.onclick = () => {
+                el('ns').value = ns;
+            };
+            container.appendChild(btn);
+        });
+    }
+
+    // ---------------- UI Actions ----------------
     el("forceList").onclick = async () => {
-        const id = idOf('/force_mux/list', /MuxList/);
-        if (!id) { el('forceCount').textContent = `Service not found: ${withNs('/force_mux/list')}`; return; }
-        const payload = await call(id, emptyReq());
-        const topics = parseStringSeq(payload);
-        fillSelect(el('forceSelect'), topics, el('forceCount'));
+        try {
+            const namespace = getNamespace();
+            const response = await sendMessage({
+                type: "mux_list",
+                namespace: namespace,
+                mux_name: "force_mux"
+            });
+
+            if (response.type === "mux_list_response") {
+                fillSelect(el('forceSelect'), response.topics, el('forceCount'));
+                log(`Force mux: ${response.topics.length} topics`);
+            }
+        } catch (e) {
+            el('forceCount').textContent = `Error: ${e.message}`;
+            log("Error listing force topics:", e.message);
+        }
     };
 
     el("velList").onclick = async () => {
-        const id = idOf('/velocity_mux/list', /MuxList/);
-        if (!id) { el('velCount').textContent = `Service not found: ${withNs('/velocity_mux/list')}`; return; }
-        const payload = await call(id, emptyReq());
-        const topics = parseStringSeq(payload);
-        fillSelect(el('velSelect'), topics, el('velCount'));
+        try {
+            const namespace = getNamespace();
+            const response = await sendMessage({
+                type: "mux_list",
+                namespace: namespace,
+                mux_name: "velocity_mux"
+            });
+
+            if (response.type === "mux_list_response") {
+                fillSelect(el('velSelect'), response.topics, el('velCount'));
+                log(`Velocity mux: ${response.topics.length} topics`);
+            }
+        } catch (e) {
+            el('velCount').textContent = `Error: ${e.message}`;
+            log("Error listing velocity topics:", e.message);
+        }
     };
 
     el("forceChoose").onclick = async () => {
-        const id = idOf('/force_mux/select', /MuxSelect/);
-        const topic = el('forceSelect').value.trim();
-        if (!id) { el('forceResult').textContent = `Service not found: ${withNs('/force_mux/select')}`; return; }
-        if (!topic) { el('forceResult').textContent = 'Pick a topic'; return; }
-        const payload = await call(id, selectReq(topic));
-        const res = parseSelectRes(payload);
-        el('forceResult').textContent = res.success ? `Selected (prev: ${res.prev_topic || '-'})` : 'Select rejected';
+        try {
+            const namespace = getNamespace();
+            const topic = el('forceSelect').value.trim();
+            if (!topic) {
+                el('forceResult').textContent = 'Pick a topic';
+                return;
+            }
+
+            const response = await sendMessage({
+                type: "mux_select",
+                namespace: namespace,
+                mux_name: "force_mux",
+                topic: topic
+            });
+
+            if (response.type === "mux_select_response") {
+                el('forceResult').textContent = response.success
+                    ? `Selected (prev: ${response.prev_topic || '-'})`
+                    : 'Select rejected';
+                log(`Force mux selected: ${topic}`);
+            }
+        } catch (e) {
+            el('forceResult').textContent = `Error: ${e.message}`;
+            log("Error selecting force topic:", e.message);
+        }
     };
 
     el("velChoose").onclick = async () => {
-        const id = idOf('/velocity_mux/select', /MuxSelect/);
-        const topic = el('velSelect').value.trim();
-        if (!id) { el('velResult').textContent = `Service not found: ${withNs('/velocity_mux/select')}`; return; }
-        if (!topic) { el('velResult').textContent = 'Pick a topic'; return; }
-        const payload = await call(id, selectReq(topic));
-        const res = parseSelectRes(payload);
-        el('velResult').textContent = res.success ? `Selected (prev: ${res.prev_topic || '-'})` : 'Select rejected';
+        try {
+            const namespace = getNamespace();
+            const topic = el('velSelect').value.trim();
+            if (!topic) {
+                el('velResult').textContent = 'Pick a topic';
+                return;
+            }
+
+            const response = await sendMessage({
+                type: "mux_select",
+                namespace: namespace,
+                mux_name: "velocity_mux",
+                topic: topic
+            });
+
+            if (response.type === "mux_select_response") {
+                el('velResult').textContent = response.success
+                    ? `Selected (prev: ${response.prev_topic || '-'})`
+                    : 'Select rejected';
+                log(`Velocity mux selected: ${topic}`);
+            }
+        } catch (e) {
+            el('velResult').textContent = `Error: ${e.message}`;
+            log("Error selecting velocity topic:", e.message);
+        }
     };
 
     // -------------- Thrusters (Empty) --------------
-    async function callFirstEmpty(names) {
-        const re = /std_srvs(\/srv)?\/Empty(\.srv)?$/;
-        for (const cand of names) {
-            const { id, name } = idOfFlexible([cand], re);
-            if (!id) continue;
-            try { await call(id, emptyReqStrict()); return { ok: true, name: name ?? cand }; }
-            catch (e) { /* try next candidate */ }
-        }
-        return { ok: false };
-    }
-
     el("thrActivate").onclick = async () => {
-        el('thrResult').textContent = 'Activating…';
-        // Primary per request, with fallbacks similar to Python GUI
-        const res = await callFirstEmpty(['/thrusters/activate', '/thruster/activate', '/thruster/enable']);
-        el('thrResult').textContent = res.ok ? `Activated via ${res.name}` : `Service not found: ${withNs('/thrusters/activate')}`;
+        try {
+            el('thrResult').textContent = 'Activating…';
+            const namespace = getNamespace();
+
+            const response = await sendMessage({
+                type: "thruster_activate",
+                namespace: namespace,
+                candidates: ["/thrusters/activate", "/thruster/activate", "/thruster/enable"]
+            });
+
+            if (response.type === "thruster_response" && response.success) {
+                el('thrResult').textContent = `Activated via ${response.service}`;
+                log(`Thrusters activated: ${response.service}`);
+            }
+        } catch (e) {
+            el('thrResult').textContent = `Error: ${e.message}`;
+            log("Error activating thrusters:", e.message);
+        }
     };
 
     el("thrDeactivate").onclick = async () => {
-        el('thrResult').textContent = 'Deactivating…';
-        const res = await callFirstEmpty(['/thrusters/deactivate', '/thruster/disable']);
-        el('thrResult').textContent = res.ok ? `Deactivated via ${res.name}` : `Service not found: ${withNs('/thrusters/deactivate')}`;
+        try {
+            el('thrResult').textContent = 'Deactivating…';
+            const namespace = getNamespace();
+
+            const response = await sendMessage({
+                type: "thruster_deactivate",
+                namespace: namespace,
+                candidates: ["/thrusters/deactivate", "/thruster/disable"]
+            });
+
+            if (response.type === "thruster_response" && response.success) {
+                el('thrResult').textContent = `Deactivated via ${response.service}`;
+                log(`Thrusters deactivated: ${response.service}`);
+            }
+        } catch (e) {
+            el('thrResult').textContent = `Error: ${e.message}`;
+            log("Error deactivating thrusters:", e.message);
+        }
     };
 
 
