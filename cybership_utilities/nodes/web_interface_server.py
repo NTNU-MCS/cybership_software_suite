@@ -25,8 +25,10 @@ from rclpy.executors import MultiThreadedExecutor
 try:
     from topic_tools_interfaces.srv import MuxList, MuxSelect
     from std_srvs.srv import Empty
+    from lifecycle_msgs.srv import ChangeState, GetState
+    from lifecycle_msgs.msg import Transition, State
 except ImportError:
-    print("Missing dependencies: topic_tools_interfaces, std_srvs")
+    print("Missing dependencies: topic_tools_interfaces, std_srvs, lifecycle_msgs")
     raise
 
 
@@ -74,6 +76,114 @@ class ROS2Bridge(Node):
             logger.info(f"Created Empty client for {service_name}")
 
         return self._service_clients[key]["empty"]
+
+    @staticmethod
+    def _normalize_namespace(namespace: str) -> str:
+        ns = (namespace or "").strip()
+        if not ns:
+            return ""
+        ns = ns.strip("/")
+        return f"/{ns}" if ns else ""
+
+    def get_or_create_lifecycle_clients(self, namespace: str, node_name: str):
+        """Get or create lifecycle service clients for a node."""
+        ns = self._normalize_namespace(namespace)
+        key = f"lifecycle:{ns}/{node_name}"
+
+        if key not in self._service_clients:
+            service_base = f"{ns}/{node_name}" if ns else f"/{node_name}"
+            self._service_clients[key] = {
+                "get_state": self.create_client(GetState, f"{service_base}/get_state"),
+                "change_state": self.create_client(ChangeState, f"{service_base}/change_state"),
+            }
+            logger.info(f"Created lifecycle clients for {service_base}")
+
+        return self._service_clients[key]
+
+    async def call_lifecycle_get_state(self, namespace: str, node_name: str) -> Dict:
+        clients = self.get_or_create_lifecycle_clients(namespace, node_name)
+        cli = clients["get_state"]
+
+        if not cli.wait_for_service(timeout_sec=2.0):
+            raise Exception(f"Service not available: {cli.srv_name}")
+
+        req = GetState.Request()
+        future = cli.call_async(req)
+
+        timeout = 5.0
+        start = self.get_clock().now()
+        while not future.done():
+            await asyncio.sleep(0.01)
+            if (self.get_clock().now() - start).nanoseconds / 1e9 > timeout:
+                raise Exception("Service call timeout")
+
+        resp = future.result()
+        if not resp:
+            return {"id": -1, "label": ""}
+        return {"id": int(resp.current_state.id), "label": str(resp.current_state.label)}
+
+    async def call_lifecycle_change_state(
+        self,
+        namespace: str,
+        node_name: str,
+        transition_id: int,
+    ) -> bool:
+        clients = self.get_or_create_lifecycle_clients(namespace, node_name)
+        cli = clients["change_state"]
+
+        if not cli.wait_for_service(timeout_sec=2.0):
+            raise Exception(f"Service not available: {cli.srv_name}")
+
+        req = ChangeState.Request()
+        req.transition = Transition()
+        req.transition.id = int(transition_id)
+        future = cli.call_async(req)
+
+        timeout = 5.0
+        start = self.get_clock().now()
+        while not future.done():
+            await asyncio.sleep(0.01)
+            if (self.get_clock().now() - start).nanoseconds / 1e9 > timeout:
+                raise Exception("Service call timeout")
+
+        resp = future.result()
+        return bool(resp.success) if resp else False
+
+    def resolve_allocator_node_name(self, namespace: str, explicit_node_name: Optional[str] = None) -> str:
+        if explicit_node_name:
+            return explicit_node_name
+
+        # Guess from namespace (/voyager -> voyager_thrust_allocator)
+        ns = self._normalize_namespace(namespace).strip("/")
+        model = ns.split("/")[-1] if ns else ""
+        if model in ("voyager", "enterprise", "drillship"):
+            return f"{model}_thrust_allocator"
+        return "thrust_allocator"
+
+    def find_allocator_lifecycle_node(self, namespace: str, node_candidates: Optional[List[str]] = None) -> str:
+        """Find an allocator lifecycle node in a namespace by inspecting available services."""
+        ns = self._normalize_namespace(namespace)
+        if not self.service_cache:
+            self.scan_services()
+
+        if node_candidates:
+            for node_name in node_candidates:
+                svc_name = f"{ns}/{node_name}/change_state" if ns else f"/{node_name}/change_state"
+                for svc in self.service_cache:
+                    if svc["name"] == svc_name and "lifecycle_msgs/srv/ChangeState" in svc["type"]:
+                        return node_name
+
+        # Fallback: pick the first ChangeState service under the namespace.
+        for svc in self.service_cache:
+            if "lifecycle_msgs/srv/ChangeState" not in svc["type"]:
+                continue
+            if ns and not svc["name"].startswith(f"{ns}/"):
+                continue
+            parts = svc["name"].strip("/").split("/")
+            if len(parts) >= 2 and parts[-1] == "change_state":
+                return parts[-2]
+
+        raise Exception("No lifecycle ChangeState service found for thrust allocator")
 
     def scan_services(self) -> List[Dict]:
         """Scan and return available services."""
@@ -301,6 +411,115 @@ class WebSocketServer:
                 "action": "deactivate",
                 "success": True,
                 "service": service_name
+            }
+
+        elif msg_type == "allocator_state":
+            namespace = data.get("namespace", "")
+            explicit_node_name = data.get("node_name")
+            node_candidates = data.get("node_candidates")
+
+            self.ros_bridge.scan_services()
+            node_name = (
+                explicit_node_name
+                or self.ros_bridge.resolve_allocator_node_name(namespace)
+            )
+            try:
+                node_name = self.ros_bridge.find_allocator_lifecycle_node(
+                    namespace, node_candidates=[node_name] + (node_candidates or [])
+                )
+            except Exception:
+                pass
+
+            state = await self.ros_bridge.call_lifecycle_get_state(namespace, node_name)
+            return {
+                "type": "allocator_state_response",
+                "node_name": node_name,
+                "state": state,
+            }
+
+        elif msg_type == "allocator_activate":
+            namespace = data.get("namespace", "")
+            explicit_node_name = data.get("node_name")
+            node_candidates = data.get("node_candidates")
+
+            self.ros_bridge.scan_services()
+            node_name = (
+                explicit_node_name
+                or self.ros_bridge.resolve_allocator_node_name(namespace)
+            )
+            try:
+                node_name = self.ros_bridge.find_allocator_lifecycle_node(
+                    namespace, node_candidates=[node_name] + (node_candidates or [])
+                )
+            except Exception:
+                pass
+
+            state = await self.ros_bridge.call_lifecycle_get_state(namespace, node_name)
+            if state["id"] == State.PRIMARY_STATE_UNCONFIGURED:
+                ok = await self.ros_bridge.call_lifecycle_change_state(
+                    namespace, node_name, Transition.TRANSITION_CONFIGURE
+                )
+                if not ok:
+                    state_now = await self.ros_bridge.call_lifecycle_get_state(namespace, node_name)
+                    raise Exception(
+                        f"Failed to configure allocator lifecycle node (state={state_now})"
+                    )
+                state = await self.ros_bridge.call_lifecycle_get_state(namespace, node_name)
+
+            if state["id"] == State.PRIMARY_STATE_INACTIVE:
+                ok = await self.ros_bridge.call_lifecycle_change_state(
+                    namespace, node_name, Transition.TRANSITION_ACTIVATE
+                )
+                if not ok:
+                    state_now = await self.ros_bridge.call_lifecycle_get_state(namespace, node_name)
+                    raise Exception(
+                        f"Failed to activate allocator lifecycle node (state={state_now})"
+                    )
+
+            state = await self.ros_bridge.call_lifecycle_get_state(namespace, node_name)
+            return {
+                "type": "allocator_response",
+                "action": "activate",
+                "success": True,
+                "node_name": node_name,
+                "state": state,
+            }
+
+        elif msg_type == "allocator_deactivate":
+            namespace = data.get("namespace", "")
+            explicit_node_name = data.get("node_name")
+            node_candidates = data.get("node_candidates")
+
+            self.ros_bridge.scan_services()
+            node_name = (
+                explicit_node_name
+                or self.ros_bridge.resolve_allocator_node_name(namespace)
+            )
+            try:
+                node_name = self.ros_bridge.find_allocator_lifecycle_node(
+                    namespace, node_candidates=[node_name] + (node_candidates or [])
+                )
+            except Exception:
+                pass
+
+            state = await self.ros_bridge.call_lifecycle_get_state(namespace, node_name)
+            if state["id"] == State.PRIMARY_STATE_ACTIVE:
+                ok = await self.ros_bridge.call_lifecycle_change_state(
+                    namespace, node_name, Transition.TRANSITION_DEACTIVATE
+                )
+                if not ok:
+                    state_now = await self.ros_bridge.call_lifecycle_get_state(namespace, node_name)
+                    raise Exception(
+                        f"Failed to deactivate allocator lifecycle node (state={state_now})"
+                    )
+
+            state = await self.ros_bridge.call_lifecycle_get_state(namespace, node_name)
+            return {
+                "type": "allocator_response",
+                "action": "deactivate",
+                "success": True,
+                "node_name": node_name,
+                "state": state,
             }
 
         elif msg_type == "scan_services":

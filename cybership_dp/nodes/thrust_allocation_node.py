@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import cybership_dp.drillship.force_controller
+import cybership_dp.enterprise.force_controller
 import cybership_dp.voyager.force_controller
 import rclpy
 import rclpy.executors
@@ -39,8 +40,8 @@ class ForceControllerManager():
         if self.args.vessel_model == cybership_utilities.utilities.VESSEL_MODEL_VOYAGER:
             return cybership_dp.voyager.force_controller.ForceControllerROS()
 
-        elif self.args.vessel_model == cybership_utilities.utilities.VESSEL_MODEL_VOYAGER:
-            print("Force controller for C/S Enterprise is not implemented yet.")
+        elif self.args.vessel_model == cybership_utilities.utilities.VESSEL_MODEL_ENTERPRISE:
+            return cybership_dp.enterprise.force_controller.ForceControllerROS()
 
         elif self.args.vessel_model == cybership_utilities.utilities.VESSEL_MODEL_DRILLSHIP:
             return cybership_dp.drillship.force_controller.ForceControllerROS()

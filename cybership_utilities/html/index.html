@@ -48,21 +48,25 @@
 </style>
 
 <h1>ROS 2 Mux (Web UI)</h1>
+<div class="muted">Web UI for switching mux inputs and toggling thrusters / thrust allocation via ROS 2 services.</div>
 <div class="row">
     <label>WebSocket URL</label>
     <input id="url" size="36" />
     <button id="connect">Connect</button>
     <span id="status" class="muted">disconnected</span>
 </div>
+<div class="muted">Connects to <code>web_interface_server.py</code> to call ROS 2 services from your browser.</div>
 
 <fieldset>
     <legend>Namespace</legend>
+    <div class="muted">All service calls are made under this namespace (e.g. <code>/voyager</code>, <code>/enterprise</code>, <code>/drillship</code>).</div>
     <input id="ns" placeholder="/voyager" style="width: 24rem" />
     <div id="nsButtons" style="margin-top: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;"></div>
 </fieldset>
 
 <fieldset>
     <legend>Thrusters</legend>
+    <div class="muted">Enables/disables the thruster system on the physical platform (if your setup exposes these Empty services). In simulation this is usually unavailable or has no effect.</div>
     <div class="row">
         <button id="thrActivate">Activate</button>
         <button id="thrDeactivate">Deactivate</button>
@@ -73,7 +77,25 @@
 </fieldset>
 
 <fieldset>
+    <legend>Thrust Allocation (Lifecycle)</legend>
+    <div class="muted">Starts/stops the thrust allocation node using ROS 2 lifecycle transitions (configure/activate/deactivate).</div>
+    <div class="row">
+        <label>Node</label>
+        <input id="allocNode" placeholder="(auto) e.g. voyager_thrust_allocator" style="width: 24rem" />
+        <button id="allocState">Get state</button>
+        <span id="allocStateText" class="muted"></span>
+    </div>
+    <div class="row">
+        <button id="allocActivate">Activate</button>
+        <button id="allocDeactivate">Deactivate</button>
+        <span id="allocResult" class="muted"></span>
+    </div>
+    <div class="muted">Calls <code>&lt;ns&gt;/&lt;node&gt;/get_state</code> and <code>&lt;ns&gt;/&lt;node&gt;/change_state</code> (lifecycle_msgs)</div>
+</fieldset>
+
+<fieldset>
     <legend>Force Mux</legend>
+    <div class="muted">Selects which force command source drives <code>control/force/command</code> via <code>topic_tools/mux</code>.</div>
     <div class="row">
         <button id="forceList">List topics</button>
         <span id="forceCount" class="muted"></span>
@@ -88,6 +110,7 @@
 
 <fieldset>
     <legend>Velocity Mux</legend>
+    <div class="muted">Selects which velocity command source drives the velocity controller (when a velocity mux is present).</div>
     <div class="row">
         <button id="velList">List topics</button>
         <span id="velCount" class="muted"></span>
@@ -100,8 +123,8 @@
     </div>
 </fieldset>
 
-
 <pre id="log"></pre>
+<div class="muted">Log shows responses/errors from the WebSocket bridge.</div>
 
 <script type="module">
     // ---------------- Simple JSON WebSocket Protocol ----------------
@@ -115,6 +138,7 @@
     };
     const setStatus = (s) => el("status").textContent = s;
     const getNamespace = () => (el("ns").value || "").trim().replace(/\/+$/, "");
+    const getAllocatorNode = () => (el("allocNode").value || "").trim();
 
     // Default WebSocket URL from the current address bar.
     // Examples:
@@ -370,6 +394,83 @@
         } catch (e) {
             el('thrResult').textContent = `Error: ${e.message}`;
             log("Error deactivating thrusters:", e.message);
+        }
+    };
+
+    // -------------- Thrust Allocation (Lifecycle) --------------
+    function formatLifecycleState(state) {
+        if (!state) return "";
+        const label = state.label || "";
+        const id = (state.id ?? "");
+        return label ? `${label} (${id})` : String(id);
+    }
+
+    el("allocState").onclick = async () => {
+        try {
+            el('allocResult').textContent = '';
+            el('allocStateText').textContent = 'Loading…';
+            const namespace = getNamespace();
+            const nodeName = getAllocatorNode();
+
+            const response = await sendMessage({
+                type: "allocator_state",
+                namespace: namespace,
+                node_name: nodeName || undefined,
+            });
+
+            if (response.type === "allocator_state_response") {
+                el('allocStateText').textContent = `${response.node_name}: ${formatLifecycleState(response.state)}`;
+                log(`Allocator state: ${response.node_name} -> ${formatLifecycleState(response.state)}`);
+            }
+        } catch (e) {
+            el('allocStateText').textContent = `Error: ${e.message}`;
+            log("Error getting allocator state:", e.message);
+        }
+    };
+
+    el("allocActivate").onclick = async () => {
+        try {
+            el('allocResult').textContent = 'Activating…';
+            const namespace = getNamespace();
+            const nodeName = getAllocatorNode();
+
+            const response = await sendMessage({
+                type: "allocator_activate",
+                namespace: namespace,
+                node_name: nodeName || undefined,
+            });
+
+            if (response.type === "allocator_response" && response.success) {
+                el('allocResult').textContent = `Activated (${formatLifecycleState(response.state)})`;
+                el('allocStateText').textContent = `${response.node_name}: ${formatLifecycleState(response.state)}`;
+                log(`Allocator activated: ${response.node_name}`);
+            }
+        } catch (e) {
+            el('allocResult').textContent = `Error: ${e.message}`;
+            log("Error activating allocator:", e.message);
+        }
+    };
+
+    el("allocDeactivate").onclick = async () => {
+        try {
+            el('allocResult').textContent = 'Deactivating…';
+            const namespace = getNamespace();
+            const nodeName = getAllocatorNode();
+
+            const response = await sendMessage({
+                type: "allocator_deactivate",
+                namespace: namespace,
+                node_name: nodeName || undefined,
+            });
+
+            if (response.type === "allocator_response" && response.success) {
+                el('allocResult').textContent = `Deactivated (${formatLifecycleState(response.state)})`;
+                el('allocStateText').textContent = `${response.node_name}: ${formatLifecycleState(response.state)}`;
+                log(`Allocator deactivated: ${response.node_name}`);
+            }
+        } catch (e) {
+            el('allocResult').textContent = `Error: ${e.message}`;
+            log("Error deactivating allocator:", e.message);
         }
     };
 
