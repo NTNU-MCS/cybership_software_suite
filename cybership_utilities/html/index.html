@@ -50,7 +50,7 @@
 <h1>ROS 2 Mux (Web UI)</h1>
 <div class="row">
     <label>WebSocket URL</label>
-    <input id="url" size="36" value="ws://localhost:8765" />
+    <input id="url" size="36" />
     <button id="connect">Connect</button>
     <span id="status" class="muted">disconnected</span>
 </div>
@@ -115,6 +115,18 @@
     };
     const setStatus = (s) => el("status").textContent = s;
     const getNamespace = () => (el("ns").value || "").trim().replace(/\/+$/, "");
+
+    // Default WebSocket URL from the current address bar.
+    // Examples:
+    // - http://192.168.1.20/...  -> ws://192.168.1.20:8765
+    // - https://robot.local/...  -> wss://robot.local:8765
+    // - file:///...              -> ws://localhost:8765
+    (() => {
+        const urlInput = el("url");
+        const host = window.location.hostname || "localhost";
+        const wsProto = window.location.protocol === "https:" ? "wss" : "ws";
+        urlInput.value = `${wsProto}://${host}:8765`;
+    })();
 
     // Send a message and wait for response
     async function sendMessage(message, timeoutMs = 5000) {
