@@ -12,7 +12,7 @@ from rclpy.callback_groups import MutuallyExclusiveCallbackGroup, ReentrantCallb
 from rclpy.qos import QoSProfile, DurabilityPolicy
 
 from nav_msgs.msg import Path, Odometry
-from geometry_msgs.msg import Twist, Vector3, Point
+from geometry_msgs.msg import Wrench, Vector3, Point
 from visualization_msgs.msg import Marker
 from tf_transformations import euler_from_quaternion
 
@@ -33,9 +33,15 @@ class LOSGuidanceROS(Node):
         self.declare_parameter('lookahead', 1.4)
         # Heading control gain
         self.declare_parameter('heading_gain', 1.0)
+        self.declare_parameter('heading_rate_gain', 0.3)
+        # Velocity-force controller gains
+        self.declare_parameter('surge_p_gain', 6.0)
+        self.declare_parameter('surge_d_gain', 1.5)
+        self.declare_parameter('max_force_xy', 50.0)
+        self.declare_parameter('max_torque_z', 20.0)
         # Publishers and Subscribers
-        self._cmd_pub = self.create_publisher(
-            Twist, 'control/velocity/command/los', 10)
+        self._force_pub = self.create_publisher(
+            Wrench, 'control/force/command/los', 10)
         # Publish markers with transient local durability so RViZ receives past markers
         self._marker_pub = self.create_publisher(
             Marker, 'visualization_marker', 10)
@@ -44,6 +50,8 @@ class LOSGuidanceROS(Node):
         # Vehicle pose
         self._position = None
         self._yaw = None
+        self._linear_velocity = None
+        self._angular_velocity_z = None
         # Action Server
         self._action_server = ActionServer(
             self,
@@ -66,6 +74,9 @@ class LOSGuidanceROS(Node):
         quat = [q.x, q.y, q.z, q.w]
         _, _, yaw = euler_from_quaternion(quat)
         self._yaw = yaw
+        twist = msg.twist.twist
+        self._linear_velocity = (twist.linear.x, twist.linear.y)
+        self._angular_velocity_z = twist.angular.z
 
     def goal_callback(self, goal_request: LOSGuidance.Goal) -> GoalResponse:
         if len(goal_request.path.poses) < 2:
@@ -123,8 +134,6 @@ class LOSGuidanceROS(Node):
         rate = self.create_rate(hz)
         V_d = float(self.get_parameter('desired_speed').value)
         delta = float(self.get_parameter('lookahead').value)
-        # Heading control gain
-        k_h = float(self.get_parameter('heading_gain').value)
         guidance = BaseLOSGuidance(waypoints, V_d=V_d, delta=delta)
         last_wp = waypoints[-1]
         # Visualize spline path
@@ -135,40 +144,25 @@ class LOSGuidanceROS(Node):
         canceled = False
         reached_goal = False
         while rclpy.ok():
-            self.get_logger().info(f"{self.goal_uuids}")
             if tuple(goal_handle.goal_id.uuid) not in self.goal_uuids:
-                self.get_logger().info(
-                    f"LOS guidance goal no longer current. {goal_handle.goal_id.uuid}")
+                self.get_logger().info(f"LOS guidance goal no longer current.")
                 canceled = True
                 break
 
             if goal_handle.is_cancel_requested:
                 goal_handle.canceled()
-                self.get_logger().info(
-                    f"LOS guidance canceled. {goal_handle.goal_id.uuid}")
+                self.get_logger().info(f"LOS guidance canceled.")
                 break
             if not goal_handle.is_active:
-                self.get_logger().info(
-                    f"LOS guidance no longer active. {goal_handle.goal_id.uuid}")
+                self.get_logger().info(f"LOS guidance no longer active.")
                 break
             if self._position is None or self._yaw is None:
                 rate.sleep()
                 continue
             x, y = self._position
             chi_d, vel_cmd, extras = guidance.guidance(x, y, dt=dt)
-            twist = Twist()
-            # Compute forward velocity in body frame using current heading
-            v_forward = vel_cmd[0] * \
-                math.cos(self._yaw) + vel_cmd[1] * math.sin(self._yaw)
-            # Use computed forward speed (ensuring non-negative speed)
-            twist.linear.x = max(v_forward, 0.0)
-            twist.linear.y = 0.0
-            twist.linear.z = 0.0
-            # Compute and normalize heading error
-            heading_error = math.atan2(
-                math.sin(chi_d - self._yaw), math.cos(chi_d - self._yaw))
-            twist.angular.z = k_h * heading_error
-            self._cmd_pub.publish(twist)
+            wrench = self.compute_force_command(vel_cmd, chi_d)
+            self._force_pub.publish(wrench)
             # Feedback
             feedback = LOSGuidance.Feedback()
             feedback.heading = chi_d
@@ -178,8 +172,7 @@ class LOSGuidanceROS(Node):
             self.publish_arrow_marker(x, y, vel_cmd)
             # Look-ahead visualization
             # x_la, y_la, _, _ = guidance.lookahead_point(x, y)
-            self.publish_lookahead_marker(
-                extras["lookahead_point"][0], extras["lookahead_point"][1])
+            self.publish_lookahead_marker(extras["lookahead_point"][0], extras["lookahead_point"][1])
             # self.publish_lookahead_line(x, y, x_la, y_la)
             # Check completion
             if math.hypot(x - last_wp[0], y - last_wp[1]) < delta:
@@ -282,6 +275,55 @@ class LOSGuidanceROS(Node):
         m.pose.position.z = 0.0
         self._marker_pub.publish(m)
 
+    def compute_force_command(self, vel_cmd: np.ndarray, chi_d: float) -> Wrench:
+        vel_body_ref = self._world_to_body(vel_cmd, self._yaw)
+        vel_body_meas = np.array(self._linear_velocity
+                                 if self._linear_velocity is not None else (0.0, 0.0))
+
+        surge_kp = float(self.get_parameter('surge_p_gain').value)
+        surge_kd = float(self.get_parameter('surge_d_gain').value)
+
+        force_x = surge_kp * (vel_body_ref[0] - vel_body_meas[0]) - \
+            surge_kd * vel_body_meas[0]
+        # Suppress sway forces to avoid crabbing behavior
+        force_y = 0.0
+
+        max_force = float(self.get_parameter('max_force_xy').value)
+        force_x = self._saturate(force_x, max_force)
+
+        heading_error = math.atan2(
+            math.sin(chi_d - self._yaw), math.cos(chi_d - self._yaw))
+        yaw_rate = self._angular_velocity_z if self._angular_velocity_z is not None else 0.0
+        k_h = float(self.get_parameter('heading_gain').value)
+        k_hr = float(self.get_parameter('heading_rate_gain').value)
+        torque_z = k_h * heading_error - k_hr * yaw_rate
+        max_torque = float(self.get_parameter('max_torque_z').value)
+        torque_z = self._saturate(torque_z, max_torque)
+
+        wrench = Wrench()
+        wrench.force.x = float(force_x)
+        wrench.force.y = float(force_y)
+        wrench.force.z = 0.0
+        wrench.torque.x = 0.0
+        wrench.torque.y = 0.0
+        wrench.torque.z = float(torque_z)
+        return wrench
+
+    @staticmethod
+    def _world_to_body(vel_cmd: np.ndarray, yaw: float) -> np.ndarray:
+        c = math.cos(yaw)
+        s = math.sin(yaw)
+        return np.array([
+            c * vel_cmd[0] + s * vel_cmd[1],
+            -s * vel_cmd[0] + c * vel_cmd[1]
+        ])
+
+    @staticmethod
+    def _saturate(value: float, limit: float) -> float:
+        if limit <= 0.0:
+            return float(value)
+        return float(max(-limit, min(limit, value)))
+
     def publish_lookahead_line(self, x, y, x_la, y_la):
         m = Marker()
         m.header.frame_id = 'world'
@@ -304,16 +346,9 @@ class LOSGuidanceROS(Node):
 def main(args=None):
     rclpy.init(args=args)
     node = LOSGuidanceROS()
-    executor = MultiThreadedExecutor()
-    try:
-        executor.add_node(node)
-        executor.spin()
-    except KeyboardInterrupt:
-        node.get_logger().info('Shutting down on SIGINT (Ctrl+C)')
-    finally:
-        executor.shutdown()
-        node.destroy_node()
-        rclpy.shutdown()
+    rclpy.spin(node)
+    node.destroy_node()
+    rclpy.shutdown()
 
 
 if __name__ == '__main__':

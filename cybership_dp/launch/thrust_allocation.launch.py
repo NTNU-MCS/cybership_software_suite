@@ -52,6 +52,7 @@ def generate_launch_description():
             "control/force/command/manual",        # Input topic to listen to
             "control/force/command/velocity",      # Input topic to listen to
             "control/force/command/position",      # Input topic to listen to
+            "control/force/command/los",           # Input topic to listen to
         ],
         output="screen",
         respawn=True,
