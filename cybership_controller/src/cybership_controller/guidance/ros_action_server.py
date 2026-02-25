@@ -56,6 +56,13 @@ class LOSGuidanceROS(Node):
 
         self.goal_uuids: typing.List = []
 
+        # Guidance loop state
+        self.active_goal_handle = None
+        self.guidance = None
+        self.last_wp = None
+        self.guidance_hz = 2
+        self.guidance_timer = None
+
         self.get_logger().info('LOS Guidance Action Server started')
 
     def odom_callback(self, msg: Odometry):
@@ -101,8 +108,79 @@ class LOSGuidanceROS(Node):
 
         return np.array(waypoints)
 
-    async def execute_callback(self, goal_handle: LOSGuidance.Goal) -> LOSGuidance.Result:
+    def guidance_loop_timer(self):
+        """Non-blocking guidance loop executed periodically via timer."""
+        if self.active_goal_handle is None:
+            return
 
+        goal_handle = self.active_goal_handle
+
+        # Check if goal is still valid
+        if tuple(goal_handle.goal_id.uuid) not in self.goal_uuids:
+            self.get_logger().info(
+                f"LOS guidance goal no longer current. {goal_handle.goal_id.uuid}")
+            self.active_goal_handle = None
+            self.guidance_timer.cancel()
+            return
+
+        if goal_handle.is_cancel_requested:
+            goal_handle.canceled()
+            self.get_logger().info(
+                f"LOS guidance canceled. {goal_handle.goal_id.uuid}")
+            self.active_goal_handle = None
+            self.guidance_timer.cancel()
+            return
+
+        if not goal_handle.is_active:
+            self.get_logger().info(
+                f"LOS guidance no longer active. {goal_handle.goal_id.uuid}")
+            self.active_goal_handle = None
+            self.guidance_timer.cancel()
+            return
+
+        if self._position is None or self._yaw is None:
+            return
+
+        x, y = self._position
+        dt = 1.0 / self.guidance_hz
+        chi_d, vel_cmd, extras = self.guidance.guidance(x, y, dt=dt)
+
+        # Get heading gain from parameters
+        k_h = float(self.get_parameter('heading_gain').value)
+
+        twist = Twist()
+        # Compute forward velocity in body frame using current heading
+        v_forward = vel_cmd[0] * \
+            math.cos(self._yaw) + vel_cmd[1] * math.sin(self._yaw)
+        # Use computed forward speed (ensuring non-negative speed)
+        twist.linear.x = max(v_forward, 0.0)
+        twist.linear.y = 0.0
+        twist.linear.z = 0.0
+        # Compute and normalize heading error
+        heading_error = math.atan2(
+            math.sin(chi_d - self._yaw), math.cos(chi_d - self._yaw))
+        twist.angular.z = k_h * heading_error
+        self._cmd_pub.publish(twist)
+
+        # Feedback
+        feedback = LOSGuidance.Feedback()
+        feedback.heading = chi_d
+        feedback.vel_cmd = Vector3(x=vel_cmd[0], y=vel_cmd[1], z=0.0)
+        goal_handle.publish_feedback(feedback)
+
+        self.publish_arrow_marker(x, y, vel_cmd)
+        self.publish_lookahead_marker(
+            extras["lookahead_point"][0], extras["lookahead_point"][1])
+
+        # Check completion
+        if math.hypot(x - self.last_wp[0], y - self.last_wp[1]) < self.guidance.delta:
+            goal_handle.succeed()
+            self.get_logger().info("LOS guidance finished (result empty).")
+            self.active_goal_handle = None
+            self.guidance_timer.cancel()
+
+    async def execute_callback(self, goal_handle: LOSGuidance.Goal) -> LOSGuidance.Result:
+        """Non-blocking action server callback. Guidance loop runs in timer."""
         if len(self.goal_uuids) > 0:
             self.goal_uuids.pop(0)
 
@@ -119,88 +197,25 @@ class LOSGuidanceROS(Node):
             path_msg, extend=True, n_intermediate=2)
 
         # Initialize guidance
-        hz = 2
-        rate = self.create_rate(hz)
         V_d = float(self.get_parameter('desired_speed').value)
         delta = float(self.get_parameter('lookahead').value)
-        # Heading control gain
-        k_h = float(self.get_parameter('heading_gain').value)
-        guidance = BaseLOSGuidance(waypoints, V_d=V_d, delta=delta)
-        last_wp = waypoints[-1]
+        self.guidance = BaseLOSGuidance(waypoints, V_d=V_d, delta=delta)
+        self.last_wp = waypoints[-1]
+
         # Visualize spline path
-        self.publish_spline_marker(guidance)
+        self.publish_spline_marker(self.guidance)
+        self.publish_path_marker(path_msg)
 
-        dt = 1.0 / hz
+        # Store goal handle for timer callback
+        self.active_goal_handle = goal_handle
 
-        canceled = False
-        reached_goal = False
-        while rclpy.ok():
-            self.get_logger().info(f"{self.goal_uuids}")
-            if tuple(goal_handle.goal_id.uuid) not in self.goal_uuids:
-                self.get_logger().info(
-                    f"LOS guidance goal no longer current. {goal_handle.goal_id.uuid}")
-                canceled = True
-                break
+        # Start guidance loop timer
+        if self.guidance_timer is not None:
+            self.guidance_timer.cancel()
+        self.guidance_timer = self.create_timer(
+            1.0 / self.guidance_hz, self.guidance_loop_timer)
 
-            if goal_handle.is_cancel_requested:
-                goal_handle.canceled()
-                self.get_logger().info(
-                    f"LOS guidance canceled. {goal_handle.goal_id.uuid}")
-                break
-            if not goal_handle.is_active:
-                self.get_logger().info(
-                    f"LOS guidance no longer active. {goal_handle.goal_id.uuid}")
-                break
-            if self._position is None or self._yaw is None:
-                rate.sleep()
-                continue
-            x, y = self._position
-            chi_d, vel_cmd, extras = guidance.guidance(x, y, dt=dt)
-            twist = Twist()
-            # Compute forward velocity in body frame using current heading
-            v_forward = vel_cmd[0] * \
-                math.cos(self._yaw) + vel_cmd[1] * math.sin(self._yaw)
-            # Use computed forward speed (ensuring non-negative speed)
-            twist.linear.x = max(v_forward, 0.0)
-            twist.linear.y = 0.0
-            twist.linear.z = 0.0
-            # Compute and normalize heading error
-            heading_error = math.atan2(
-                math.sin(chi_d - self._yaw), math.cos(chi_d - self._yaw))
-            twist.angular.z = k_h * heading_error
-            self._cmd_pub.publish(twist)
-            # Feedback
-            feedback = LOSGuidance.Feedback()
-            feedback.heading = chi_d
-            feedback.vel_cmd = Vector3(x=vel_cmd[0], y=vel_cmd[1], z=0.0)
-            goal_handle.publish_feedback(feedback)
-            self.publish_path_marker(path_msg)
-            self.publish_arrow_marker(x, y, vel_cmd)
-            # Look-ahead visualization
-            # x_la, y_la, _, _ = guidance.lookahead_point(x, y)
-            self.publish_lookahead_marker(
-                extras["lookahead_point"][0], extras["lookahead_point"][1])
-            # self.publish_lookahead_line(x, y, x_la, y_la)
-            # Check completion
-            if math.hypot(x - last_wp[0], y - last_wp[1]) < delta:
-                reached_goal = True
-                break
-            rate.sleep()
-
-        # Decide final goal state based on how we exited the loop
-        if canceled:
-            # Already marked as canceled above
-            pass
-        elif reached_goal:
-            goal_handle.succeed()
-            self.get_logger().info("LOS guidance finished (result empty).")
-        else:
-            # Aborted due to shutdown or goal becoming inactive
-            if not rclpy.ok():
-                self.get_logger().info("Aborting LOS guidance due to shutdown (SIGINT).")
-            else:
-                self.get_logger().warn("Aborting LOS guidance: goal inactive or interrupted.")
-            goal_handle.abort()
+        # Return immediately; guidance loop runs in timer
         return LOSGuidance.Result()
 
     def publish_path_marker(self, path_msg: Path):

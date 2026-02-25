@@ -135,27 +135,9 @@ def main(args=None):
     rclpy.init(args=args)
 
     simulator = VoyagerSimulator()
-
-    try:
-        rclpy.spin(simulator)
-    except KeyboardInterrupt:
-        pass
-    finally:
-        # Clean shutdown
-        simulator.destroy_node()
-        rclpy.shutdown()
-
-    # # Create a multithreaded executor
-    # executor = rclpy.executors.MultiThreadedExecutor()
-    # executor.add_node(simulator)
-
-    # try:
-    #     executor.spin()
-    # finally:
-    #     # Clean shutdown
-    #     simulator.destroy_node()
-    #     rclpy.shutdown()
-
+    rclpy.spin(simulator)
+    simulator.destroy_node()
+    rclpy.shutdown()
 
 if __name__ == "__main__":
     main()

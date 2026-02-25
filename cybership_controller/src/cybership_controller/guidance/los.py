@@ -14,7 +14,8 @@ class LOSGuidance:
         """
         pts = np.asarray(pts)
         self.tck, self.u_wp = splprep(
-            [pts[:, 0], pts[:, 1]], s=0, k=min(3, len(pts)-1))
+            [pts[:, 0], pts[:, 1]], s=0.1, k=min(3, len(pts)-1)
+        )
 
         # Precompute dense arc-length lookup: u_grid <-> s_grid
         self.u_grid = np.linspace(0.0, 1.0, 2000)
@@ -27,14 +28,13 @@ class LOSGuidance:
 
         self.V_d = float(V_d)
         self.delta = float(delta)
-        self.window_len = 4.0 * \
-            self.delta if window_len is None else float(window_len)
+        self.window_len = 8.0 * self.delta if window_len is None else float(window_len)
+
         self.mu = float(mu)  # small gradient to reduce along-track error
 
         # Persistent arc-length parameter s (initialize lazily on first call)
         self.s = None
 
-    # ---- helpers: arc-length <-> u -------------------------------------------------
     def _u_from_s(self, s):
         s = np.clip(s, 0.0, self.path_len)
         i = np.searchsorted(self.s_grid, s)
@@ -59,7 +59,6 @@ class LOSGuidance:
         nrm = np.linalg.norm(t)
         return t / (nrm + 1e-12), nrm  # unit tangent, |p'(u)| (scaled)
 
-    # ---- local projection around s_prev (bounded window + progress bias) ----------
     def _project_local(self, x, y, s_guess, ds_ff):
         """
         Project (x,y) to arc-length s within a local window around s_guess.
@@ -84,7 +83,6 @@ class LOSGuidance:
             a, b), method='bounded', options={'xatol': 1e-6})
         return float(res.x)
 
-    # ---- public API ----------------------------------------------------------------
     def reset_to_nearest(self, x, y):
         """Call once before the loop to initialize s to the global nearest point."""
         target = np.array([x, y])

@@ -1,18 +1,22 @@
 #!/usr/bin/env python3
 """
 ROS2 Action Server for LOS Guidance using cybership_interfaces/LOSGuidance
+
+Provides two implementations:
+- LOSGuidanceVelocityROS: Publishes Twist velocity commands
+- LOSGuidanceForceCtrROS: Publishes Wrench force/torque commands
 """
 import math
 import rclpy
 from rclpy.node import Node
-from rclpy.action import ActionServer, ActionClient
+from rclpy.action import ActionServer
 from rclpy.action import CancelResponse, GoalResponse
-from rclpy.executors import MultiThreadedExecutor, SingleThreadedExecutor
-from rclpy.callback_groups import MutuallyExclusiveCallbackGroup, ReentrantCallbackGroup
-from rclpy.qos import QoSProfile, DurabilityPolicy
+from rclpy.executors import SingleThreadedExecutor
+from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
+from abc import ABC, abstractmethod
 
 from nav_msgs.msg import Path, Odometry
-from geometry_msgs.msg import Wrench, Vector3, Point
+from geometry_msgs.msg import Twist, Wrench, Vector3, Point
 from visualization_msgs.msg import Marker
 from tf_transformations import euler_from_quaternion
 
@@ -25,33 +29,40 @@ import typing
 from scipy.interpolate import splev
 
 
-class LOSGuidanceROS(Node):
-    def __init__(self):
-        super().__init__('los_guidance_server', namespace="cybership")
-        # Parameters
+class BaseLOSGuidanceROS(Node, ABC):
+    """Base class for LOS Guidance ROS2 Action Server
+
+    Provides common functionality for path-following guidance with different
+    control strategies (velocity vs force control).
+    """
+
+    def __init__(self, node_name='los_guidance_server'):
+        super().__init__(node_name, namespace="cybership")
+
+        # Declare common parameters
         self.declare_parameter('desired_speed', 0.3)
         self.declare_parameter('lookahead', 1.4)
-        # Heading control gain
         self.declare_parameter('heading_gain', 1.0)
-        self.declare_parameter('heading_rate_gain', 0.3)
-        # Velocity-force controller gains
-        self.declare_parameter('surge_p_gain', 1.0)
-        self.declare_parameter('surge_d_gain', 0.2)
-        self.declare_parameter('max_force_xy', 1.0)
-        self.declare_parameter('max_torque_z', 0.2)
-        # Publishers and Subscribers
-        self._force_pub = self.create_publisher(
-            Wrench, 'control/force/command/los', 10)
-        # Publish markers with transient local durability so RViZ receives past markers
+
+        # Declare subclass-specific parameters
+        self._declare_control_parameters()
+
+        # Vehicle pose (base attributes)
+        self._position = None
+        self._yaw = None
+
+        # Declare subclass-specific vehicle state
+        self._declare_vehicle_state()
+
+        # Setup publishers and subscribers
         self._marker_pub = self.create_publisher(
             Marker, 'visualization_marker', 10)
         self._odom_sub = self.create_subscription(
             Odometry, 'measurement/odom', self.odom_callback, 10)
-        # Vehicle pose
-        self._position = None
-        self._yaw = None
-        self._linear_velocity = None
-        self._angular_velocity_z = None
+
+        # Setup control publisher (subclass-specific)
+        self._setup_control_publisher()
+
         # Action Server
         self._action_server = ActionServer(
             self,
@@ -60,7 +71,7 @@ class LOSGuidanceROS(Node):
             execute_callback=self.execute_callback,
             goal_callback=self.goal_callback,
             cancel_callback=self.cancel_callback,
-            callback_group=ReentrantCallbackGroup())
+            callback_group=MutuallyExclusiveCallbackGroup())
 
         self.goal_uuids: typing.List = []
 
@@ -72,9 +83,30 @@ class LOSGuidanceROS(Node):
         self.guidance_timer = None
         self.path_msg = None
 
-        self.get_logger().info('LOS Guidance Action Server started')
+        self.get_logger().info(f'{node_name} started')
+
+    @abstractmethod
+    def _declare_control_parameters(self):
+        """Subclasses override to declare control-specific parameters"""
+        pass
+
+    @abstractmethod
+    def _declare_vehicle_state(self):
+        """Subclasses override to declare control-specific vehicle state attributes"""
+        pass
+
+    @abstractmethod
+    def _setup_control_publisher(self):
+        """Subclasses override to setup their control message publisher"""
+        pass
+
+    @abstractmethod
+    def _compute_and_publish_control(self, chi_d: float, vel_cmd: np.ndarray, x: float, y: float):
+        """Subclasses override to compute and publish control commands"""
+        pass
 
     def odom_callback(self, msg: Odometry):
+        """Base odometry callback that extracts position and heading"""
         # Update position and heading
         self._position = (msg.pose.pose.position.x, msg.pose.pose.position.y)
         q = msg.pose.pose.orientation
@@ -82,19 +114,22 @@ class LOSGuidanceROS(Node):
         quat = [q.x, q.y, q.z, q.w]
         _, _, yaw = euler_from_quaternion(quat)
         self._yaw = yaw
-        twist = msg.twist.twist
-        self._linear_velocity = (twist.linear.x, twist.linear.y)
-        self._angular_velocity_z = twist.angular.z
+
+        # Update subclass-specific odometry data
+        self._update_odom_helper(msg)
+
+    @abstractmethod
+    def _update_odom_helper(self, msg: Odometry):
+        """Subclasses override to extract additional odometry data"""
+        pass
 
     def goal_callback(self, goal_request: LOSGuidance.Goal) -> GoalResponse:
         if len(goal_request.path.poses) < 2:
             self.get_logger().warn("Path has fewer than 2 poses — rejecting goal.")
             return GoalResponse.REJECT
-
         return GoalResponse.ACCEPT
 
     def cancel_callback(self, goal_handle) -> CancelResponse:
-
         return CancelResponse.ACCEPT
 
     def prepare_waypoints(self, path_msg: Path, extend: bool = True, n_intermediate: int = 2) -> np.ndarray:
@@ -141,12 +176,6 @@ class LOSGuidanceROS(Node):
             self.guidance_timer.cancel()
             return
 
-        if not goal_handle.is_active:
-            self.get_logger().info(f"LOS guidance no longer active.")
-            self.active_goal_handle = None
-            self.guidance_timer.cancel()
-            return
-
         if self._position is None or self._yaw is None:
             return
 
@@ -154,8 +183,8 @@ class LOSGuidanceROS(Node):
         dt = 1.0 / self.guidance_hz
         chi_d, vel_cmd, extras = self.guidance.guidance(x, y, dt=dt)
 
-        wrench = self.compute_force_command(vel_cmd, chi_d)
-        self._force_pub.publish(wrench)
+        # Compute and publish control command (subclass-specific)
+        self._compute_and_publish_control(chi_d, vel_cmd, x, y)
 
         # Feedback
         feedback = LOSGuidance.Feedback()
@@ -169,13 +198,23 @@ class LOSGuidanceROS(Node):
 
         # Check completion
         if math.hypot(x - self.last_wp[0], y - self.last_wp[1]) < self.guidance.delta:
-            goal_handle.succeed()
-            self.get_logger().info("LOS guidance finished (result empty).")
-            self.active_goal_handle = None
-            self.guidance_timer.cancel()
+            try:
+                goal_handle.succeed()
+                self.get_logger().info("LOS guidance finished successfully.")
+            except Exception as e:
+                self.get_logger().warn(
+                    f"Failed to set goal to succeeded state: {e}. "
+                    f"Goal may have been aborted by client or timeout.")
+            finally:
+                self.active_goal_handle = None
+                self.guidance_timer.cancel()
 
-    async def execute_callback(self, goal_handle: LOSGuidance.Goal) -> LOSGuidance.Result:
-        """Non-blocking action server callback. Guidance loop runs in timer."""
+    def execute_callback(self, goal_handle):
+        """Non-blocking action server callback. Guidance loop runs in timer.
+
+        Returns without a result to keep goal ACTIVE.
+        Goal completion is managed in guidance_loop_timer().
+        """
         if len(self.goal_uuids) > 0:
             self.goal_uuids.pop(0)
 
@@ -202,7 +241,7 @@ class LOSGuidanceROS(Node):
         self.publish_spline_marker(self.guidance)
         self.publish_path_marker(path_msg)
 
-        # Store goal handle for timer callback
+        # Store goal handle for timer callback to manage completion
         self.active_goal_handle = goal_handle
 
         # Start guidance loop timer
@@ -210,9 +249,6 @@ class LOSGuidanceROS(Node):
             self.guidance_timer.cancel()
         self.guidance_timer = self.create_timer(
             1.0 / self.guidance_hz, self.guidance_loop_timer)
-
-        # Return immediately; guidance loop runs in timer
-        return LOSGuidance.Result()
 
     def publish_path_marker(self, path_msg: Path):
         marker = Marker()
@@ -293,7 +329,105 @@ class LOSGuidanceROS(Node):
         m.pose.position.z = 0.0
         self._marker_pub.publish(m)
 
+    def publish_lookahead_line(self, x, y, x_la, y_la):
+        m = Marker()
+        m.header.frame_id = 'world'
+        m.header.stamp = self.get_clock().now().to_msg()
+        m.ns = 'los_lookahead'
+        m.id = 4
+        m.type = Marker.LINE_STRIP
+        m.action = Marker.ADD
+        m.scale.x = 0.03
+        m.color.r = 1.0
+        m.color.g = 0.85
+        m.color.b = 0.0
+        m.color.a = 0.9
+        start = Point(x=float(x),    y=float(y),    z=0.0)
+        end = Point(x=float(x_la), y=float(y_la), z=0.0)
+        m.points = [start, end]
+        self._marker_pub.publish(m)
+
+
+class LOSGuidanceVelocityROS(BaseLOSGuidanceROS):
+    """LOS Guidance implementation with velocity control (Twist messages)"""
+
+    def __init__(self):
+        super().__init__('los_guidance_velocity_server')
+
+    def _declare_control_parameters(self):
+        """Velocity control uses only heading gain"""
+        pass  # heading_gain already declared in base
+
+    def _declare_vehicle_state(self):
+        """No additional state needed for velocity control"""
+        pass
+
+    def _setup_control_publisher(self):
+        """Setup Twist publisher for velocity commands"""
+        self._cmd_pub = self.create_publisher(
+            Twist, 'control/velocity/command/los', 10)
+
+    def _update_odom_helper(self, msg: Odometry):
+        """Velocity control doesn't need linear/angular velocities"""
+        pass
+
+    def _compute_and_publish_control(self, chi_d: float, vel_cmd: np.ndarray, x: float, y: float):
+        """Compute and publish velocity command"""
+        # Get heading gain from parameters
+        k_h = float(self.get_parameter('heading_gain').value)
+
+        twist = Twist()
+        # Compute forward velocity in body frame using current heading
+        v_forward = vel_cmd[0] * \
+            math.cos(self._yaw) + vel_cmd[1] * math.sin(self._yaw)
+        # Use computed forward speed (ensuring non-negative speed)
+        twist.linear.x = max(v_forward, 0.0)
+        twist.linear.y = 0.0
+        twist.linear.z = 0.0
+        # Compute and normalize heading error
+        heading_error = math.atan2(
+            math.sin(chi_d - self._yaw), math.cos(chi_d - self._yaw))
+        twist.angular.z = k_h * heading_error
+        self._cmd_pub.publish(twist)
+
+
+class LOSGuidanceForceCtrROS(BaseLOSGuidanceROS):
+    """LOS Guidance implementation with force control (Wrench messages)"""
+
+    def __init__(self):
+        super().__init__('los_guidance_force_server')
+
+    def _declare_control_parameters(self):
+        """Force control uses additional parameters for force/torque computation"""
+        self.declare_parameter('heading_rate_gain', 0.3)
+        self.declare_parameter('surge_p_gain', 1.0)
+        self.declare_parameter('surge_d_gain', 0.2)
+        self.declare_parameter('max_force_xy', 1.0)
+        self.declare_parameter('max_torque_z', 0.2)
+
+    def _declare_vehicle_state(self):
+        """Force control needs velocity measurements"""
+        self._linear_velocity = None
+        self._angular_velocity_z = None
+
+    def _setup_control_publisher(self):
+        """Setup Wrench publisher for force commands"""
+        self._force_pub = self.create_publisher(
+            Wrench, 'control/force/command/los', 10)
+
+    def _update_odom_helper(self, msg: Odometry):
+        """Force control needs linear and angular velocities"""
+        twist = msg.twist.twist
+        self._linear_velocity = (twist.linear.x, twist.linear.y)
+        self._angular_velocity_z = twist.angular.z
+
+    def _compute_and_publish_control(self, chi_d: float, vel_cmd: np.ndarray, x: float, y: float):
+        """Compute and publish force command"""
+        wrench = self.compute_force_command(vel_cmd, chi_d)
+        self._force_pub.publish(wrench)
+
     def compute_force_command(self, vel_cmd: np.ndarray, chi_d: float) -> Wrench:
+        """Compute force and torque command from velocity command and heading"""
         vel_body_ref = self._world_to_body(vel_cmd, self._yaw)
         vel_body_meas = np.array(self._linear_velocity
                                  if self._linear_velocity is not None else (0.0, 0.0))
@@ -329,6 +463,7 @@ class LOSGuidanceROS(Node):
 
     @staticmethod
     def _world_to_body(vel_cmd: np.ndarray, yaw: float) -> np.ndarray:
+        """Convert velocity from world frame to body frame"""
         c = math.cos(yaw)
         s = math.sin(yaw)
         return np.array([
@@ -338,35 +473,29 @@ class LOSGuidanceROS(Node):
 
     @staticmethod
     def _saturate(value: float, limit: float) -> float:
+        """Saturate a value to a symmetric limit [-limit, limit]"""
         if limit <= 0.0:
             return float(value)
         return float(max(-limit, min(limit, value)))
 
-    def publish_lookahead_line(self, x, y, x_la, y_la):
-        m = Marker()
-        m.header.frame_id = 'world'
-        m.header.stamp = self.get_clock().now().to_msg()
-        m.ns = 'los_lookahead'
-        m.id = 4
-        m.type = Marker.LINE_STRIP
-        m.action = Marker.ADD
-        m.scale.x = 0.03
-        m.color.r = 1.0
-        m.color.g = 0.85
-        m.color.b = 0.0
-        m.color.a = 0.9
-        start = Point(x=float(x),    y=float(y),    z=0.0)
-        end = Point(x=float(x_la), y=float(y_la), z=0.0)
-        m.points = [start, end]
-        self._marker_pub.publish(m)
-
 
 def main(args=None):
     rclpy.init(args=args)
-    node = LOSGuidanceROS()
-    rclpy.spin(node)
-    node.destroy_node()
-    rclpy.shutdown()
+
+    # Uncomment one of the following to run the desired controller:
+    # node = LOSGuidanceVelocityROS()
+    node = LOSGuidanceForceCtrROS()
+
+    executor = SingleThreadedExecutor()
+    try:
+        executor.add_node(node)
+        executor.spin()
+    except KeyboardInterrupt:
+        node.get_logger().info('Shutting down on SIGINT (Ctrl+C)')
+    finally:
+        executor.shutdown()
+        node.destroy_node()
+        rclpy.shutdown()
 
 
 if __name__ == '__main__':

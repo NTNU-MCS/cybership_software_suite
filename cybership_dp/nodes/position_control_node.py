@@ -132,6 +132,10 @@ class PositionController(Node):
         self.sample_count = 0
         self.last_metrics_time = 0.0
 
+        # Action server goal tracking (for non-blocking execution)
+        self.active_goal_handle = None
+        self.goal_within_tolerance_since = None
+
         # Add parameter callback for runtime updates
         self.add_on_set_parameters_callback(self.parameters_callback)
 
@@ -446,6 +450,75 @@ class PositionController(Node):
                 f"RMS: {metrics_msg.rms:.3f}m, Max: {metrics_msg.max:.3f}m"
             )
 
+    def check_goal_progress(self):
+        """
+        Check if active goal has reached target. Called from control_loop.
+        Non-blocking approach for single-threaded executor compatibility.
+        """
+        if self.active_goal_handle is None:
+            return
+
+        if self.latest_odom is None:
+            return
+
+        # Extract current pose from odometry
+        current_odom = self.latest_odom.pose.pose
+        current_x = current_odom.position.x
+        current_y = current_odom.position.y
+
+        # Extract yaw
+        _, _, current_yaw = R.from_quat([
+            current_odom.orientation.x,
+            current_odom.orientation.y,
+            current_odom.orientation.z,
+            current_odom.orientation.w,
+        ]).as_euler("xyz", degrees=False)
+
+        # Check for cancellation request
+        if self.active_goal_handle.is_cancel_requested:
+            self.active_goal_handle.canceled()
+            self.get_logger().info("NavigateToPose goal canceled")
+            self.active_goal_handle = None
+            self.goal_within_tolerance_since = None
+            return
+
+        # Compute remaining distance and angle error
+        error_norm = np.sqrt(
+            (self.target_x - current_x) ** 2
+            + (self.target_y - current_y) ** 2
+        )
+        error_yaw = wrap_to_pi(self.target_yaw - current_yaw)
+
+        # Publish feedback
+        feedback_msg = NavigateToPose.Feedback()
+        current_feedback_pose = PoseStamped()
+        current_feedback_pose.header.stamp = self.get_clock().now().to_msg()
+        current_feedback_pose.header.frame_id = "odom"
+        current_feedback_pose.pose.position = current_odom.position
+        current_feedback_pose.pose.orientation = current_odom.orientation
+
+        feedback_msg.current_pose = current_feedback_pose
+        feedback_msg.distance_remaining = float(error_norm)
+
+        self.active_goal_handle.publish_feedback(feedback_msg)
+
+        # Check if target is reached (both position and yaw) and held
+        now_t = self.get_clock().now().nanoseconds / 1e9
+        if error_norm < self.pos_tol and abs(error_yaw) < self.yaw_tol:
+            if self.goal_within_tolerance_since is None:
+                self.goal_within_tolerance_since = now_t
+            if (now_t - self.goal_within_tolerance_since) >= self.success_hold_time:
+                # Goal succeeded
+                self.active_goal_handle.succeed()
+                self.get_logger().info("NavigateToPose goal succeeded")
+                self.active_goal_handle = None
+                self.goal_within_tolerance_since = None
+                # Mark large errors to avoid lingering metrics effects
+                self.error_pos = np.array([np.inf, np.inf])
+                self.error_yaw = np.inf
+        else:
+            self.goal_within_tolerance_since = None
+
     def control_loop(self):
         """
         Periodic control loop to update reference filter and publish control commands.
@@ -460,6 +533,9 @@ class PositionController(Node):
 
         if self.ref_filter is None:
             return
+
+        # Check goal progress (non-blocking)
+        self.check_goal_progress()
 
         # Extract current position from odometry (global frame)
         pos = self.latest_odom.pose.pose.position
@@ -604,6 +680,11 @@ class PositionController(Node):
         return response
 
     def execute_callback(self, goal_handle):
+        """
+        Non-blocking action server callback.
+        Goal progress is checked periodically in control_loop via check_goal_progress().
+        This approach is compatible with both single-threaded and multi-threaded executors.
+        """
         self.get_logger().info("Executing NavigateToPose goal...")
 
         # Extract target pose from the goal message
@@ -629,74 +710,15 @@ class PositionController(Node):
         )
         _, _, self.target_yaw = rot.as_euler("xyz", degrees=False)
 
-        feedback_msg = NavigateToPose.Feedback()
-        current_feedback_pose = PoseStamped()
-
+        # Publish target pose marker
         self.publish_target_pose_marker(target_pose)
 
-        # Loop until the robot reaches the target (within tolerance for a hold time) or the goal is canceled.
-        within_since = None
-        while rclpy.ok():  # Loop until target reached or goal is canceled
-            if goal_handle.is_cancel_requested:
-                goal_handle.canceled()
-                self.get_logger().info("NavigateToPose goal canceled")
-                result = NavigateToPose.Result()
-                return result
+        # Store the goal handle for monitoring in control_loop
+        self.active_goal_handle = goal_handle
+        self.goal_within_tolerance_since = None
 
-            # Wait for odometry
-            if self.latest_odom is None:
-                time.sleep(1.0)
-                continue
-
-            # Extract current pose from odometry
-            current_odom = self.latest_odom.pose.pose
-            current_feedback_pose.header.stamp = self.get_clock().now().to_msg()
-            current_feedback_pose.header.frame_id = "odom"
-
-            current_feedback_pose.pose.position = current_odom.position
-            current_feedback_pose.pose.orientation = current_odom.orientation
-
-            # Compute remaining distance
-            error_norm = np.sqrt(
-                (self.target_x - current_feedback_pose.pose.position.x) ** 2
-                + (self.target_y - current_feedback_pose.pose.position.y) ** 2
-            )
-            _, _, current_yaw = R.from_quat(
-                [
-                    current_feedback_pose.pose.orientation.x,
-                    current_feedback_pose.pose.orientation.y,
-                    current_feedback_pose.pose.orientation.z,
-                    current_feedback_pose.pose.orientation.w,
-                ]
-            ).as_euler("xyz", degrees=False)
-            error_yaw = wrap_to_pi(self.target_yaw - current_yaw)
-
-            feedback_msg.current_pose = current_feedback_pose
-            feedback_msg.distance_remaining = float(error_norm)
-
-            goal_handle.publish_feedback(feedback_msg)
-            self.get_logger().debug(
-                f"Distance remaining: {error_norm:.2f}, angle error: {error_yaw:.2f}"
-            )
-
-            # Check if target is reached (both position and yaw) and held
-            now_t = self.get_clock().now().nanoseconds / 1e9
-            if error_norm < self.pos_tol and abs(error_yaw) < self.yaw_tol:
-                if within_since is None:
-                    within_since = now_t
-                if (now_t - within_since) >= self.success_hold_time:
-                    # Mark large errors to avoid lingering metrics effects
-                    self.error_pos = np.array([np.inf, np.inf])
-                    self.error_yaw = np.inf
-                    break
-            else:
-                within_since = None
-
-            time.sleep(1.0)  # Publish feedback at ~1Hz
-
-        goal_handle.succeed()
+        # Return immediately; progress is checked in control_loop via check_goal_progress()
         result = NavigateToPose.Result()
-        self.get_logger().info("NavigateToPose goal succeeded")
         return result
 
     def publish_target_pose_marker(self, pose_stamped: PoseStamped):
@@ -731,19 +753,9 @@ class PositionController(Node):
 def main(args=None):
     rclpy.init(args=args)
     server_node = PositionController()
-    executor = (
-        MultiThreadedExecutor()
-    )  # Allows processing multiple callbacks concurrently
-    executor.add_node(server_node)
-    try:
-        executor.spin()
-    except KeyboardInterrupt:
-        server_node.get_logger().info("Keyboard interrupt, shutting down...")
-
-    finally:
-        server_node.destroy_node()
-        executor.shutdown()
-        rclpy.shutdown()
+    rclpy.spin(server_node)
+    server_node.destroy_node()
+    rclpy.shutdown()
 
 
 if __name__ == "__main__":
