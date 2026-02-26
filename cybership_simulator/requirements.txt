@@ -1,1 +1,2 @@
 shoeboxpy @ git+https://github.com/incebellipipo/shoeboxpy.git
+skadipy @ git+https://github.com/incebellipipo/skadipy.git@master
