@@ -11,7 +11,7 @@
 import numpy as np
 import rclpy
 from rclpy.node import Node
-from rclpy.parameter import Parameter
+from rcl_interfaces.msg import SetParametersResult
 from geometry_msgs.msg import Twist, Wrench
 from nav_msgs.msg import Odometry
 import shoeboxpy.model3dof as box
@@ -35,12 +35,12 @@ class VelocityControlNode(Node):
     """
 
     def __init__(self):
-        super().__init__("velocity_control_node", namespace="cybership")
+        super().__init__("velocity_control_node")
 
         # Declare parameters with default values
         self.declare_parameters(
-            namespace='',
-            parameters=[
+            "",
+            [
                 # Vessel dimensions
                 ('vessel.length', 1.0),
                 ('vessel.beam', 0.3),
@@ -72,14 +72,15 @@ class VelocityControlNode(Node):
             ]
         )
 
-        # Add parameter callback for runtime updates
-        self.add_on_set_parameters_callback(self.parameters_callback)
+        # Add parameter callbacks for runtime updates
+        self.add_on_set_parameters_callback(self._on_parameter_update)
+        self.add_post_set_parameters_callback(self._post_parameter_update)
 
         # Get current parameter values
         self.dt = self.get_parameter('dt').value
 
         # Initialize vessel and controller
-        self.update_configuration()
+        self._snapshot_parameters()
 
         self.nu_prev = np.zeros(3)  # [u, v, r] previous velocities
         self.nu_cmd = np.zeros(3)  # [u, v, r] desired velocities
@@ -156,8 +157,8 @@ class VelocityControlNode(Node):
 
         self.get_logger().info("Velocity controller initialized with parameters")
 
-    def update_configuration(self):
-        """Update vessel and controller configuration from parameters"""
+    def _snapshot_parameters(self):
+        """Update vessel, controller, and metrics configuration from parameters."""
         # Get vessel dimensions
         vessel_length = self.get_parameter('vessel.length').value
         vessel_beam = self.get_parameter('vessel.beam').value
@@ -207,35 +208,25 @@ class VelocityControlNode(Node):
         self.get_logger().info(f"Updated configuration - vessel: [{vessel_length}, {vessel_beam}, {vessel_draft}], " +
                               f"P: {self.k_p_gain}, I: {self.k_i_gain}, D: {self.k_d_gain}")
 
-    def parameters_callback(self, params):
-        """Handle parameter updates"""
-        update_needed = False
+    def _on_parameter_update(self, params):
+        """Accept parameter updates so they can be applied post-update."""
+        return SetParametersResult(successful=True)
 
-        # Log parameter changes
+    def _post_parameter_update(self, params):
+        """Handle timer recreation and refresh configuration after updates."""
+        updated_params = [param.name for param in params]
 
         for param in params:
-            if param.name in [
-                'vessel.length', 'vessel.beam', 'vessel.draft',
-                'control.p_gain.surge', 'control.p_gain.sway', 'control.p_gain.yaw',
-                'control.i_gain.surge', 'control.i_gain.sway', 'control.i_gain.yaw',
-                'control.d_gain.surge', 'control.d_gain.sway', 'control.d_gain.yaw',
-                'control.i_max', 'control.smooth_limit', 'control.filter_alpha',
-                'metrics.window_size', 'metrics.interval'
-            ]:
-                update_needed = True
-
             if param.name == 'dt':
                 self.dt = param.value
-                # Recreate the timer with new dt
-                self.timer.cancel()
+                if hasattr(self, 'timer'):
+                    self.timer.cancel()
                 self.timer = self.create_timer(self.dt, self.control_loop)
-                update_needed = True
 
-        # Update vessel and controller if parameters changed
-        if update_needed:
-            self.update_configuration()
+        if updated_params:
+            self.get_logger().info(f"Parameters updated: {updated_params}")
 
-        return True  # Accept all parameter changes
+        self._snapshot_parameters()
 
     def change_state_callback(self, request, response):
         """Service callback to enable/disable the velocity controller."""

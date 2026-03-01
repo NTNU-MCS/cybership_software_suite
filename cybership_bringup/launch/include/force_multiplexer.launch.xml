@@ -1,0 +1,15 @@
+<launch>
+  <arg name="vessel_model" default="any" description="Vessel model"/>
+  <arg name="vessel_name" default="cybership" description="Vessel name"/>
+  <arg name="param_file" default="/dev/null" description="Path to the parameter file"/>
+  <arg name="use_sim_time" default="false" description="Use simulation clock if true"/>
+
+  <node pkg="topic_tools"
+        exec="mux"
+        namespace="$(var vessel_name)"
+        name="force_mux_$(anon mux)"
+        output="screen"
+        respawn="true"
+        respawn_delay="5"
+        args="control/force/command control/force/mux control/force/mux/position control/force/mux/velocity --repeat-delay 0.1"/>
+</launch>

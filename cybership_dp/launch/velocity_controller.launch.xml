@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+    <!-- Launch arguments -->
+    <arg name="vessel_name" />
+    <arg name="vessel_model" />
+    <let name="param" value="$(find-pkg-share cybership_config)/config/$(var vessel_model)/controller_velocity.yaml" />
+
+    <!-- Velocity controller node -->
+    <node pkg="cybership_dp" exec="velocity_control_node.py" name="velocity_controller"
+            namespace="$(var vessel_name)" output="screen" respawn="true" respawn_delay="5">
+        <param from="$(var param)" />
+        <remap from="control/velocity/command" to="control/velocity/command/mux" />
+        <remap from="control/force/command" to="control/force/command/velocity" />
+    </node>
+
+    <!-- Topic multiplexer node for velocity commands -->
+    <node pkg="topic_tools" exec="mux" name="velocity_mux" namespace="$(var vessel_name)"
+        output="screen" respawn="true" respawn_delay="5"
+        args="
+            control/velocity/command/mux
+            control/velocity/command
+            control/velocity/command/los
+            control/velocity/command/manual"
+    />
+</launch>

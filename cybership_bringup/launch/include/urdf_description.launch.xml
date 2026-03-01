@@ -1,0 +1,11 @@
+<launch>
+  <arg name="vessel_model" default="any" description="Vessel model"/>
+  <arg name="vessel_name" default="cybership" description="Vessel name"/>
+  <arg name="param_file" default="/dev/null" description="Path to the parameter file"/>
+  <arg name="use_sim_time" default="false" description="Use simulation clock if true"/>
+
+  <include file="$(find-pkg-share cybership_description)/launch/description.launch.py">
+    <arg name="vessel_model" value="$(var vessel_model)"/>
+    <arg name="vessel_name" value="$(var vessel_name)"/>
+  </include>
+</launch>

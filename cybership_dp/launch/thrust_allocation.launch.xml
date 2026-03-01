@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+    <!-- Launch arguments -->
+    <arg name="vessel_name" default="cybership" />
+    <arg name="vessel_model" default="cybership" />
+
+    <!-- Thrust allocation node -->
+    <node pkg="cybership_dp" exec="thrust_allocation_node.py" name="thrust_allocation_node"
+        namespace="$(var vessel_name)" output="screen" respawn="true" respawn_delay="5"
+        args="--vessel-model $(var vessel_model)">
+        <param name="frequency" value="20.0" />
+        <remap from="control/force/command" to="control/force/command/mux" />
+    </node>
+
+    <!-- Topic multiplexer node for force commands -->
+    <node pkg="topic_tools" exec="mux" name="force_mux" namespace="$(var vessel_name)"
+        output="screen" respawn="true" respawn_delay="5"
+        args="
+            control/force/command/mux
+            control/force/command
+            control/force/command/manual
+            control/force/command/velocity
+            control/force/command/position
+            control/force/command/los"
+    />
+
+</launch>

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+    <!-- Launch arguments -->
+    <arg name="vessel_name" default="cybership" />
+    <arg name="vessel_model" default="cybership" />
+    <let name="param" value="$(find-pkg-share cybership_config)/config/$(var vessel_model)/controller_position.yaml" />
+
+    <!-- Position controller node -->
+    <node pkg="cybership_dp" exec="position_control_node.py" name="position_controller"
+            namespace="$(var vessel_name)" output="screen" respawn="true" respawn_delay="5">
+        <param from="$(var param)" />
+        <remap from="control/force/command" to="control/force/command/position" />
+    </node>
+
+    <!-- Position control client node -->
+    <node pkg="cybership_dp" exec="position_control_client_node.py" name="position_control_client"
+        namespace="$(var vessel_name)" output="screen" respawn="true" respawn_delay="5" />
+</launch>

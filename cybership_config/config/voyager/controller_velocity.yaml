@@ -1,7 +1,3 @@
-# Configuration for velocity_control.py node
-# Node: /cybership/velocity_control_node
-# This configuration supports the reference feedforward velocity controller
-
 /**:
   ros__parameters:
     # Vessel physical dimensions (meters)

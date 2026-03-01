@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+  <arg name="vessel_model" default="any" description="Vessel model"/>
+  <arg name="vessel_name" default="cybership" description="Vessel name"/>
+  <arg name="use_sim_time" default="false" description="Use simulation clock if true"/>
+  <arg name="use_gui" default="true" description="Launch visualization stack"/>
+
+  <set_param name="use_sim_time" value="true"/>
+
+  <node pkg="cybership_simulator" exec="drillship.py" name="sim_$(var vessel_name)" namespace="$(var vessel_name)">
+    <param from="$(find-pkg-share cybership_simulator)/config/simulation.yaml"/>
+    <param name="tf_prefix" value="$(var vessel_name)"/>
+  </node>
+
+  <include file="$(find-pkg-share cybership_description)/launch/description.launch.py">
+    <arg name="vessel_model" value="drillship"/>
+    <arg name="vessel_name" value="$(var vessel_name)"/>
+  </include>
+
+  <group if="$(var use_gui)">
+    <include file="$(find-pkg-share cybership_viz)/launch/viz.launch.py">
+      <arg name="vessel_model" value="drillship"/>
+      <arg name="vessel_name" value="$(var vessel_name)"/>
+    </include>
+  </group>
+</launch>

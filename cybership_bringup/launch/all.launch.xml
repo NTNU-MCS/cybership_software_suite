@@ -1,0 +1,19 @@
+<launch>
+  <arg name="vessel_model" description="Vessel model to bring up (drillship|enterprise|voyager)"/>
+
+  <include if="$(eval vessel_model == 'drillship')" file="$(find-pkg-share cybership_bringup)/launch/drillship.launch.xml"/>
+
+  <include if="$(eval vessel_model == 'enterprise')" file="$(find-pkg-share cybership_bringup)/launch/enterprise.launch.xml"/>
+
+  <include if="$(eval vessel_model == 'voyager')" file="$(find-pkg-share cybership_bringup)/launch/voyager.launch.xml"/>
+
+  <include file="$(find-pkg-share cybership_bringup)/launch/localization.launch.xml">
+    <arg name="vessel_model" value="$(var vessel_model)"/>
+    <arg name="vessel_name" value="$(var vessel_model)"/>
+  </include>
+
+  <include file="$(find-pkg-share cybership_dp)/launch/dp.launch.xml">
+    <arg name="vessel_model" value="$(var vessel_model)"/>
+    <arg name="vessel_name" value="$(var vessel_model)"/>
+  </include>
+</launch>

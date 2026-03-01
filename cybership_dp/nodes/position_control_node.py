@@ -16,6 +16,7 @@ import numpy as np
 import rclpy
 from rclpy.node import Node
 from rclpy.parameter import Parameter
+from rcl_interfaces.msg import SetParametersResult
 from geometry_msgs.msg import Wrench, Pose2D, PoseStamped, TwistStamped
 from nav_msgs.msg import Odometry
 import math
@@ -74,14 +75,14 @@ def saturate(x, z):
 
 class PositionController(Node):
     def __init__(self):
-        super().__init__("position_controller", namespace="cybership")
+        super().__init__("position_controller")
 
         # Declare parameters with default values
         self.declare_parameters(
-            namespace='',
-            parameters=[
+            "",
+            [
                 # Controller gains
-                ('control.p_gain.pos', 4.0),
+                ('control.p_gain.pos', 1.0),
                 ('control.i_gain.pos', 0.2),
                 ('control.d_gain.pos', 0.2),
                 ('control.p_gain.vel', 0.7),
@@ -117,7 +118,7 @@ class PositionController(Node):
                 ('metrics.interval', 1.0),
 
                 # Time step
-                ('dt', 0.01),
+                ('dt', 0.1),
             ]
         )
 
@@ -137,7 +138,9 @@ class PositionController(Node):
         self.goal_within_tolerance_since = None
 
         # Add parameter callback for runtime updates
-        self.add_on_set_parameters_callback(self.parameters_callback)
+        self.add_on_set_parameters_callback(self._on_parameter_update)
+
+        self.add_post_set_parameters_callback(self._post_parameter_update)
 
         # Publisher to send control commands (force and torque)
         self.control_pub = self.create_publisher(
@@ -168,7 +171,7 @@ class PositionController(Node):
         self.dt = self.get_parameter('dt').value
 
         # Initialize controller parameters from ROS parameters
-        self.update_configuration()
+        self._snapshot_parameters()
 
         # Latest odometry message storage
         self.latest_odom = None
@@ -210,7 +213,7 @@ class PositionController(Node):
             self.change_state_callback
         )
 
-    def update_configuration(self):
+    def _snapshot_parameters(self):
         """Update controller configuration from parameters"""
         # Get controller gains
         self.Kp_pos = self.get_parameter('control.p_gain.pos').value
@@ -224,14 +227,10 @@ class PositionController(Node):
         self.Kd_yaw = self.get_parameter('control.d_gain.yaw').value
 
         # Get controller limits
-        self.max_integral_error_pos = self.get_parameter(
-            'control.max_integral_error.pos').value
-        self.max_integral_error_yaw = self.get_parameter(
-            'control.max_integral_error.yaw').value
-        self.saturation_pos = self.get_parameter(
-            'control.saturation.pos').value
-        self.saturation_yaw = self.get_parameter(
-            'control.saturation.yaw').value
+        self.max_integral_error_pos = self.get_parameter('control.max_integral_error.pos').value
+        self.max_integral_error_yaw = self.get_parameter('control.max_integral_error.yaw').value
+        self.saturation_pos = self.get_parameter('control.saturation.pos').value
+        self.saturation_yaw = self.get_parameter('control.saturation.yaw').value
 
         # Get tolerances
         self.pos_tol = self.get_parameter('control.tolerance.pos').value
@@ -278,59 +277,26 @@ class PositionController(Node):
             f"YAW gains: P={self.Kp_yaw}, I={self.Ki_yaw}, D={self.Kd_yaw}"
         )
 
-    def parameters_callback(self, params):
+    def _on_parameter_update(self, params):
         """Handle parameter updates"""
-        update_needed = False
+
+        # Return SetParametersResult to properly accept the parameter changes
+        return SetParametersResult(successful=True)
+
+    def _post_parameter_update(self, params):
+        """Handle post-update actions, such as logging."""
+        updated_params = [param.name for param in params]
 
         for param in params:
-            if param.name.startswith(('control.', 'vessel.', 'filter.', 'metrics.')):
-                update_needed = True
 
             if param.name == 'dt':
                 self.dt = param.value
                 # Recreate the timer with new dt
                 self.timer.cancel()
                 self.timer = self.create_timer(self.dt, self.control_loop)
-                update_needed = True
 
-        # Update configuration if parameters changed
-        if update_needed:
-            self.update_configuration()
-
-        return True  # Accept all parameter changes
-
-    # def odom_callback(self, msg: Odometry):
-    #     """
-    #     Callback to update the latest odometry measurement.
-    #     """
-    #     if self.ref_filter is None:
-    #         print("Setting target position from odometry.")
-    #         self.target_x = msg.pose.pose.position.x
-    #         self.target_y = msg.pose.pose.position.y
-    #         _, _, self.target_yaw = R.from_quat(
-    #             [
-    #                 msg.pose.pose.orientation.x,
-    #                 msg.pose.pose.orientation.y,
-    #                 msg.pose.pose.orientation.z,
-    #                 msg.pose.pose.orientation.w,
-    #             ]
-    #         ).as_euler("xyz", degrees=False)
-
-    #         # Get filter parameters from ROS parameters
-    #         filter_omega = self.get_parameter('filter.omega').value
-    #         filter_delta = self.get_parameter('filter.delta').value
-
-    #         self.ref_filter = ThirdOrderReferenceFilter(
-    #             dt=self.dt,
-    #             omega=filter_omega,
-    #             delta=filter_delta,
-    #             initial_eta=[self.target_x, self.target_y, self.target_yaw],
-    #         )
-    #         self.ref_filter.eta_d = np.array(
-    #             [self.target_x, self.target_y, self.target_yaw]
-    #         )
-
-    #     self.latest_odom = msg
+        self.get_logger().info(f"Parameters updated: {updated_params}")
+        self._snapshot_parameters()  # Ensure configuration is updated after parameters change
 
     def odom_callback(self, msg: Odometry):
         current_x = msg.pose.pose.position.x
@@ -355,7 +321,8 @@ class PositionController(Node):
                 delta=filter_delta,
                 initial_eta=[current_x, current_y, current_yaw],
             )
-            self.ref_filter.eta_d = np.array([current_x, current_y, current_yaw])
+            self.ref_filter.eta_d = np.array(
+                [current_x, current_y, current_yaw])
 
             # Only seed a target from odom if no goal has ever been set
             if self.target_x is None:

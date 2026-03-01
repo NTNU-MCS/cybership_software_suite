@@ -1,0 +1,37 @@
+<launch>
+  <include file="$(find-pkg-share cybership_bringup)/launch/include/azimuth_controller.launch.xml">
+    <arg name="vessel_model" value="drillship"/>
+    <arg name="vessel_name" value="drillship"/>
+    <arg name="param_file" value="$(find-pkg-share cybership_config)/config/drillship/azimuth_controller.yaml"/>
+  </include>
+
+  <include file="$(find-pkg-share cybership_bringup)/launch/include/motion_capture_system_connector.launch.py">
+    <arg name="vessel_model" value="drillship"/>
+    <arg name="vessel_name" value="drillship"/>
+    <arg name="param_file" value="$(find-pkg-share cybership_config)/config/drillship/mocap_connector.yaml"/>
+  </include>
+
+  <include file="$(find-pkg-share cybership_bringup)/launch/include/motion_capture_system_transformer.launch.xml">
+    <arg name="vessel_model" value="drillship"/>
+    <arg name="vessel_name" value="drillship"/>
+    <arg name="param_file" value="$(find-pkg-share cybership_config)/config/drillship/mocap_transformer.yaml"/>
+  </include>
+
+  <include file="$(find-pkg-share cybership_bringup)/launch/include/servo_driver.launch.xml">
+    <arg name="vessel_model" value="drillship"/>
+    <arg name="vessel_name" value="drillship"/>
+    <arg name="param_file" value="$(find-pkg-share cybership_config)/config/drillship/servo_driver.yaml"/>
+  </include>
+
+  <include file="$(find-pkg-share cybership_bringup)/launch/include/thruster_control.launch.xml">
+    <arg name="vessel_model" value="drillship"/>
+    <arg name="vessel_name" value="drillship"/>
+    <arg name="param_file" value="$(find-pkg-share cybership_config)/config/drillship/thruster_control.yaml"/>
+  </include>
+
+  <include file="$(find-pkg-share cybership_bringup)/launch/include/imu_bno055.launch.xml">
+    <arg name="vessel_model" value="drillship"/>
+    <arg name="vessel_name" value="drillship"/>
+    <arg name="param_file" value="$(find-pkg-share cybership_config)/config/drillship/imu_bno055.yaml"/>
+  </include>
+</launch>

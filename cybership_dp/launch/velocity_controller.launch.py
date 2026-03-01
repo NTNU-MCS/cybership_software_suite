@@ -21,7 +21,6 @@ def generate_launch_description():
         ),
     )
     ld.add_action(arg_param_file)
-
     # arguments = list(filter(lambda a: a.name not in ["param_file", "vessel_model"], ARGUMENTS))
     for arg in ARGUMENTS:
         ld.add_action(arg)
@@ -68,5 +67,6 @@ def generate_launch_description():
         respawn_delay=5,
     )
     ld.add_action(node_topic_mux)
+    ld.add_action(arg_param_file)
 
     return ld

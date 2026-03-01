@@ -1,0 +1,7 @@
+/**:
+  ros__parameters:
+    controller:
+      enabled: true
+      gains:
+        kp: 2.5
+

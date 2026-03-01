@@ -1,0 +1,25 @@
+<launch>
+  <include file="$(find-pkg-share cybership_bringup)/launch/include/motion_capture_system_connector.launch.py">
+    <arg name="vessel_model" value="enterprise"/>
+    <arg name="vessel_name" value="enterprise"/>
+    <arg name="param_file" value="$(find-pkg-share cybership_config)/config/enterprise/mocap_connector.yaml"/>
+  </include>
+
+  <include file="$(find-pkg-share cybership_bringup)/launch/include/motion_capture_system_transformer.launch.xml">
+    <arg name="vessel_model" value="enterprise"/>
+    <arg name="vessel_name" value="enterprise"/>
+    <arg name="param_file" value="$(find-pkg-share cybership_config)/config/enterprise/mocap_transformer.yaml"/>
+  </include>
+
+  <include file="$(find-pkg-share cybership_bringup)/launch/include/servo_driver.launch.xml">
+    <arg name="vessel_model" value="enterprise"/>
+    <arg name="vessel_name" value="enterprise"/>
+    <arg name="param_file" value="$(find-pkg-share cybership_config)/config/enterprise/servo_driver.yaml"/>
+  </include>
+
+  <include file="$(find-pkg-share cybership_bringup)/launch/include/thruster_control.launch.xml">
+    <arg name="vessel_model" value="enterprise"/>
+    <arg name="vessel_name" value="enterprise"/>
+    <arg name="param_file" value="$(find-pkg-share cybership_config)/config/enterprise/thruster_control.yaml"/>
+  </include>
+</launch>
