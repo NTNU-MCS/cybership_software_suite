@@ -443,8 +443,11 @@ class PositionController(Node):
 
         # Check for cancellation request
         if self.active_goal_handle.is_cancel_requested:
-            self.active_goal_handle.canceled()
-            self.get_logger().info("NavigateToPose goal canceled")
+            try:
+                self.active_goal_handle.canceled()
+                self.get_logger().info("NavigateToPose goal canceled")
+            except Exception as e:
+                self.get_logger().warn(f"Failed to cancel goal: {e}")
             self.active_goal_handle = None
             self.goal_within_tolerance_since = None
             return
@@ -467,7 +470,13 @@ class PositionController(Node):
         feedback_msg.current_pose = current_feedback_pose
         feedback_msg.distance_remaining = float(error_norm)
 
-        self.active_goal_handle.publish_feedback(feedback_msg)
+        try:
+            self.active_goal_handle.publish_feedback(feedback_msg)
+        except Exception as e:
+            self.get_logger().warn(f"Failed to publish feedback: {e}")
+            self.active_goal_handle = None
+            self.goal_within_tolerance_since = None
+            return
 
         # Check if target is reached (both position and yaw) and held
         now_t = self.get_clock().now().nanoseconds / 1e9
@@ -475,14 +484,18 @@ class PositionController(Node):
             if self.goal_within_tolerance_since is None:
                 self.goal_within_tolerance_since = now_t
             if (now_t - self.goal_within_tolerance_since) >= self.success_hold_time:
-                # Goal succeeded
-                self.active_goal_handle.succeed()
-                self.get_logger().info("NavigateToPose goal succeeded")
-                self.active_goal_handle = None
-                self.goal_within_tolerance_since = None
-                # Mark large errors to avoid lingering metrics effects
-                self.error_pos = np.array([np.inf, np.inf])
-                self.error_yaw = np.inf
+                # Goal succeeded - wrap in try-except to handle invalid state transitions
+                try:
+                    self.active_goal_handle.succeed()
+                    self.get_logger().info("NavigateToPose goal succeeded")
+                except Exception as e:
+                    self.get_logger().warn(f"Failed to succeed goal (already in terminal state): {e}")
+                finally:
+                    self.active_goal_handle = None
+                    self.goal_within_tolerance_since = None
+                    # Mark large errors to avoid lingering metrics effects
+                    self.error_pos = np.array([np.inf, np.inf])
+                    self.error_yaw = np.inf
         else:
             self.goal_within_tolerance_since = None
 
