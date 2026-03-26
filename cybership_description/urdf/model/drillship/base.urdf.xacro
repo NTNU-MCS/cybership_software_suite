@@ -42,7 +42,7 @@
     <xacro:macro name="thruster" params="thruster_name origin_xyz origin_rpy">
         <link name="${thruster_name}_link" />
         <joint name="${thruster_name}_joint" type="fixed">
-            <parent link="base_link" />
+            <parent link="base_link_ned" />
             <child link="${thruster_name}_link" />
             <origin xyz="${origin_xyz}" rpy="${origin_rpy}" />
         </joint>
