@@ -102,7 +102,7 @@
     <div class="muted">Starts/stops the thrust allocation node using ROS 2 lifecycle transitions (configure/activate/deactivate).</div>
     <div class="row">
         <label>Node</label>
-        <input id="allocNode" placeholder="(auto) e.g. voyager_thrust_allocator" style="width: 24rem" />
+        <input id="allocNode" placeholder="thrust_allocation_node" value="thrust_allocation_node" style="width: 24rem" />
         <button id="allocState">Get state</button>
         <span id="allocStateText" class="muted"></span>
     </div>
@@ -166,6 +166,8 @@
         <input id="poseY" type="number" value="0.0" step="0.1" />
         <label>Theta (rad)</label>
         <input id="poseTheta" type="number" value="0.0" step="0.01" />
+    </div>
+    <div class="row">
         <button id="setPose">Set Pose</button>
         <span id="poseResult" class="muted"></span>
     </div>
@@ -606,7 +608,7 @@
     el("setPose").onclick = async () => {
         try {
             el('poseResult').textContent = 'Setting pose…';
-            const namespace = getNamespace();
+            const namespace = "/" + (getNamespace().replace(/^\/+/, ""));
             const x = parseFloat(el('poseX').value) || 0.0;
             const y = parseFloat(el('poseY').value) || 0.0;
             const theta = parseFloat(el('poseTheta').value) || 0.0;
