@@ -2,48 +2,161 @@
 <meta charset="utf-8" />
 <title>ROS 2 Web Interface</title>
 <style>
+    :root {
+        --bg-top: #eef6ff;
+        --bg-bottom: #f8fbff;
+        --surface: rgba(255, 255, 255, 0.82);
+        --surface-strong: #ffffff;
+        --border: rgba(19, 61, 112, 0.14);
+        --text: #13233d;
+        --muted: #486081;
+        --accent: #0f9d8b;
+        --accent-hover: #0b7f72;
+        --danger: #d1544a;
+        --shadow: 0 16px 40px rgba(19, 35, 61, 0.12);
+    }
+
+    * {
+        box-sizing: border-box;
+    }
+
     body {
-        font-family: system-ui, sans-serif;
-        max-width: 920px;
-        margin: 2rem auto;
+        margin: 0;
+        min-height: 100vh;
+        padding: 2.2rem 1.2rem;
+        font-family: "IBM Plex Sans", "Avenir Next", "Segoe UI", sans-serif;
+        color: var(--text);
+        background:
+            radial-gradient(1200px 600px at 90% -10%, rgba(11, 127, 114, 0.18), transparent 55%),
+            radial-gradient(1000px 500px at -10% -20%, rgba(15, 157, 139, 0.15), transparent 55%),
+            linear-gradient(180deg, var(--bg-top), var(--bg-bottom));
+    }
+
+    .app {
+        max-width: 1080px;
+        margin: 0 auto;
+        background: var(--surface);
+        backdrop-filter: blur(6px);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        box-shadow: var(--shadow);
+        padding: 1.5rem;
+        animation: enter 320ms ease-out;
+    }
+
+    h1 {
+        margin: 0;
+        font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
+        font-size: clamp(1.6rem, 2.7vw, 2.3rem);
+        line-height: 1.1;
+    }
+
+    @keyframes enter {
+        from {
+            opacity: 0;
+            transform: translateY(8px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
 
     fieldset {
         margin: 1rem 0;
-        padding: 1rem;
-        border-radius: 10px;
-        border: 1px solid #ddd;
+        padding: 1rem 1rem 1.1rem;
+        border-radius: 14px;
+        border: 1px solid var(--border);
+        background: var(--surface-strong);
     }
 
     legend {
-        font-weight: 600;
+        font-weight: 700;
+        letter-spacing: 0.01em;
+        padding: 0 0.4rem;
     }
 
     .row {
-        margin: .5rem 0;
+        margin: 0.65rem 0;
         display: flex;
-        gap: .5rem;
+        flex-wrap: wrap;
+        gap: 0.6rem;
         align-items: center;
     }
 
     label {
         min-width: 9rem;
+        font-weight: 600;
+        color: #1f3b5d;
+    }
+
+    input,
+    select,
+    button {
+        font: inherit;
+    }
+
+    input,
+    select {
+        border: 1px solid #c7d5ea;
+        border-radius: 10px;
+        background: #f9fcff;
+        color: var(--text);
+        padding: 0.5rem 0.6rem;
     }
 
     select {
-        min-width: 28rem;
+        min-width: 22rem;
+    }
+
+    button {
+        border: 1px solid rgba(15, 157, 139, 0.22);
+        border-radius: 10px;
+        background: linear-gradient(180deg, #17b4a0, #0f9d8b);
+        color: #fff;
+        padding: 0.45rem 0.9rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: transform 0.14s ease, filter 0.2s ease, box-shadow 0.2s ease;
+        box-shadow: 0 6px 14px rgba(15, 157, 139, 0.22);
+    }
+
+    button:hover {
+        filter: brightness(0.95);
+    }
+
+    button:active {
+        transform: translateY(1px);
+    }
+
+    #thrDeactivate,
+    #allocDeactivate {
+        background: linear-gradient(180deg, #e36f65, var(--danger));
+        border-color: rgba(209, 84, 74, 0.24);
+        box-shadow: 0 6px 14px rgba(209, 84, 74, 0.18);
     }
 
     #log {
-        background: #f7f7f7;
+        background: #111c2d;
+        color: #d5e6ff;
         padding: .75rem;
-        border-radius: 8px;
+        border-radius: 12px;
         max-height: 260px;
         overflow: auto;
+        border: 1px solid rgba(138, 170, 214, 0.2);
     }
 
     .muted {
-        color: #555;
+        color: var(--muted);
+    }
+
+    #status {
+        background: #edf4ff;
+        border: 1px solid #d8e7fb;
+        padding: 0.28rem 0.52rem;
+        border-radius: 999px;
+        font-size: 0.9rem;
     }
 
     .covariance-indicator {
@@ -66,116 +179,259 @@
         width: 80px;
     }
 
+    .hero {
+        margin-bottom: 1rem;
+    }
+
+    .hero .muted {
+        margin-top: 0.35rem;
+    }
+
+    .propulsion-grid {
+        display: flex;
+        gap: 0.8rem;
+        flex-wrap: wrap;
+    }
+
+    .mini-panel {
+        flex: 1 1 320px;
+        background: #f6fbff;
+        border: 1px solid #d7e6f8;
+        border-radius: 12px;
+        padding: 0.8rem;
+        transition: background-color 180ms ease, border-color 180ms ease;
+    }
+
+    .mini-panel-state-unknown {
+        background: #f2f4f8;
+        border-color: #d8dde6;
+    }
+
+    .mini-panel-state-active {
+        background: #e4f7ec;
+        border-color: #b7e5c8;
+    }
+
+    .mini-panel-state-deactive {
+        background: #fae7e5;
+        border-color: #efc1be;
+    }
+
+    .mini-title {
+        font-weight: 700;
+        margin-bottom: 0.2rem;
+    }
+
+    .alloc-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+        align-items: center;
+    }
+
+    .compact-grid {
+        display: flex;
+        gap: 0.9rem;
+        flex-wrap: wrap;
+    }
+
+    .compact-grid > fieldset {
+        flex: 1 1 420px;
+        margin: 0;
+    }
+
+    .mux-subpanel {
+        background: #f6fbff;
+        border: 1px solid #d7e6f8;
+        border-radius: 12px;
+        padding: 0.75rem;
+        margin-top: 0.7rem;
+    }
+
+    .lifecycle-state {
+        display: inline-block;
+        border-radius: 999px;
+        padding: 0.25rem 0.65rem;
+        font-size: 0.85rem;
+        font-weight: 700;
+        border: 1px solid transparent;
+    }
+
+    .lifecycle-state-unknown {
+        background: #eceff3;
+        color: #4a5668;
+        border-color: #d2d8e1;
+    }
+
+    .lifecycle-state-active {
+        background: #dff6e9;
+        color: #1c6f45;
+        border-color: #b9e8cb;
+    }
+
+    .lifecycle-state-deactive {
+        background: #fbe4e2;
+        color: #8e322c;
+        border-color: #efc2bf;
+    }
+
+    .localization-pane-state-unknown {
+        background: #f2f4f8;
+        border-color: #d8dde6;
+    }
+
+    .localization-pane-state-good {
+        background: #e4f7ec;
+        border-color: #b7e5c8;
+    }
+
+    .localization-pane-state-bad {
+        background: #fae7e5;
+        border-color: #efc1be;
+    }
+
+    @media (max-width: 760px) {
+        .app {
+            padding: 1rem;
+            border-radius: 14px;
+        }
+
+        label {
+            min-width: 100%;
+        }
+
+        select,
+        input#url,
+        input#ns,
+        input#allocNode {
+            width: 100% !important;
+            min-width: 100%;
+        }
+    }
+
 </style>
 
-<h1>ROS 2 Mux (Web UI)</h1>
-<div class="muted">Web UI for switching mux inputs and toggling thrusters / thrust allocation via ROS 2 services.</div>
-<div class="row">
-    <label>WebSocket URL</label>
-    <input id="url" size="36" />
-    <button id="connect">Connect</button>
-    <span id="status" class="muted">disconnected</span>
+<div class="app">
+<div class="hero">
+    <h1>ROS 2 Mux (Web UI)</h1>
+    <div class="muted">Web UI for switching mux inputs and toggling thrusters / thrust allocation via ROS 2 services.</div>
+    <div class="row">
+        <label>WebSocket URL</label>
+        <input id="url" size="36" />
+        <button id="connect">Connect</button>
+        <span id="status" class="muted">disconnected</span>
+    </div>
+    <div class="muted">Connects to <code>web_interface_server.py</code> to call ROS 2 services from your browser.</div>
 </div>
-<div class="muted">Connects to <code>web_interface_server.py</code> to call ROS 2 services from your browser.</div>
 
 <fieldset>
     <legend>Namespace</legend>
     <div class="muted">All service calls are made under this namespace (e.g. <code>/voyager</code>, <code>/enterprise</code>, <code>/drillship</code>).</div>
-    <input id="ns" placeholder="/voyager" style="width: 24rem" />
-    <div id="nsButtons" style="margin-top: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;"></div>
+    <input id="ns" list="nsList" placeholder="/voyager" style="width: 24rem" />
+    <datalist id="nsList"></datalist>
 </fieldset>
 
 <fieldset>
-    <legend>Thrusters</legend>
-    <div class="muted">Enables/disables the thruster system on the physical platform (if your setup exposes these Empty services). In simulation this is usually unavailable or has no effect.</div>
-    <div class="row">
-        <button id="thrActivate">Activate</button>
-        <button id="thrDeactivate">Deactivate</button>
-        <span id="thrResult" class="muted"></span>
-    </div>
-    <div class="muted">Calls <code>&lt;ns&gt;/thrusters/activate</code> and <code>&lt;ns&gt;/thrusters/deactivate</code> (std_srvs/Empty)</div>
-
-</fieldset>
-
-<fieldset>
-    <legend>Thrust Allocation (Lifecycle)</legend>
-    <div class="muted">Starts/stops the thrust allocation node using ROS 2 lifecycle transitions (configure/activate/deactivate).</div>
-    <div class="row">
-        <label>Node</label>
-        <input id="allocNode" placeholder="thrust_allocation_node" value="thrust_allocation_node" style="width: 24rem" />
-        <button id="allocState">Get state</button>
-        <span id="allocStateText" class="muted"></span>
-    </div>
-    <div class="row">
-        <button id="allocActivate">Activate</button>
-        <button id="allocDeactivate">Deactivate</button>
-        <span id="allocResult" class="muted"></span>
-    </div>
-    <div class="muted">Calls <code>&lt;ns&gt;/&lt;node&gt;/get_state</code> and <code>&lt;ns&gt;/&lt;node&gt;/change_state</code> (lifecycle_msgs)</div>
-</fieldset>
-
-<fieldset>
-    <legend>Force Mux</legend>
-    <div class="muted">Selects which force command source drives <code>control/force/command</code> via <code>topic_tools/mux</code>.</div>
-    <div class="row">
-        <button id="forceList">List topics</button>
-        <span id="forceCount" class="muted"></span>
-    </div>
-    <div class="row">
-        <label>Topic</label>
-        <select id="forceSelect"></select>
-        <button id="forceChoose">Select</button>
-        <span id="forceResult" class="muted"></span>
+    <legend>Propulsion Control</legend>
+    <div class="propulsion-grid">
+        <section class="mini-panel">
+            <div class="mini-title">Thrusters</div>
+            <div class="muted">Enable/disable the thruster system on the physical platform (if your setup exposes these Empty services). In simulation this is usually unavailable or has no effect.</div>
+            <div class="row">
+                <button id="thrActivate">Activate</button>
+                <button id="thrDeactivate">Deactivate</button>
+                <span id="thrResult" class="muted"></span>
+            </div>
+            <div class="muted">Calls <code>&lt;ns&gt;/thruster/enable</code> and <code>&lt;ns&gt;/thruster/disable</code> (std_srvs/Empty)</div>
+        </section>
+        <section id="allocPanel" class="mini-panel mini-panel-state-unknown">
+            <div class="mini-title">Thrust Allocation (Lifecycle)</div>
+            <div class="muted">Start/stop the thrust allocation node using ROS 2 lifecycle transitions (configure/activate/deactivate).</div>
+            <div class="row">
+                <label>Node</label>
+                <input id="allocNode" placeholder="thrust_allocation_node" value="thrust_allocation_node" style="width: 24rem" />
+                <span id="allocStateText" class="muted"></span>
+                <span id="allocStateBadge" class="lifecycle-state lifecycle-state-unknown">unknown</span>
+            </div>
+            <div class="row">
+                <div class="alloc-actions">
+                    <button id="allocState">Get state</button>
+                    <button id="allocActivate">Activate</button>
+                    <button id="allocDeactivate">Deactivate</button>
+                </div>
+                <span id="allocResult" class="muted"></span>
+            </div>
+            <div class="muted">Calls <code>&lt;ns&gt;/&lt;node&gt;/get_state</code> and <code>&lt;ns&gt;/&lt;node&gt;/change_state</code> (lifecycle_msgs)</div>
+        </section>
     </div>
 </fieldset>
 
-<fieldset>
-    <legend>Velocity Mux</legend>
-    <div class="muted">Selects which velocity command source drives the velocity controller (when a velocity mux is present).</div>
-    <div class="row">
-        <button id="velList">List topics</button>
-        <span id="velCount" class="muted"></span>
-    </div>
-    <div class="row">
-        <label>Topic</label>
-        <select id="velSelect"></select>
-        <button id="velChoose">Select</button>
-        <span id="velResult" class="muted"></span>
-    </div>
-</fieldset>
+<div class="compact-grid">
+    <fieldset id="localizationPanel" class="localization-pane-state-unknown">
+        <legend>Localization</legend>
+        <div class="muted">Monitors localization quality via odometry covariance. Green indicates good localization (covariance &lt; 3), red indicates poor localization (covariance ≥ 3).</div>
+        <div class="row">
+            <label>Covariance</label>
+            <div class="covariance-indicator" id="covarianceIndicator"></div>
+            <span id="covarianceValue" class="muted">-</span>
+            <button id="covarianceRefresh">Refresh</button>
+        </div>
+        <div class="muted">Monitors <code>&lt;ns&gt;/measurement/odom</code> (pose.covariance[0])</div>
+        <div class="muted" style="margin-top: 1rem;">Sets the estimated pose for localization service.</div>
+        <div class="row">
+            <label>X (m)</label>
+            <input id="poseX" type="number" value="0.0" step="0.1" />
+            <label>Y (m)</label>
+            <input id="poseY" type="number" value="0.0" step="0.1" />
+            <label>Theta (rad)</label>
+            <input id="poseTheta" type="number" value="0.0" step="0.01" />
+        </div>
+        <div class="row">
+            <button id="setPose">Set Pose</button>
+            <span id="poseResult" class="muted"></span>
+        </div>
+        <div class="muted">Calls <code>&lt;ns&gt;/set_pose</code> service</div>
+    </fieldset>
 
-<fieldset>
-    <legend>Localization</legend>
-    <div class="muted">Monitors localization quality via odometry covariance. Green indicates good localization (covariance &lt; 3), red indicates poor localization (covariance ≥ 3).</div>
-    <div class="row">
-        <label>Covariance</label>
-        <div class="covariance-indicator" id="covarianceIndicator"></div>
-        <span id="covarianceValue" class="muted">-</span>
-        <button id="covarianceRefresh">Refresh</button>
-    </div>
-    <div class="muted">Monitors <code>&lt;ns&gt;/measurement/odom</code> (pose.covariance[0])</div>
-</fieldset>
+    <fieldset>
+        <legend>Multiplexers</legend>
+        <div class="muted">Manage force and velocity command topic selection from one compact panel.</div>
 
-<fieldset>
-    <legend>Set Pose</legend>
-    <div class="muted">Sets the estimated pose for localization service.</div>
-    <div class="row">
-        <label>X (m)</label>
-        <input id="poseX" type="number" value="0.0" step="0.1" />
-        <label>Y (m)</label>
-        <input id="poseY" type="number" value="0.0" step="0.1" />
-        <label>Theta (rad)</label>
-        <input id="poseTheta" type="number" value="0.0" step="0.01" />
-    </div>
-    <div class="row">
-        <button id="setPose">Set Pose</button>
-        <span id="poseResult" class="muted"></span>
-    </div>
-    <div class="muted">Calls <code>&lt;ns&gt;/set_pose</code> service</div>
-</fieldset>
+        <section class="mux-subpanel">
+            <div class="mini-title">Force Mux</div>
+            <div class="muted">Selects which force command source drives <code>control/force/command</code> via <code>topic_tools/mux</code>.</div>
+            <div class="row">
+                <button id="forceList">List topics</button>
+                <span id="forceCount" class="muted"></span>
+            </div>
+            <div class="row">
+                <label>Topic</label>
+                <select id="forceSelect"></select>
+                <button id="forceChoose">Select</button>
+                <span id="forceResult" class="muted"></span>
+            </div>
+        </section>
+
+        <section class="mux-subpanel">
+            <div class="mini-title">Velocity Mux</div>
+            <div class="muted">Selects which velocity command source drives the velocity controller (when a velocity mux is present).</div>
+            <div class="row">
+                <button id="velList">List topics</button>
+                <span id="velCount" class="muted"></span>
+            </div>
+            <div class="row">
+                <label>Topic</label>
+                <select id="velSelect"></select>
+                <button id="velChoose">Select</button>
+                <span id="velResult" class="muted"></span>
+            </div>
+        </section>
+    </fieldset>
+</div>
 
 <pre id="log"></pre>
 <div class="muted">Log shows responses/errors from the WebSocket bridge.</div>
+</div>
 
 <script type="module">
     // ---------------- Simple JSON WebSocket Protocol ----------------
@@ -297,20 +553,70 @@
     }
 
     function populateNamespaceButtons(services) {
-        const container = el('nsButtons');
-        container.innerHTML = '';
+        const list = el('nsList');
+        list.innerHTML = '';
         const namespaces = extractNamespaces(services);
 
         namespaces.forEach(ns => {
-            const btn = document.createElement('button');
-            btn.textContent = ns;
-            btn.style.padding = '0.4rem 0.8rem';
-            btn.style.fontSize = '0.9rem';
-            btn.onclick = () => {
-                el('ns').value = ns;
-            };
-            container.appendChild(btn);
+            const opt = document.createElement('option');
+            opt.value = `/${ns}`;
+            list.appendChild(opt);
         });
+    }
+
+    function lifecycleClassForState(state) {
+        const label = (state?.label || '').toLowerCase();
+        const id = Number(state?.id);
+        if (label.includes('active') && !label.includes('inactive')) {
+            return 'lifecycle-state-active';
+        }
+        if (label.includes('inactive') || label.includes('deactive') || label.includes('unconfigured') || id === 2 || id === 1) {
+            return 'lifecycle-state-deactive';
+        }
+        if (id === 3) {
+            return 'lifecycle-state-active';
+        }
+        return 'lifecycle-state-unknown';
+    }
+
+    function updateLifecycleBadge(state) {
+        const badge = el('allocStateBadge');
+        const cls = lifecycleClassForState(state);
+        badge.className = `lifecycle-state ${cls}`;
+        if (!state) {
+            badge.textContent = 'unknown';
+            return;
+        }
+        const label = (state.label || '').trim().toLowerCase();
+        if (!label) {
+            badge.textContent = 'unknown';
+            return;
+        }
+        if (label.includes('active') && !label.includes('inactive')) {
+            badge.textContent = 'active';
+            return;
+        }
+        if (label.includes('inactive') || label.includes('deactive') || label.includes('unconfigured')) {
+            badge.textContent = 'deactive';
+            return;
+        }
+        badge.textContent = 'unknown';
+    }
+
+    function updateAllocationPanelState(state) {
+        const panel = el('allocPanel');
+        if (!panel) return;
+        panel.classList.remove('mini-panel-state-unknown', 'mini-panel-state-active', 'mini-panel-state-deactive');
+        const lifecycleClass = lifecycleClassForState(state);
+        if (lifecycleClass === 'lifecycle-state-active') {
+            panel.classList.add('mini-panel-state-active');
+            return;
+        }
+        if (lifecycleClass === 'lifecycle-state-deactive') {
+            panel.classList.add('mini-panel-state-deactive');
+            return;
+        }
+        panel.classList.add('mini-panel-state-unknown');
     }
 
     // ---------------- UI Actions ----------------
@@ -417,7 +723,7 @@
             const response = await sendMessage({
                 type: "thruster_activate",
                 namespace: namespace,
-                candidates: ["/thrusters/activate", "/thruster/activate", "/thruster/enable"]
+                candidates: ["/thruster/enable", "/thrusters/activate", "/thruster/activate"]
             });
 
             if (response.type === "thruster_response" && response.success) {
@@ -438,7 +744,7 @@
             const response = await sendMessage({
                 type: "thruster_deactivate",
                 namespace: namespace,
-                candidates: ["/thrusters/deactivate", "/thruster/disable"]
+                candidates: ["/thruster/disable", "/thrusters/deactivate"]
             });
 
             if (response.type === "thruster_response" && response.success) {
@@ -463,6 +769,8 @@
         try {
             el('allocResult').textContent = '';
             el('allocStateText').textContent = 'Loading…';
+            updateLifecycleBadge(null);
+            updateAllocationPanelState(null);
             const namespace = getNamespace();
             const nodeName = getAllocatorNode();
 
@@ -474,10 +782,14 @@
 
             if (response.type === "allocator_state_response") {
                 el('allocStateText').textContent = `${response.node_name}: ${formatLifecycleState(response.state)}`;
+                updateLifecycleBadge(response.state);
+                updateAllocationPanelState(response.state);
                 log(`Allocator state: ${response.node_name} -> ${formatLifecycleState(response.state)}`);
             }
         } catch (e) {
             el('allocStateText').textContent = `Error: ${e.message}`;
+            updateLifecycleBadge(null);
+            updateAllocationPanelState(null);
             log("Error getting allocator state:", e.message);
         }
     };
@@ -497,10 +809,14 @@
             if (response.type === "allocator_response" && response.success) {
                 el('allocResult').textContent = `Activated (${formatLifecycleState(response.state)})`;
                 el('allocStateText').textContent = `${response.node_name}: ${formatLifecycleState(response.state)}`;
+                updateLifecycleBadge(response.state);
+                updateAllocationPanelState(response.state);
                 log(`Allocator activated: ${response.node_name}`);
             }
         } catch (e) {
             el('allocResult').textContent = `Error: ${e.message}`;
+            updateLifecycleBadge(null);
+            updateAllocationPanelState(null);
             log("Error activating allocator:", e.message);
         }
     };
@@ -520,10 +836,14 @@
             if (response.type === "allocator_response" && response.success) {
                 el('allocResult').textContent = `Deactivated (${formatLifecycleState(response.state)})`;
                 el('allocStateText').textContent = `${response.node_name}: ${formatLifecycleState(response.state)}`;
+                updateLifecycleBadge(response.state);
+                updateAllocationPanelState(response.state);
                 log(`Allocator deactivated: ${response.node_name}`);
             }
         } catch (e) {
             el('allocResult').textContent = `Error: ${e.message}`;
+            updateLifecycleBadge(null);
+            updateAllocationPanelState(null);
             log("Error deactivating allocator:", e.message);
         }
     };
@@ -532,10 +852,17 @@
     function updateCovarianceIndicator(covariance) {
         const indicator = el('covarianceIndicator');
         const valueEl = el('covarianceValue');
+        const panel = el('localizationPanel');
+
+        const setPanelState = (stateClass) => {
+            panel.classList.remove('localization-pane-state-unknown', 'localization-pane-state-good', 'localization-pane-state-bad');
+            panel.classList.add(stateClass);
+        };
 
         if (covariance === null || covariance === undefined) {
             valueEl.textContent = '-';
             indicator.className = 'covariance-indicator';
+            setPanelState('localization-pane-state-unknown');
             return;
         }
 
@@ -543,14 +870,17 @@
         if (isNaN(covNum)) {
             valueEl.textContent = '-';
             indicator.className = 'covariance-indicator';
+            setPanelState('localization-pane-state-unknown');
             return;
         }
 
         valueEl.textContent = covNum.toFixed(4);
         if (covNum < 3) {
             indicator.className = 'covariance-indicator covariance-good';
+            setPanelState('localization-pane-state-good');
         } else {
             indicator.className = 'covariance-indicator covariance-bad';
+            setPanelState('localization-pane-state-bad');
         }
     }
 

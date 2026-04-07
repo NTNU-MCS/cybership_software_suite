@@ -301,11 +301,11 @@ class ROS2Bridge(Node):
 
     def find_service_flexible(self, candidates: List[str], namespace: str, type_pattern: str) -> Optional[str]:
         """Find a service by trying exact matches and suffix matches."""
-        ns_prefix = namespace.rstrip("/") if namespace else ""
+        ns_prefix = self._normalize_namespace(namespace).strip("/")
 
         # First pass: exact matches
         for cand in candidates:
-            service_name = f"{ns_prefix}/{cand}".lstrip("/") if ns_prefix else cand
+            service_name = f"{ns_prefix}/{cand.lstrip('/')}" if ns_prefix else cand.lstrip("/")
             for svc in self.service_cache:
                 if svc["name"] == f"/{service_name}" and type_pattern in svc["type"]:
                     return svc["name"]
@@ -318,7 +318,7 @@ class ROS2Bridge(Node):
                         continue
                     if not svc["name"].startswith(f"/{ns_prefix}/"):
                         continue
-                    if svc["name"].endswith(cand):
+                    if svc["name"].endswith(cand if cand.startswith("/") else f"/{cand}"):
                         return svc["name"]
 
         return None
@@ -416,7 +416,7 @@ class WebSocketServer:
 
         elif msg_type == "thruster_activate":
             namespace = data.get("namespace", "")
-            candidates = data.get("candidates", ["/thrusters/activate"])
+            candidates = data.get("candidates", ["/thruster/enable", "/thrusters/activate"])
 
             # Scan services to find available ones
             services = self.ros_bridge.scan_services()
@@ -437,7 +437,7 @@ class WebSocketServer:
 
         elif msg_type == "thruster_deactivate":
             namespace = data.get("namespace", "")
-            candidates = data.get("candidates", ["/thrusters/deactivate"])
+            candidates = data.get("candidates", ["/thruster/disable", "/thrusters/deactivate"])
 
             service_name = self.ros_bridge.find_service_flexible(
                 candidates, namespace, "std_srvs/srv/Empty"
