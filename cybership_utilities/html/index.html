@@ -45,6 +45,27 @@
     .muted {
         color: #555;
     }
+
+    .covariance-indicator {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        margin-right: 0.5rem;
+    }
+
+    .covariance-good {
+        background-color: #4CAF50;
+    }
+
+    .covariance-bad {
+        background-color: #f44336;
+    }
+
+    input[type="number"] {
+        width: 80px;
+    }
+
 </style>
 
 <h1>ROS 2 Mux (Web UI)</h1>
@@ -81,7 +102,7 @@
     <div class="muted">Starts/stops the thrust allocation node using ROS 2 lifecycle transitions (configure/activate/deactivate).</div>
     <div class="row">
         <label>Node</label>
-        <input id="allocNode" placeholder="(auto) e.g. voyager_thrust_allocator" style="width: 24rem" />
+        <input id="allocNode" placeholder="thrust_allocation_node" value="thrust_allocation_node" style="width: 24rem" />
         <button id="allocState">Get state</button>
         <span id="allocStateText" class="muted"></span>
     </div>
@@ -123,6 +144,36 @@
     </div>
 </fieldset>
 
+<fieldset>
+    <legend>Localization</legend>
+    <div class="muted">Monitors localization quality via odometry covariance. Green indicates good localization (covariance &lt; 3), red indicates poor localization (covariance ≥ 3).</div>
+    <div class="row">
+        <label>Covariance</label>
+        <div class="covariance-indicator" id="covarianceIndicator"></div>
+        <span id="covarianceValue" class="muted">-</span>
+        <button id="covarianceRefresh">Refresh</button>
+    </div>
+    <div class="muted">Monitors <code>&lt;ns&gt;/measurement/odom</code> (pose.covariance[0])</div>
+</fieldset>
+
+<fieldset>
+    <legend>Set Pose</legend>
+    <div class="muted">Sets the estimated pose for localization service.</div>
+    <div class="row">
+        <label>X (m)</label>
+        <input id="poseX" type="number" value="0.0" step="0.1" />
+        <label>Y (m)</label>
+        <input id="poseY" type="number" value="0.0" step="0.1" />
+        <label>Theta (rad)</label>
+        <input id="poseTheta" type="number" value="0.0" step="0.01" />
+    </div>
+    <div class="row">
+        <button id="setPose">Set Pose</button>
+        <span id="poseResult" class="muted"></span>
+    </div>
+    <div class="muted">Calls <code>&lt;ns&gt;/set_pose</code> service</div>
+</fieldset>
+
 <pre id="log"></pre>
 <div class="muted">Log shows responses/errors from the WebSocket bridge.</div>
 
@@ -139,6 +190,9 @@
     const setStatus = (s) => el("status").textContent = s;
     const getNamespace = () => (el("ns").value || "").trim().replace(/\/+$/, "");
     const getAllocatorNode = () => (el("allocNode").value || "").trim();
+
+    // Periodic covariance update
+    let covarianceInterval = null;
 
     // Default WebSocket URL from the current address bar.
     // Examples:
@@ -471,6 +525,111 @@
         } catch (e) {
             el('allocResult').textContent = `Error: ${e.message}`;
             log("Error deactivating allocator:", e.message);
+        }
+    };
+
+    // -------------- Localization (Covariance) --------------
+    function updateCovarianceIndicator(covariance) {
+        const indicator = el('covarianceIndicator');
+        const valueEl = el('covarianceValue');
+
+        if (covariance === null || covariance === undefined) {
+            valueEl.textContent = '-';
+            indicator.className = 'covariance-indicator';
+            return;
+        }
+
+        const covNum = parseFloat(covariance);
+        if (isNaN(covNum)) {
+            valueEl.textContent = '-';
+            indicator.className = 'covariance-indicator';
+            return;
+        }
+
+        valueEl.textContent = covNum.toFixed(4);
+        if (covNum < 3) {
+            indicator.className = 'covariance-indicator covariance-good';
+        } else {
+            indicator.className = 'covariance-indicator covariance-bad';
+        }
+    }
+
+    async function updateCovariance() {
+        if (!ws || ws.readyState !== WebSocket.OPEN) return;
+
+        try {
+            const namespace = getNamespace();
+            const response = await sendMessage({
+                type: "get_covariance",
+                namespace: namespace
+            });
+
+            if (response.type === "covariance_response") {
+                updateCovarianceIndicator(response.covariance);
+            }
+        } catch (e) {
+            // Silently ignore errors during periodic updates
+        }
+    }
+
+    el("covarianceRefresh").onclick = updateCovariance;
+
+    // Start periodic covariance updates when connected
+    const origOnclose = (() => {
+        const closeHandler = el("connect").onclick;
+        return function() {
+            if (ws) {
+                ws.onclose = () => {
+                    setStatus("closed");
+                    log("Connection closed");
+                    if (covarianceInterval) {
+                        clearInterval(covarianceInterval);
+                        covarianceInterval = null;
+                    }
+                };
+            }
+        };
+    })();
+
+    const origConnectOnclick = el("connect").onclick;
+    el("connect").onclick = function() {
+        origConnectOnclick.call(this);
+        // Start periodic updates after connection
+        setTimeout(() => {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                if (covarianceInterval) clearInterval(covarianceInterval);
+                covarianceInterval = setInterval(updateCovariance, 1000);
+                updateCovariance();
+            }
+        }, 500);
+    };
+
+    // -------------- Set Pose --------------
+    el("setPose").onclick = async () => {
+        try {
+            el('poseResult').textContent = 'Setting pose…';
+            const namespace = "/" + (getNamespace().replace(/^\/+/, ""));
+            const x = parseFloat(el('poseX').value) || 0.0;
+            const y = parseFloat(el('poseY').value) || 0.0;
+            const theta = parseFloat(el('poseTheta').value) || 0.0;
+
+            const response = await sendMessage({
+                type: "set_pose",
+                namespace: namespace,
+                x: x,
+                y: y,
+                theta: theta
+            });
+
+            if (response.type === "set_pose_response" && response.success) {
+                el('poseResult').textContent = `Pose set: (${x}, ${y}, ${theta})`;
+                log(`Pose set to (${x}, ${y}, ${theta})`);
+            } else {
+                el('poseResult').textContent = response.message || 'Unknown response';
+            }
+        } catch (e) {
+            el('poseResult').textContent = `Error: ${e.message}`;
+            log("Error setting pose:", e.message);
         }
     };
 

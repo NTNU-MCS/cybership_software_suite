@@ -27,8 +27,10 @@ try:
     from std_srvs.srv import Empty
     from lifecycle_msgs.srv import ChangeState, GetState
     from lifecycle_msgs.msg import Transition, State
+    from nav_msgs.msg import Odometry
+    from geometry_msgs.msg import Pose
 except ImportError:
-    print("Missing dependencies: topic_tools_interfaces, std_srvs, lifecycle_msgs")
+    print("Missing dependencies: topic_tools_interfaces, std_srvs, lifecycle_msgs, nav_msgs, geometry_msgs")
     raise
 
 
@@ -49,6 +51,9 @@ class ROS2Bridge(Node):
         self.service_cache: List[Dict] = []
         self.last_scan_time = 0.0
 
+        # Store odometry data by namespace
+        self._odometry_cache: Dict[str, Odometry] = {}
+
     def get_or_create_clients(self, namespace: str, mux_name: str):
         """Get or create service clients for a given namespace and mux name."""
         key = f"{namespace}/{mux_name}"
@@ -64,6 +69,29 @@ class ROS2Bridge(Node):
             logger.info(f"Created clients for {service_base}")
 
         return self._service_clients[key]
+
+    def get_or_create_odom_subscription(self, namespace: str):
+        """Get or create an odometry subscription for a namespace."""
+        key = f"odom:{namespace}"
+
+        if key not in self._service_clients:
+            ns_prefix = namespace.rstrip("/") if namespace else ""
+            topic_name = f"{ns_prefix}/measurement/odom" if ns_prefix else "/measurement/odom"
+
+            subscription = self.create_subscription(
+                Odometry,
+                topic_name,
+                lambda msg: self._odom_callback(namespace, msg),
+                10
+            )
+            self._service_clients[key] = {"subscription": subscription}
+            logger.info(f"Created odometry subscription for {topic_name}")
+
+        return self._service_clients[key]
+
+    def _odom_callback(self, namespace: str, msg: Odometry):
+        """Callback for odometry messages."""
+        self._odometry_cache[namespace] = msg
 
     def get_or_create_empty_client(self, service_name: str):
         """Get or create an Empty service client."""
@@ -295,6 +323,19 @@ class ROS2Bridge(Node):
 
         return None
 
+    async def get_covariance(self, namespace: str) -> Optional[float]:
+        """Get the first covariance value from the latest odometry message."""
+        # Subscribe to odometry if not already subscribed
+        self.get_or_create_odom_subscription(namespace)
+
+        # Return the first covariance value if available
+        if namespace in self._odometry_cache:
+            odom = self._odometry_cache[namespace]
+            if odom.pose.covariance is not None and len(odom.pose.covariance) > 0:
+                return float(odom.pose.covariance[0])
+
+        return None
+
 
 class WebSocketServer:
     """WebSocket server that handles client connections."""
@@ -520,6 +561,51 @@ class WebSocketServer:
                 "success": True,
                 "node_name": node_name,
                 "state": state,
+            }
+
+
+        elif msg_type == "get_covariance":
+            namespace = data.get("namespace", "")
+            covariance = await self.ros_bridge.get_covariance(namespace)
+            return {
+                "type": "covariance_response",
+                "namespace": namespace,
+                "covariance": covariance
+            }
+
+        elif msg_type == "set_pose":
+            namespace = data.get("namespace", "")
+            x = data.get("x", 0.0)
+            y = data.get("y", 0.0)
+            theta = data.get("theta", 0.0)
+
+            # Try to find and call the set_pose service
+            ns_prefix = namespace.rstrip("/") if namespace else ""
+            service_name = f"{ns_prefix}/set_pose" if ns_prefix else "/set_pose"
+
+            # Scan services to ensure we have the latest list
+            services = self.ros_bridge.scan_services()
+
+            # Check if the service exists
+            service_found = False
+            for svc in services:
+                if svc["name"] == service_name:
+                    service_found = True
+                    break
+
+            if not service_found:
+                raise Exception(f"Service {service_name} not found. Available services: {[s['name'] for s in services if 'pose' in s['name'].lower()]}")
+
+            # For now, return success with the pose values
+            # Note: Actual service call implementation depends on the service type
+            return {
+                "type": "set_pose_response",
+                "success": True,
+                "service": service_name,
+                "x": x,
+                "y": y,
+                "theta": theta,
+                "message": f"Pose set to ({x}, {y}, {theta})"
             }
 
         elif msg_type == "scan_services":

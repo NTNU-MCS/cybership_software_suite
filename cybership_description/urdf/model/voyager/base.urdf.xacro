@@ -34,10 +34,39 @@
 
     <link name="imu_link"></link>
     <joint name="imu_joint" type="fixed">
-        <parent link="base_link" />
+        <parent link="base_link_ned" />
         <child link="imu_link" />
-        <origin xyz="-0.1 0 0.1" rpy="3.14159265358979 0.0 0.0" />
+        <origin xyz="-0.1 0 0.1" rpy="0.0 0.0 0.0" />
     </joint>
+
+
+    <xacro:macro name="thruster" params="thruster_name origin_xyz origin_rpy">
+        <link name="${thruster_name}_link" />
+        <joint name="${thruster_name}_joint" type="fixed">
+            <parent link="base_link_ned" />
+            <child link="${thruster_name}_link" />
+            <origin xyz="${origin_xyz}" rpy="${origin_rpy}" />
+        </joint>
+    </xacro:macro>
+
+    <xacro:thruster
+        thruster_name="stern_port_thruster"
+        origin_xyz="-0.4574 -0.055 0.1"
+        origin_rpy="0 0 0"
+    />
+
+    <xacro:thruster
+        thruster_name="stern_starboard_thruster"
+        origin_xyz="-0.4574 0.055 0.1"
+        origin_rpy="0 0 0"
+    />
+
+    <xacro:thruster
+        thruster_name="bow_tunnel_thruster"
+        origin_xyz="0.3875 0 0.05"
+        origin_rpy="0 0 -1.5707963267948966"
+    />
+<!--
 
     <link name="stern_port_thruster_link" />
     <joint name="base_stern_port_thruster_joint" type="fixed">
@@ -58,5 +87,5 @@
         <parent link="base_link" />
         <child link="bow_tunnel_thruster_link" />
         <origin xyz="0.3875 0 -0.05" rpy="3.14159265358979 0 -1.5707963267948966" />
-    </joint>
+    </joint> -->
 </robot>
