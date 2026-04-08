@@ -53,6 +53,7 @@ class ROS2Bridge(Node):
 
         # Store odometry data by namespace
         self._odometry_cache: Dict[str, Odometry] = {}
+        self._odometry_last_update_sec: Dict[str, float] = {}
 
     def get_or_create_clients(self, namespace: str, mux_name: str):
         """Get or create service clients for a given namespace and mux name."""
@@ -92,6 +93,7 @@ class ROS2Bridge(Node):
     def _odom_callback(self, namespace: str, msg: Odometry):
         """Callback for odometry messages."""
         self._odometry_cache[namespace] = msg
+        self._odometry_last_update_sec[namespace] = self.get_clock().now().nanoseconds / 1e9
 
     def get_or_create_empty_client(self, service_name: str):
         """Get or create an Empty service client."""
@@ -323,18 +325,27 @@ class ROS2Bridge(Node):
 
         return None
 
-    async def get_covariance(self, namespace: str) -> Optional[float]:
-        """Get the first covariance value from the latest odometry message."""
+    async def get_covariance(self, namespace: str) -> Dict:
+        """Get covariance plus odometry age from the latest message for a namespace."""
         # Subscribe to odometry if not already subscribed
         self.get_or_create_odom_subscription(namespace)
 
-        # Return the first covariance value if available
+        covariance = None
         if namespace in self._odometry_cache:
             odom = self._odometry_cache[namespace]
             if odom.pose.covariance is not None and len(odom.pose.covariance) > 0:
-                return float(odom.pose.covariance[0])
+                covariance = float(odom.pose.covariance[0])
 
-        return None
+        age_sec = None
+        last_update_sec = self._odometry_last_update_sec.get(namespace)
+        if last_update_sec is not None:
+            now_sec = self.get_clock().now().nanoseconds / 1e9
+            age_sec = max(0.0, now_sec - last_update_sec)
+
+        return {
+            "covariance": covariance,
+            "age_sec": age_sec,
+        }
 
 
 class WebSocketServer:
@@ -566,11 +577,12 @@ class WebSocketServer:
 
         elif msg_type == "get_covariance":
             namespace = data.get("namespace", "")
-            covariance = await self.ros_bridge.get_covariance(namespace)
+            covariance_data = await self.ros_bridge.get_covariance(namespace)
             return {
                 "type": "covariance_response",
                 "namespace": namespace,
-                "covariance": covariance
+                "covariance": covariance_data["covariance"],
+                "age_sec": covariance_data["age_sec"],
             }
 
         elif msg_type == "set_pose":
