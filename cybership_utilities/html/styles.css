@@ -219,19 +219,17 @@ input[type="number"] {
     flex-wrap: wrap;
 }
 
-.panel-state-unknown {
+.panel-unknown {
     background: #f2f4f8;
     border-color: #d8dde6;
 }
 
-.panel-state-active,
-.panel-state-good {
+.panel-good {
     background: #e4f7ec;
     border-color: #b7e5c8;
 }
 
-.panel-state-deactive,
-.panel-state-bad {
+.panel-bad {
     background: #fae7e5;
     border-color: #efc1be;
 }

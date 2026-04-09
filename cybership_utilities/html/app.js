@@ -320,17 +320,17 @@ function updateLifecycleBadge(state) {
 function updateAllocationPanelState(state) {
     const panel = el('allocPanel');
     if (!panel) return;
-    panel.classList.remove('mini-panel-state-unknown', 'mini-panel-state-active', 'mini-panel-state-deactive');
+    panel.classList.remove('panel-unknown', 'panel-good', 'panel-bad');
     const lifecycleClass = lifecycleClassForState(state);
     if (lifecycleClass === 'lifecycle-state-active') {
-        panel.classList.add('mini-panel-state-active');
+        panel.classList.add('panel-good');
         return;
     }
     if (lifecycleClass === 'lifecycle-state-deactive') {
-        panel.classList.add('mini-panel-state-deactive');
+        panel.classList.add('panel-bad');
         return;
     }
-    panel.classList.add('mini-panel-state-unknown');
+    panel.classList.add('panel-unknown');
 }
 
 // ---------------- UI Actions ----------------
@@ -617,17 +617,17 @@ function updateLocalizationPanelState(x_cov, y_cov, ageSec = null) {
     const panel = el('localizationPanel');
     if (!panel) return;
 
-    panel.classList.remove('localization-pane-state-unknown', 'localization-pane-state-good', 'localization-pane-state-bad');
+    panel.classList.remove('panel-unknown', 'panel-good', 'panel-bad');
 
     const ageNum = Number(ageSec);
     const isStale = Number.isFinite(ageNum) && ageNum > MAX_ODOM_AGE_SECONDS;
     if (isStale) {
-        panel.classList.add('localization-pane-state-unknown');
+        panel.classList.add('panel-unknown');
         return;
     }
 
     if (x_cov === null || x_cov === undefined || y_cov === null || y_cov === undefined) {
-        panel.classList.add('localization-pane-state-unknown');
+        panel.classList.add('panel-unknown');
         return;
     }
 
@@ -635,15 +635,15 @@ function updateLocalizationPanelState(x_cov, y_cov, ageSec = null) {
     const yNum = parseFloat(y_cov);
 
     if (isNaN(xNum) || isNaN(yNum)) {
-        panel.classList.add('localization-pane-state-unknown');
+        panel.classList.add('panel-unknown');
         return;
     }
 
     // Green if both are good, red if either is bad
     if (xNum < 3 && yNum < 3) {
-        panel.classList.add('localization-pane-state-good');
+        panel.classList.add('panel-good');
     } else {
-        panel.classList.add('localization-pane-state-bad');
+        panel.classList.add('panel-bad');
     }
 }
 
