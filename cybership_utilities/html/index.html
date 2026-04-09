@@ -16,17 +16,17 @@
     <div class="muted">Connects to <code>web_interface_server.py</code> to call ROS 2 services from your browser.</div>
 </div>
 
-<fieldset>
+<fieldset class="panel-card">
     <legend>Namespace</legend>
     <div class="muted">All service calls are made under this namespace (e.g. <code>/voyager</code>, <code>/enterprise</code>, <code>/drillship</code>).</div>
     <input id="ns" list="nsList" placeholder="/voyager" style="width: 24rem" />
     <datalist id="nsList"></datalist>
 </fieldset>
 
-<fieldset>
+<fieldset class="panel-card">
     <legend>Propulsion Control</legend>
     <div class="propulsion-grid">
-        <section class="mini-panel">
+        <section class="panel-card panel-card--soft">
             <div class="mini-title">Thrusters</div>
             <div class="muted">Enable/disable the thruster system on the physical platform (if your setup exposes these Empty services). In simulation this is usually unavailable or has no effect.</div>
             <div class="row">
@@ -36,7 +36,7 @@
             </div>
             <div class="muted">Calls <code>&lt;ns&gt;/thruster/enable</code> and <code>&lt;ns&gt;/thruster/disable</code> (std_srvs/Empty)</div>
         </section>
-        <section id="allocPanel" class="mini-panel mini-panel-state-unknown">
+        <section id="allocPanel" class="panel-card panel-card--soft panel-state-unknown">
             <div class="mini-title">Thrust Allocation (Lifecycle)</div>
             <div class="muted">Start/stop the thrust allocation node using ROS 2 lifecycle transitions (configure/activate/deactivate).</div>
             <div class="row">
@@ -59,33 +59,35 @@
 </fieldset>
 
 <div class="compact-grid">
-    <fieldset>
+    <fieldset class="panel-card">
         <legend>Position System</legend>
 
         <!-- Live Pose Map -->
-        <div>
-            <div class="mini-title">Live Pose Map</div>
-            <div class="muted">Cartesian map showing position (point), covariance (ellipse), and heading (arrow).</div>
-            <div id="mapContainer" style="position: relative; display: inline-block; width: 100%; margin: 1rem 0;">
-                <canvas id="positionMap" width="600" height="500" style="border: 1px solid #d7e6f8; border-radius: 12px; background: #f9fcff; width: 100%; display: block;"></canvas>
-                <div style="display: flex; gap: 1rem; margin-top: 0.5rem; font-size: 0.9rem;">
-                    <div><span style="display: inline-block; width: 12px; height: 12px; background: #0f9d8b; border-radius: 2px;"></span> Position</div>
-                    <div><span style="display: inline-block; width: 12px; height: 2px; background: #e36f65;"></span> Covariance (2σ)</div>
-                    <div><span style="display: inline-block; width: 12px; height: 12px; background: #0f9d8b; clip-path: polygon(0 0, 100% 50%, 0 100%);"></span> Heading</div>
+        <div style="padding: 0px;">
+            <section class="panel-card panel-card--flat" style="margin: 0;">
+
+                <div class="mini-title">Live Pose Map</div>
+                <!-- <div class="muted">Cartesian map showing position (point), covariance (ellipse), and heading (arrow).</div> -->
+                <div id="mapContainer" style="position: relative; display: inline-block; width: 100%;">
+                    <canvas id="positionMap" width="600" height="500" style="border: 1px solid #d7e6f8; border-radius: 12px; background: #f9fcff; width: 100%; display: block;"></canvas>
+                    <div style="display: flex; gap: 1rem; margin-top: 0.5rem; font-size: 0.9rem;">
+                        <div><span style="display: inline-block; width: 12px; height: 12px; background: #0f9d8b; border-radius: 2px;"></span> Position</div>
+                        <div><span style="display: inline-block; width: 12px; height: 2px; background: #e36f65;"></span> Covariance (2σ)</div>
+                        <div><span style="display: inline-block; width: 12px; height: 12px; background: #0f9d8b; clip-path: polygon(0 0, 100% 50%, 0 100%);"></span> Heading</div>
+                    </div>
                 </div>
-            </div>
-            <div class="row">
-                <label>Scale</label>
-                <input id="mapScale" type="range" min="0.5" max="10" step="0.5" value="2" style="width: 200px;" />
-                <span id="mapScaleValue" class="muted">2x</span>
-            </div>
+                <div class="row">
+                    <label>Scale</label>
+                    <input id="mapScale" type="range" min="0.5" max="10" step="0.5" value="1" style="width: 200px;" />
+                    <span id="mapScaleValue" class="muted">1x</span>
+                </div>
+            </section>
         </div>
 
         <!-- Localization and Live Pose Details -->
-        <div class="localization-grid">
-            <fieldset id="localizationPanel" class="localization-pane-state-unknown">
-                <legend>Localization</legend>
-
+        <div>
+            <section id="localizationPanel" class="panel-card panel-card--flat panel-state-unknown">
+                <!-- <legend>Localization</legend> -->
                 <section class="localization-section">
                     <div class="mini-title">Covariance Quality</div>
                     <div class="muted">Monitors localization quality via odometry covariance. Green indicates good localization (covariance &lt; 3), red indicates poor localization (covariance ≥ 3).</div>
@@ -106,16 +108,13 @@
                 <section class="localization-section" style="margin-top: 1rem; border-top: 1px solid #d7e6f8; padding-top: 0.75rem;">
                     <div class="mini-title">Set Pose</div>
                     <div class="muted">Sets the estimated pose for localization service.</div>
-                    <div class="row">
-                        <label>X (m)</label>
+                    <div class="set-pose-grid">
+                        <label for="poseX">X (m)</label>
+                        <label for="poseY">Y (m)</label>
+                        <label for="poseTheta">Yaw (rad)</label>
+
                         <input id="poseX" type="number" value="0.0" step="0.1" />
-                    </div>
-                    <div class="row">
-                        <label>Y (m)</label>
                         <input id="poseY" type="number" value="0.0" step="0.1" />
-                    </div>
-                    <div class="row">
-                        <label>Theta (rad)</label>
                         <input id="poseTheta" type="number" value="0.0" step="0.01" />
                     </div>
                     <div class="row">
@@ -124,44 +123,45 @@
                     </div>
                     <div class="muted">Calls <code>&lt;ns&gt;/set_pose</code> service</div>
                 </section>
-            </fieldset>
+            </section>
 
         </div>
     </fieldset>
 </div>
-    <fieldset>
+    <fieldset class="panel-card panel-stack">
         <legend>Multiplexers</legend>
         <div class="muted">Manage force and velocity command topic selection from one compact panel.</div>
+            <div class="panel-row">
+                <section class="panel-card panel-card--soft">
+                <div class="mini-title">Force Mux</div>
+                <div class="muted">Selects which force command source drives <code>control/force/command</code> via <code>topic_tools/mux</code>.</div>
+                <div class="row">
+                    <button id="forceList">List topics</button>
+                    <span id="forceCount" class="muted"></span>
+                </div>
+                <div class="row">
+                    <label>Topic</label>
+                    <select id="forceSelect"></select>
+                    <button id="forceChoose">Select</button>
+                    <span id="forceResult" class="muted"></span>
+                </div>
+            </section>
 
-        <section class="mux-subpanel">
-            <div class="mini-title">Force Mux</div>
-            <div class="muted">Selects which force command source drives <code>control/force/command</code> via <code>topic_tools/mux</code>.</div>
-            <div class="row">
-                <button id="forceList">List topics</button>
-                <span id="forceCount" class="muted"></span>
-            </div>
-            <div class="row">
-                <label>Topic</label>
-                <select id="forceSelect"></select>
-                <button id="forceChoose">Select</button>
-                <span id="forceResult" class="muted"></span>
-            </div>
-        </section>
-
-        <section class="mux-subpanel">
-            <div class="mini-title">Velocity Mux</div>
-            <div class="muted">Selects which velocity command source drives the velocity controller (when a velocity mux is present).</div>
-            <div class="row">
-                <button id="velList">List topics</button>
-                <span id="velCount" class="muted"></span>
-            </div>
-            <div class="row">
-                <label>Topic</label>
-                <select id="velSelect"></select>
-                <button id="velChoose">Select</button>
-                <span id="velResult" class="muted"></span>
-            </div>
-        </section>
+            <section class="panel-card panel-card--soft">
+                <div class="mini-title">Velocity Mux</div>
+                <div class="muted">Selects which velocity command source drives the velocity controller (when a velocity mux is present).</div>
+                <div class="row">
+                    <button id="velList">List topics</button>
+                    <span id="velCount" class="muted"></span>
+                </div>
+                <div class="row">
+                    <label>Topic</label>
+                    <select id="velSelect"></select>
+                    <button id="velChoose">Select</button>
+                    <span id="velResult" class="muted"></span>
+                </div>
+            </section>
+        </div>
     </fieldset>
 
 <pre id="log"></pre>

@@ -22,6 +22,7 @@ let mapState = {
     yaw: 0,
     x_cov: 0.1,
     y_cov: 0.1,
+    cov_age_sec: null,
 };
 
 function drawPositionMap() {
@@ -97,12 +98,15 @@ function drawPositionMap() {
     const sigma = 2;
     const ellipseA = Math.sqrt(mapState.y_cov) * sigma * pixelsPerMeter;  // Y variance
     const ellipseB = Math.sqrt(mapState.x_cov) * sigma * pixelsPerMeter;  // X variance
+    const covAgeNum = Number(mapState.cov_age_sec);
+    const covarianceIsStale = Number.isFinite(covAgeNum) && covAgeNum > MAX_ODOM_AGE_SECONDS;
 
-    ctx.strokeStyle = '#e36f65';
-    ctx.lineWidth = 2;
+    ctx.fillStyle = covarianceIsStale
+        ? 'rgba(158, 167, 179, 0.35)'
+        : 'rgba(227, 111, 101, 0.35)';
     ctx.beginPath();
     ctx.ellipse(screenX, screenY, ellipseA, ellipseB, 0, 0, 2 * Math.PI);
-    ctx.stroke();
+    ctx.fill();
 
     // Draw position point
     ctx.fillStyle = '#0f9d8b';
@@ -147,11 +151,11 @@ function drawPositionMap() {
     ctx.fillStyle = 'rgba(19, 35, 61, 0.85)';
     ctx.textAlign = 'left';
 
-    ctx.fillText(`X: ${mapState.x.toFixed(2)} m`, textX, textY);
+    ctx.fillText(`  X: ${mapState.x.toFixed(2)} m`, textX, textY);
     textY += lineHeight;
-    ctx.fillText(`Y: ${mapState.y.toFixed(2)} m`, textX, textY);
+    ctx.fillText(`  Y: ${mapState.y.toFixed(2)} m`, textX, textY);
     textY += lineHeight;
-    ctx.fillText(`θ: ${mapState.yaw.toFixed(3)} rad`, textX, textY);
+    ctx.fillText(`Yaw: ${mapState.yaw.toFixed(3)} rad`, textX, textY);
 }
 
 el('mapScale').oninput = function() {
@@ -559,6 +563,19 @@ el("allocDeactivate").onclick = async () => {
 };
 
 // -------------- Localization (Covariance) --------------
+function formatCompactScientific(value) {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return '-';
+    if (num === 0) return '0.000e00';
+
+    const [mantissa, exponentRaw] = num.toExponential(3).split('e');
+    const exponent = Number(exponentRaw);
+    const expSign = exponent < 0 ? '-' : '';
+    const expAbs = Math.abs(exponent).toString().padStart(2, '0');
+
+    return `${mantissa}e${expSign}${expAbs}`;
+}
+
 function updateCovarianceIndicator(covariance, ageSec = null, isY = false) {
     const indicatorId = isY ? 'covarianceIndicatorY' : 'covarianceIndicatorX';
     const valueId = isY ? 'covarianceValueY' : 'covarianceValueX';
@@ -580,13 +597,15 @@ function updateCovarianceIndicator(covariance, ageSec = null, isY = false) {
 
     const ageNum = Number(ageSec);
     const isStale = Number.isFinite(ageNum) && ageNum > MAX_ODOM_AGE_SECONDS;
+    const covText = formatCompactScientific(covNum);
     if (isStale) {
-        valueEl.textContent = `${covNum.toFixed(4)} (stale ${ageNum.toFixed(1)}s)`;
+        const ageText = formatCompactScientific(ageNum);
+        valueEl.textContent = `${covText} (stale ${ageText}s)`;
         indicator.className = 'covariance-indicator covariance-stale';
         return;
     }
 
-    valueEl.textContent = covNum.toFixed(4);
+    valueEl.textContent = covText;
     if (covNum < 3) {
         indicator.className = 'covariance-indicator covariance-good';
     } else {
@@ -594,11 +613,18 @@ function updateCovarianceIndicator(covariance, ageSec = null, isY = false) {
     }
 }
 
-function updateLocalizationPanelState(x_cov, y_cov) {
+function updateLocalizationPanelState(x_cov, y_cov, ageSec = null) {
     const panel = el('localizationPanel');
     if (!panel) return;
 
     panel.classList.remove('localization-pane-state-unknown', 'localization-pane-state-good', 'localization-pane-state-bad');
+
+    const ageNum = Number(ageSec);
+    const isStale = Number.isFinite(ageNum) && ageNum > MAX_ODOM_AGE_SECONDS;
+    if (isStale) {
+        panel.classList.add('localization-pane-state-unknown');
+        return;
+    }
 
     if (x_cov === null || x_cov === undefined || y_cov === null || y_cov === undefined) {
         panel.classList.add('localization-pane-state-unknown');
@@ -666,7 +692,10 @@ async function updateCovariance(manual = false) {
         if (response.type === "covariance_response") {
             updateCovarianceIndicator(response.x_covariance, response.age_sec, false);
             updateCovarianceIndicator(response.y_covariance, response.age_sec, true);
-            updateLocalizationPanelState(response.x_covariance, response.y_covariance);
+            updateLocalizationPanelState(response.x_covariance, response.y_covariance, response.age_sec);
+            mapState.cov_age_sec = Number.isFinite(Number(response.age_sec))
+                ? Number(response.age_sec)
+                : null;
 
             // Update map state with covariance
             if (response.x_covariance !== null && response.x_covariance !== undefined) {
@@ -679,7 +708,7 @@ async function updateCovariance(manual = false) {
             updatePoseDisplay(response.x, response.y, response.yaw);
             if (manual) {
                 const ageNum = Number(response.age_sec);
-                const ageTxt = Number.isFinite(ageNum) ? ageNum.toFixed(1) : '-';
+                const ageTxt = Number.isFinite(ageNum) ? formatCompactScientific(ageNum) : '-';
                 log(`Covariance refreshed: X=${response.x_covariance ?? '-'} Y=${response.y_covariance ?? '-'} age=${ageTxt}s`);
             }
         }

@@ -59,12 +59,38 @@ h1 {
     }
 }
 
-fieldset {
+.panel-card {
     margin: 1rem 0;
     padding: 1rem 1rem 1.1rem;
     border-radius: 14px;
     border: 1px solid var(--border);
     background: var(--surface-strong);
+    box-shadow: 0 8px 22px rgba(19, 35, 61, 0.08);
+}
+
+.panel-card--soft {
+    flex: 1 1 320px;
+    padding: 0.8rem;
+    background: #f6fbff;
+    border-color: #d7e6f8;
+    transition: background-color 180ms ease, border-color 180ms ease;
+}
+
+.panel-card--flat {
+    margin: 0;
+}
+
+.panel-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.panel-row {
+    display: flex;
+    gap: 0.9rem;
+    flex-wrap: wrap;
+    align-items: flex-start;
 }
 
 legend {
@@ -193,26 +219,19 @@ input[type="number"] {
     flex-wrap: wrap;
 }
 
-.mini-panel {
-    flex: 1 1 320px;
-    background: #f6fbff;
-    border: 1px solid #d7e6f8;
-    border-radius: 12px;
-    padding: 0.8rem;
-    transition: background-color 180ms ease, border-color 180ms ease;
-}
-
-.mini-panel-state-unknown {
+.panel-state-unknown {
     background: #f2f4f8;
     border-color: #d8dde6;
 }
 
-.mini-panel-state-active {
+.panel-state-active,
+.panel-state-good {
     background: #e4f7ec;
     border-color: #b7e5c8;
 }
 
-.mini-panel-state-deactive {
+.panel-state-deactive,
+.panel-state-bad {
     background: #fae7e5;
     border-color: #efc1be;
 }
@@ -236,19 +255,22 @@ input[type="number"] {
     align-items: flex-start;
 }
 
-.compact-grid > fieldset {
+.compact-grid > fieldset,
+.compact-grid > section {
     flex: 1 1 420px;
     margin: 0;
 }
 
-.compact-grid > fieldset:first-of-type {
+.compact-grid > fieldset:first-of-type,
+.compact-grid > section:first-of-type {
     display: flex;
     flex-wrap: wrap;
     gap: 0.8rem;
     align-items: flex-start;
 }
 
-.compact-grid > fieldset:first-of-type > div {
+.compact-grid > fieldset:first-of-type > div,
+.compact-grid > section:first-of-type > div {
     flex: 1 1 380px;
 }
 
@@ -273,12 +295,22 @@ input[type="number"] {
     padding: 0;
 }
 
-.mux-subpanel {
-    background: #f6fbff;
-    border: 1px solid #d7e6f8;
-    border-radius: 12px;
-    padding: 0.75rem;
-    margin-top: 0.7rem;
+.set-pose-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.35rem 0.6rem;
+    margin: 0.5rem 0 0.65rem;
+}
+
+.set-pose-grid label {
+    min-width: 0;
+    margin: 0;
+    font-size: 0.9rem;
+}
+
+.set-pose-grid input[type="number"] {
+    width: 100%;
+    min-width: 0;
 }
 
 .lifecycle-state {
@@ -308,21 +340,6 @@ input[type="number"] {
     border-color: #efc2bf;
 }
 
-.localization-pane-state-unknown {
-    background: #f2f4f8;
-    border-color: #d8dde6;
-}
-
-.localization-pane-state-good {
-    background: #e4f7ec;
-    border-color: #b7e5c8;
-}
-
-.localization-pane-state-bad {
-    background: #fae7e5;
-    border-color: #efc1be;
-}
-
 @media (max-width: 760px) {
     .app {
         padding: 1rem;
@@ -339,5 +356,13 @@ input[type="number"] {
     input#allocNode {
         width: 100% !important;
         min-width: 100%;
+    }
+
+    .set-pose-grid {
+        grid-template-columns: repeat(3, minmax(4.5rem, 1fr));
+    }
+
+    .panel-row > .panel-card {
+        flex-basis: 100%;
     }
 }
