@@ -241,6 +241,38 @@ input[type="number"] {
     margin: 0;
 }
 
+.compact-grid > fieldset:first-of-type {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.8rem;
+    align-items: flex-start;
+}
+
+.compact-grid > fieldset:first-of-type > div {
+    flex: 1 1 380px;
+}
+
+.localization-grid {
+    display: flex;
+    gap: 0.9rem;
+    flex-wrap: wrap;
+    margin: 0;
+}
+
+#localizationPanel {
+    flex: 1 1 400px;
+    margin: 0;
+}
+
+.live-pose-panel {
+    flex: 1 1 280px;
+    margin: 0;
+}
+
+.localization-section {
+    padding: 0;
+}
+
 .mux-subpanel {
     background: #f6fbff;
     border: 1px solid #d7e6f8;

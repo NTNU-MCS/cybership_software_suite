@@ -59,36 +59,76 @@
 </fieldset>
 
 <div class="compact-grid">
-    <fieldset id="localizationPanel" class="localization-pane-state-unknown">
-        <legend>Localization</legend>
-        <div class="muted">Monitors localization quality via odometry covariance. Green indicates good localization (covariance &lt; 3), red indicates poor localization (covariance ≥ 3).</div>
-        <div class="row">
-            <label>Covariance</label>
-            <div class="covariance-indicator" id="covarianceIndicator"></div>
-            <span id="covarianceValue" class="muted">-</span>
-            <button id="covarianceRefresh">Refresh</button>
-        </div>
-        <div class="muted">Monitors <code>&lt;ns&gt;/measurement/odom</code> (pose.covariance[0])</div>
-        <div class="muted" style="margin-top: 1rem;">Sets the estimated pose for localization service.</div>
-        <div class="row">
-            <label>X (m)</label>
-            <input id="poseX" type="number" value="0.0" step="0.1" />
-        </div>
-        <div class="row">
-            <label>Y (m)</label>
-            <input id="poseY" type="number" value="0.0" step="0.1" />
-        </div>
-        <div class="row">
-            <label>Theta (rad)</label>
-            <input id="poseTheta" type="number" value="0.0" step="0.01" />
-        </div>
-        <div class="row">
-            <button id="setPose">Set Pose</button>
-            <span id="poseResult" class="muted"></span>
-        </div>
-        <div class="muted">Calls <code>&lt;ns&gt;/set_pose</code> service</div>
-    </fieldset>
+    <fieldset>
+        <legend>Position System</legend>
 
+        <!-- Live Pose Map -->
+        <div>
+            <div class="mini-title">Live Pose Map</div>
+            <div class="muted">Cartesian map showing position (point), covariance (ellipse), and heading (arrow).</div>
+            <div id="mapContainer" style="position: relative; display: inline-block; width: 100%; margin: 1rem 0;">
+                <canvas id="positionMap" width="600" height="500" style="border: 1px solid #d7e6f8; border-radius: 12px; background: #f9fcff; width: 100%; display: block;"></canvas>
+                <div style="display: flex; gap: 1rem; margin-top: 0.5rem; font-size: 0.9rem;">
+                    <div><span style="display: inline-block; width: 12px; height: 12px; background: #0f9d8b; border-radius: 2px;"></span> Position</div>
+                    <div><span style="display: inline-block; width: 12px; height: 2px; background: #e36f65;"></span> Covariance (2σ)</div>
+                    <div><span style="display: inline-block; width: 12px; height: 12px; background: #0f9d8b; clip-path: polygon(0 0, 100% 50%, 0 100%);"></span> Heading</div>
+                </div>
+            </div>
+            <div class="row">
+                <label>Scale</label>
+                <input id="mapScale" type="range" min="0.5" max="10" step="0.5" value="2" style="width: 200px;" />
+                <span id="mapScaleValue" class="muted">2x</span>
+            </div>
+        </div>
+
+        <!-- Localization and Live Pose Details -->
+        <div class="localization-grid">
+            <fieldset id="localizationPanel" class="localization-pane-state-unknown">
+                <legend>Localization</legend>
+
+                <section class="localization-section">
+                    <div class="mini-title">Covariance Quality</div>
+                    <div class="muted">Monitors localization quality via odometry covariance. Green indicates good localization (covariance &lt; 3), red indicates poor localization (covariance ≥ 3).</div>
+                    <div class="row">
+                        <label>X Variance</label>
+                        <div class="covariance-indicator" id="covarianceIndicatorX"></div>
+                        <span id="covarianceValueX" class="muted">-</span>
+                    </div>
+                    <div class="row">
+                        <label>Y Variance</label>
+                        <div class="covariance-indicator" id="covarianceIndicatorY"></div>
+                        <span id="covarianceValueY" class="muted">-</span>
+                        <button id="covarianceRefresh">Refresh</button>
+                    </div>
+                    <div class="muted">Monitors <code>&lt;ns&gt;/measurement/odom</code> (pose.covariance)</div>
+                </section>
+
+                <section class="localization-section" style="margin-top: 1rem; border-top: 1px solid #d7e6f8; padding-top: 0.75rem;">
+                    <div class="mini-title">Set Pose</div>
+                    <div class="muted">Sets the estimated pose for localization service.</div>
+                    <div class="row">
+                        <label>X (m)</label>
+                        <input id="poseX" type="number" value="0.0" step="0.1" />
+                    </div>
+                    <div class="row">
+                        <label>Y (m)</label>
+                        <input id="poseY" type="number" value="0.0" step="0.1" />
+                    </div>
+                    <div class="row">
+                        <label>Theta (rad)</label>
+                        <input id="poseTheta" type="number" value="0.0" step="0.01" />
+                    </div>
+                    <div class="row">
+                        <button id="setPose">Set Pose</button>
+                        <span id="poseResult" class="muted"></span>
+                    </div>
+                    <div class="muted">Calls <code>&lt;ns&gt;/set_pose</code> service</div>
+                </section>
+            </fieldset>
+
+        </div>
+    </fieldset>
+</div>
     <fieldset>
         <legend>Multiplexers</legend>
         <div class="muted">Manage force and velocity command topic selection from one compact panel.</div>
@@ -123,7 +163,6 @@
             </div>
         </section>
     </fieldset>
-</div>
 
 <pre id="log"></pre>
 <div class="muted">Log shows responses/errors from the WebSocket bridge.</div>

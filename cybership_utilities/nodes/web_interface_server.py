@@ -325,16 +325,44 @@ class ROS2Bridge(Node):
 
         return None
 
+    @staticmethod
+    def _quaternion_to_yaw(qx: float, qy: float, qz: float, qw: float) -> float:
+        """Convert quaternion to yaw angle (in radians)."""
+        import math
+        # yaw = atan2(2*(qw*qz + qx*qy), 1 - 2*(qy^2 + qz^2))
+        sin_roll_cos_pitch = 2 * (qw * qx + qy * qz)
+        cos_roll_cos_pitch = 1 - 2 * (qx * qx + qy * qy)
+        yaw = math.atan2(2 * (qw * qz + qx * qy), 1 - 2 * (qy * qy + qz * qz))
+        return float(yaw)
+
     async def get_covariance(self, namespace: str) -> Dict:
-        """Get covariance plus odometry age from the latest message for a namespace."""
+        """Get covariance plus odometry age and pose (X, Y, Yaw) from the latest message for a namespace."""
         # Subscribe to odometry if not already subscribed
         self.get_or_create_odom_subscription(namespace)
 
-        covariance = None
+        x_covariance = None
+        y_covariance = None
+        x = None
+        y = None
+        yaw = None
+
         if namespace in self._odometry_cache:
             odom = self._odometry_cache[namespace]
+            # Get covariances (6x6 matrix flattened)
+            # [0] = X variance, [7] = Y variance
             if odom.pose.covariance is not None and len(odom.pose.covariance) > 0:
-                covariance = float(odom.pose.covariance[0])
+                x_covariance = float(odom.pose.covariance[0])
+                if len(odom.pose.covariance) > 7:
+                    y_covariance = float(odom.pose.covariance[7])
+
+            # Get position X, Y
+            if odom.pose.pose is not None:
+                x = float(odom.pose.pose.position.x)
+                y = float(odom.pose.pose.position.y)
+
+                # Get yaw from quaternion
+                q = odom.pose.pose.orientation
+                yaw = self._quaternion_to_yaw(q.x, q.y, q.z, q.w)
 
         age_sec = None
         last_update_sec = self._odometry_last_update_sec.get(namespace)
@@ -343,8 +371,12 @@ class ROS2Bridge(Node):
             age_sec = max(0.0, now_sec - last_update_sec)
 
         return {
-            "covariance": covariance,
+            "x_covariance": x_covariance,
+            "y_covariance": y_covariance,
             "age_sec": age_sec,
+            "x": x,
+            "y": y,
+            "yaw": yaw,
         }
 
 
@@ -581,8 +613,12 @@ class WebSocketServer:
             return {
                 "type": "covariance_response",
                 "namespace": namespace,
-                "covariance": covariance_data["covariance"],
+                "x_covariance": covariance_data["x_covariance"],
+                "y_covariance": covariance_data["y_covariance"],
                 "age_sec": covariance_data["age_sec"],
+                "x": covariance_data["x"],
+                "y": covariance_data["y"],
+                "yaw": covariance_data["yaw"],
             }
 
         elif msg_type == "set_pose":

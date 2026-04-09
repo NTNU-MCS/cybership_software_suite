@@ -15,6 +15,150 @@ const getAllocatorNode = () => (el("allocNode").value || "").trim();
 let covarianceInterval = null;
 const MAX_ODOM_AGE_SECONDS = 10;
 
+// Map state
+let mapState = {
+    x: 0,
+    y: 0,
+    yaw: 0,
+    x_cov: 0.1,
+    y_cov: 0.1,
+};
+
+function drawPositionMap() {
+    const canvas = el('positionMap');
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    const scale = parseFloat(el('mapScale').value) || 2;
+
+    const width = canvas.width;
+    const height = canvas.height;
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const pixelsPerMeter = 50 * scale;
+
+    // Clear canvas
+    ctx.fillStyle = '#f9fcff';
+    ctx.fillRect(0, 0, width, height);
+
+    // Draw grid (1m spacing)
+    ctx.strokeStyle = '#e8f0f8';
+    ctx.lineWidth = 1;
+    const gridSpacing = pixelsPerMeter;
+
+    // Vertical lines (East/West - Y axis)
+    for (let x = centerX % gridSpacing - gridSpacing; x < width; x += gridSpacing) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, height);
+        ctx.stroke();
+    }
+
+    // Horizontal lines (North/South - X axis)
+    for (let y = centerY % gridSpacing - gridSpacing; y < height; y += gridSpacing) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        ctx.stroke();
+    }
+
+    // Draw axes (thicker)
+    ctx.strokeStyle = '#b0c4dc';
+    ctx.lineWidth = 2;
+
+    // North-South axis (X)
+    ctx.beginPath();
+    ctx.moveTo(centerX, 0);
+    ctx.lineTo(centerX, height);
+    ctx.stroke();
+
+    // East-West axis (Y)
+    ctx.beginPath();
+    ctx.moveTo(0, centerY);
+    ctx.lineTo(width, centerY);
+    ctx.stroke();
+
+    // Draw axis labels
+    ctx.fillStyle = '#486081';
+    ctx.font = 'bold 14px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('N', centerX, 25);  // North (up)
+    ctx.textAlign = 'left';
+    ctx.fillText('E', width - 25, centerY + 5);  // East (right)
+
+    // NED frame conversion:
+    // NED: X=North, Y=East
+    // Screen: +X=right, +Y=down
+    // So: screen_x = centerX + ned_y * ppm, screen_y = centerY - ned_x * ppm
+    const screenX = centerX + mapState.y * pixelsPerMeter;
+    const screenY = centerY - mapState.x * pixelsPerMeter;
+
+    // Draw covariance ellipse (2 sigma = 95% confidence)
+    const sigma = 2;
+    const ellipseA = Math.sqrt(mapState.y_cov) * sigma * pixelsPerMeter;  // Y variance
+    const ellipseB = Math.sqrt(mapState.x_cov) * sigma * pixelsPerMeter;  // X variance
+
+    ctx.strokeStyle = '#e36f65';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(screenX, screenY, ellipseA, ellipseB, 0, 0, 2 * Math.PI);
+    ctx.stroke();
+
+    // Draw position point
+    ctx.fillStyle = '#0f9d8b';
+    ctx.beginPath();
+    ctx.arc(screenX, screenY, 7, 0, 2 * Math.PI);
+    ctx.fill();
+
+    // Draw yaw arrow
+    // In NED: yaw=0 points North (+X), yaw=π/2 points East (+Y)
+    // On screen: N=up(-Y), E=right(+X)
+    const screenYaw = Math.PI / 2 + mapState.yaw;
+    const arrowLength = 40;
+    const arrowX = screenX - arrowLength * Math.cos(screenYaw);
+    const arrowY = screenY - arrowLength * Math.sin(screenYaw);
+
+    ctx.strokeStyle = '#0f9d8b';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(screenX, screenY);
+    ctx.lineTo(arrowX, arrowY);
+    ctx.stroke();
+
+    // Draw arrowhead
+    const headLen = 12;
+    const angle1 = screenYaw + Math.PI * 0.75;
+    const angle2 = screenYaw - Math.PI * 0.75;
+
+    ctx.beginPath();
+    ctx.moveTo(arrowX, arrowY);
+    ctx.lineTo(arrowX - headLen * Math.cos(angle1), arrowY - headLen * Math.sin(angle1));
+    ctx.moveTo(arrowX, arrowY);
+    ctx.lineTo(arrowX - headLen * Math.cos(angle2), arrowY - headLen * Math.sin(angle2));
+    ctx.stroke();
+
+    // Draw position values overlay
+    const padding = 12;
+    const lineHeight = 18;
+    const textX = padding + 10;
+    let textY = padding + 20;
+    
+    ctx.font = 'bold 12px monospace';
+    ctx.fillStyle = 'rgba(19, 35, 61, 0.85)';
+    ctx.textAlign = 'left';
+    
+    ctx.fillText(`X: ${mapState.x.toFixed(2)} m`, textX, textY);
+    textY += lineHeight;
+    ctx.fillText(`Y: ${mapState.y.toFixed(2)} m`, textX, textY);
+    textY += lineHeight;
+    ctx.fillText(`θ: ${mapState.yaw.toFixed(3)} rad`, textX, textY);
+}
+
+el('mapScale').oninput = function() {
+    el('mapScaleValue').textContent = this.value + 'x';
+    drawPositionMap();
+};
+
 // Default WebSocket URL from the current address bar.
 // Examples:
 // - http://192.168.1.20/...  -> ws://192.168.1.20:8765
@@ -63,6 +207,7 @@ el("connect").onclick = () => {
     ws.onopen = () => {
         setStatus("connected to " + url);
         log("Connected to server");
+        drawPositionMap();
     };
     ws.onclose = () => {
         setStatus("closed");
@@ -414,20 +559,15 @@ el("allocDeactivate").onclick = async () => {
 };
 
 // -------------- Localization (Covariance) --------------
-function updateCovarianceIndicator(covariance, ageSec = null) {
-    const indicator = el('covarianceIndicator');
-    const valueEl = el('covarianceValue');
-    const panel = el('localizationPanel');
-
-    const setPanelState = (stateClass) => {
-        panel.classList.remove('localization-pane-state-unknown', 'localization-pane-state-good', 'localization-pane-state-bad');
-        panel.classList.add(stateClass);
-    };
+function updateCovarianceIndicator(covariance, ageSec = null, isY = false) {
+    const indicatorId = isY ? 'covarianceIndicatorY' : 'covarianceIndicatorX';
+    const valueId = isY ? 'covarianceValueY' : 'covarianceValueX';
+    const indicator = el(indicatorId);
+    const valueEl = el(valueId);
 
     if (covariance === null || covariance === undefined) {
         valueEl.textContent = '-';
         indicator.className = 'covariance-indicator';
-        setPanelState('localization-pane-state-unknown');
         return;
     }
 
@@ -435,7 +575,6 @@ function updateCovarianceIndicator(covariance, ageSec = null) {
     if (isNaN(covNum)) {
         valueEl.textContent = '-';
         indicator.className = 'covariance-indicator';
-        setPanelState('localization-pane-state-unknown');
         return;
     }
 
@@ -444,25 +583,74 @@ function updateCovarianceIndicator(covariance, ageSec = null) {
     if (isStale) {
         valueEl.textContent = `${covNum.toFixed(4)} (stale ${ageNum.toFixed(1)}s)`;
         indicator.className = 'covariance-indicator covariance-stale';
-        setPanelState('localization-pane-state-unknown');
         return;
     }
 
     valueEl.textContent = covNum.toFixed(4);
     if (covNum < 3) {
         indicator.className = 'covariance-indicator covariance-good';
-        setPanelState('localization-pane-state-good');
     } else {
         indicator.className = 'covariance-indicator covariance-bad';
-        setPanelState('localization-pane-state-bad');
     }
+}
+
+function updateLocalizationPanelState(x_cov, y_cov) {
+    const panel = el('localizationPanel');
+    if (!panel) return;
+
+    panel.classList.remove('localization-pane-state-unknown', 'localization-pane-state-good', 'localization-pane-state-bad');
+
+    if (x_cov === null || x_cov === undefined || y_cov === null || y_cov === undefined) {
+        panel.classList.add('localization-pane-state-unknown');
+        return;
+    }
+
+    const xNum = parseFloat(x_cov);
+    const yNum = parseFloat(y_cov);
+
+    if (isNaN(xNum) || isNaN(yNum)) {
+        panel.classList.add('localization-pane-state-unknown');
+        return;
+    }
+
+    // Green if both are good, red if either is bad
+    if (xNum < 3 && yNum < 3) {
+        panel.classList.add('localization-pane-state-good');
+    } else {
+        panel.classList.add('localization-pane-state-bad');
+    }
+}
+
+function updatePoseDisplay(x, y, yaw) {
+    if (x === null || x === undefined) {
+        mapState.x = 0;
+    } else {
+        mapState.x = parseFloat(x);
+    }
+
+    if (y === null || y === undefined) {
+        mapState.y = 0;
+    } else {
+        mapState.y = parseFloat(y);
+    }
+
+    if (yaw === null || yaw === undefined) {
+        mapState.yaw = 0;
+    } else {
+        mapState.yaw = parseFloat(yaw);
+    }
+
+    drawPositionMap();
 }
 
 async function updateCovariance(manual = false) {
     if (!ws || ws.readyState !== WebSocket.OPEN) {
         if (manual) {
-            el('covarianceValue').textContent = 'disconnected';
-            updateCovarianceIndicator(null, null);
+            el('covarianceValueX').textContent = 'disconnected';
+            el('covarianceValueY').textContent = 'disconnected';
+            updateCovarianceIndicator(null, null, false);
+            updateCovarianceIndicator(null, null, true);
+            updateLocalizationPanelState(null, null);
             log('Covariance refresh skipped: websocket not connected');
         }
         return;
@@ -476,21 +664,43 @@ async function updateCovariance(manual = false) {
         });
 
         if (response.type === "covariance_response") {
-            updateCovarianceIndicator(response.covariance, response.age_sec);
+            updateCovarianceIndicator(response.x_covariance, response.age_sec, false);
+            updateCovarianceIndicator(response.y_covariance, response.age_sec, true);
+            updateLocalizationPanelState(response.x_covariance, response.y_covariance);
+
+            // Update map state with covariance
+            if (response.x_covariance !== null && response.x_covariance !== undefined) {
+                mapState.x_cov = parseFloat(response.x_covariance);
+            }
+            if (response.y_covariance !== null && response.y_covariance !== undefined) {
+                mapState.y_cov = parseFloat(response.y_covariance);
+            }
+
+            updatePoseDisplay(response.x, response.y, response.yaw);
             if (manual) {
                 const ageNum = Number(response.age_sec);
                 const ageTxt = Number.isFinite(ageNum) ? ageNum.toFixed(1) : '-';
-                log(`Covariance refreshed: value=${response.covariance ?? '-'} age=${ageTxt}s`);
+                log(`Covariance refreshed: X=${response.x_covariance ?? '-'} Y=${response.y_covariance ?? '-'} age=${ageTxt}s`);
             }
         }
     } catch (e) {
         if (manual) {
-            el('covarianceValue').textContent = `error: ${e.message}`;
-            updateCovarianceIndicator(null, null);
+            el('covarianceValueX').textContent = `error: ${e.message}`;
+            el('covarianceValueY').textContent = `error: ${e.message}`;
+            updateCovarianceIndicator(null, null, false);
+            updateCovarianceIndicator(null, null, true);
+            updateLocalizationPanelState(null, null);
             log("Error refreshing covariance:", e.message);
         }
         // Silently ignore errors during periodic updates
     }
+}
+
+// Initialize map on page load
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', drawPositionMap);
+} else {
+    drawPositionMap();
 }
 
 el("covarianceRefresh").onclick = () => updateCovariance(true);
