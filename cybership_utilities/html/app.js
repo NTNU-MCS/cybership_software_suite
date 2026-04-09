@@ -142,11 +142,11 @@ function drawPositionMap() {
     const lineHeight = 18;
     const textX = padding + 10;
     let textY = padding + 20;
-    
+
     ctx.font = 'bold 12px monospace';
     ctx.fillStyle = 'rgba(19, 35, 61, 0.85)';
     ctx.textAlign = 'left';
-    
+
     ctx.fillText(`X: ${mapState.x.toFixed(2)} m`, textX, textY);
     textY += lineHeight;
     ctx.fillText(`Y: ${mapState.y.toFixed(2)} m`, textX, textY);
