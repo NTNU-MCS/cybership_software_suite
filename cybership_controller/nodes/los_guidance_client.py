@@ -22,9 +22,9 @@ def main(args=None):
     while rclpy.ok():
         example_waypoints = [
             (0.0, 0.0),
-            (np.random.normal(6.0, 0.5), 0.0),
-            (np.random.normal(6.0, 0.5),np.random.normal(6.0, 0.5)),
-            (0.0, np.random.normal(6.0, 0.5)),
+            (np.random.normal(2.0, 0.5), 0.0),
+            (np.random.normal(2.0, 0.5),np.random.normal(2.0, 0.5)),
+            (0.0, np.random.normal(2.0, 0.5)),
         ]
         client.send_goal(example_waypoints)
         time.sleep(5.0)

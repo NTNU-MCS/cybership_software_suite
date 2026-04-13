@@ -10,9 +10,9 @@
     control:
       # Position control gains
       p_gain:
-        pos: 1.0     # Proportional gain for position
+        pos: 1.5     # Proportional gain for position
         vel: 0.2     # Proportional gain for velocity
-        yaw: 1.0    # Proportional gain for yaw
+        yaw: 2.0    # Proportional gain for yaw
 
       # Integral gains
       i_gain:

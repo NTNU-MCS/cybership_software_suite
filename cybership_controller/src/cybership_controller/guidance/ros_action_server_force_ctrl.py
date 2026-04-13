@@ -10,6 +10,7 @@ from rclpy.action import CancelResponse, GoalResponse
 from rclpy.executors import MultiThreadedExecutor, SingleThreadedExecutor
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup, ReentrantCallbackGroup
 from rclpy.qos import QoSProfile, DurabilityPolicy
+from rcl_interfaces.msg import SetParametersResult
 
 from nav_msgs.msg import Path, Odometry
 from geometry_msgs.msg import Wrench, Vector3, Point
@@ -68,11 +69,55 @@ class LOSGuidanceROS(Node):
         self.active_goal_handle = None
         self.guidance = None
         self.last_wp = None
-        self.guidance_hz = 2
+        self.guidance_hz = 10
         self.guidance_timer = None
         self.path_msg = None
 
+        # Allow runtime tuning of controller/guidance parameters.
+        self._param_cb_handle = self.add_on_set_parameters_callback(
+            self.on_parameter_update)
+
         self.get_logger().info('LOS Guidance Action Server started')
+
+    def on_parameter_update(self, params):
+        positive_only = {
+            'desired_speed',
+            'lookahead',
+            'surge_p_gain',
+            'max_force_xy',
+            'max_torque_z',
+        }
+        non_negative = {
+            'heading_rate_gain',
+            'surge_d_gain',
+            'heading_gain',
+        }
+
+        for param in params:
+            if param.name in positive_only:
+                if float(param.value) <= 0.0:
+                    return SetParametersResult(
+                        successful=False,
+                        reason=f"{param.name} must be > 0.0")
+            elif param.name in non_negative:
+                if float(param.value) < 0.0:
+                    return SetParametersResult(
+                        successful=False,
+                        reason=f"{param.name} must be >= 0.0")
+
+        # If guidance is active, apply changed guidance parameters immediately.
+        if self.guidance is not None:
+            for param in params:
+                if param.name == 'desired_speed' and hasattr(self.guidance, 'V_d'):
+                    self.guidance.V_d = float(param.value)
+                elif param.name == 'lookahead' and hasattr(self.guidance, 'delta'):
+                    self.guidance.delta = float(param.value)
+
+        if params:
+            changed = ', '.join([p.name for p in params])
+            self.get_logger().info(f"Updated parameters: {changed}")
+
+        return SetParametersResult(successful=True)
 
     def odom_callback(self, msg: Odometry):
         # Update position and heading
