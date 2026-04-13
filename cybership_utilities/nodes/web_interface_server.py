@@ -19,6 +19,7 @@ import websockets
 from websockets.asyncio.server import serve
 
 import rclpy
+from rclpy.action import ActionClient
 from rclpy.node import Node
 from rclpy.executors import MultiThreadedExecutor
 
@@ -28,9 +29,10 @@ try:
     from lifecycle_msgs.srv import ChangeState, GetState
     from lifecycle_msgs.msg import Transition, State
     from nav_msgs.msg import Odometry
-    from geometry_msgs.msg import Pose
+    from geometry_msgs.msg import PoseStamped
+    from nav2_msgs.action import NavigateToPose
 except ImportError:
-    print("Missing dependencies: topic_tools_interfaces, std_srvs, lifecycle_msgs, nav_msgs, geometry_msgs")
+    print("Missing dependencies: topic_tools_interfaces, std_srvs, lifecycle_msgs, nav_msgs, geometry_msgs, nav2_msgs")
     raise
 
 
@@ -54,6 +56,7 @@ class ROS2Bridge(Node):
         # Store odometry data by namespace
         self._odometry_cache: Dict[str, Odometry] = {}
         self._odometry_last_update_sec: Dict[str, float] = {}
+        self._action_clients: Dict[str, ActionClient] = {}
 
     def get_or_create_clients(self, namespace: str, mux_name: str):
         """Get or create service clients for a given namespace and mux name."""
@@ -106,6 +109,18 @@ class ROS2Bridge(Node):
             logger.info(f"Created Empty client for {service_name}")
 
         return self._service_clients[key]["empty"]
+
+    def get_or_create_nav_action_client(self, namespace: str, action_name: str = "navigate_to_pose") -> ActionClient:
+        """Get or create a NavigateToPose action client for a namespace."""
+        ns = self._normalize_namespace(namespace)
+        action_path = f"{ns}/{action_name}" if ns else f"/{action_name}"
+        key = f"nav_action:{action_path}"
+
+        if key not in self._action_clients:
+            self._action_clients[key] = ActionClient(self, NavigateToPose, action_path)
+            logger.info(f"Created NavigateToPose action client for {action_path}")
+
+        return self._action_clients[key]
 
     @staticmethod
     def _normalize_namespace(namespace: str) -> str:
@@ -334,6 +349,68 @@ class ROS2Bridge(Node):
         cos_roll_cos_pitch = 1 - 2 * (qx * qx + qy * qy)
         yaw = math.atan2(2 * (qw * qz + qx * qy), 1 - 2 * (qy * qy + qz * qz))
         return float(yaw)
+
+    @staticmethod
+    def _yaw_to_quaternion(yaw: float):
+        """Convert yaw angle to quaternion (x, y, z, w)."""
+        import math
+        half = float(yaw) * 0.5
+        return (0.0, 0.0, math.sin(half), math.cos(half))
+
+    async def call_go_to_point(
+        self,
+        namespace: str,
+        x: float,
+        y: float,
+        yaw: float,
+        frame_id: str = "world",
+        wait_result: bool = False,
+        timeout_sec: float = 2.0,
+    ) -> Dict:
+        """Send a NavigateToPose goal for the given namespace."""
+        action_client = self.get_or_create_nav_action_client(namespace)
+
+        if not action_client.wait_for_server(timeout_sec=float(timeout_sec)):
+            raise Exception(f"Action server not available: {action_client._action_name}")
+
+        goal_msg = NavigateToPose.Goal()
+        pose = PoseStamped()
+        pose.header.stamp = self.get_clock().now().to_msg()
+        pose.header.frame_id = frame_id
+        pose.pose.position.x = float(x)
+        pose.pose.position.y = float(y)
+        qx, qy, qz, qw = self._yaw_to_quaternion(float(yaw))
+        pose.pose.orientation.x = qx
+        pose.pose.orientation.y = qy
+        pose.pose.orientation.z = qz
+        pose.pose.orientation.w = qw
+        goal_msg.pose = pose
+
+        goal_future = action_client.send_goal_async(goal_msg)
+        start = self.get_clock().now()
+        while not goal_future.done():
+            await asyncio.sleep(0.01)
+            if (self.get_clock().now() - start).nanoseconds / 1e9 > 10.0:
+                raise Exception("Timed out waiting for NavigateToPose goal response")
+
+        goal_handle = goal_future.result()
+        if goal_handle is None or not goal_handle.accepted:
+            raise Exception("NavigateToPose goal rejected")
+
+        response: Dict = {"accepted": True}
+        if not wait_result:
+            return response
+
+        result_future = goal_handle.get_result_async()
+        start_result = self.get_clock().now()
+        while not result_future.done():
+            await asyncio.sleep(0.01)
+            if (self.get_clock().now() - start_result).nanoseconds / 1e9 > 60.0:
+                raise Exception("Timed out waiting for NavigateToPose result")
+
+        result = result_future.result()
+        response["status"] = int(getattr(result, "status", -1)) if result is not None else -1
+        return response
 
     async def get_covariance(self, namespace: str) -> Dict:
         """Get covariance plus odometry age and pose (X, Y, Yaw) from the latest message for a namespace."""
@@ -654,6 +731,34 @@ class WebSocketServer:
                 "y": y,
                 "theta": theta,
                 "message": f"Pose set to ({x}, {y}, {theta})"
+            }
+
+        elif msg_type == "go_to_point":
+            namespace = data.get("namespace", "")
+            x = float(data.get("x", 0.0))
+            y = float(data.get("y", 0.0))
+            yaw = float(data.get("yaw", data.get("theta", 0.0)))
+            frame_id = str(data.get("frame_id", "world"))
+            wait_result = bool(data.get("wait_result", False))
+
+            result = await self.ros_bridge.call_go_to_point(
+                namespace=namespace,
+                x=x,
+                y=y,
+                yaw=yaw,
+                frame_id=frame_id,
+                wait_result=wait_result,
+            )
+            return {
+                "type": "go_to_point_response",
+                "success": True,
+                "namespace": namespace,
+                "x": x,
+                "y": y,
+                "yaw": yaw,
+                "frame_id": frame_id,
+                "accepted": bool(result.get("accepted", False)),
+                "status": result.get("status"),
             }
 
         elif msg_type == "scan_services":

@@ -293,11 +293,36 @@ input[type="number"] {
     padding: 0;
 }
 
+.localization-section .row {
+    margin: 0.45rem 0;
+}
+
+.row--compact {
+    gap: 0.45rem;
+}
+
+.row--compact label {
+    min-width: 6.6rem;
+}
+
+.topic-note {
+    font-size: 0.86rem;
+    line-height: 1.25;
+}
+
+.topic-note code {
+    font-size: 0.84rem;
+}
+
 .set-pose-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 0.35rem 0.6rem;
     margin: 0.5rem 0 0.65rem;
+}
+
+.set-pose-grid--4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .set-pose-grid label {
@@ -358,6 +383,10 @@ input[type="number"] {
 
     .set-pose-grid {
         grid-template-columns: repeat(3, minmax(4.5rem, 1fr));
+    }
+
+    .set-pose-grid--4 {
+        grid-template-columns: repeat(2, minmax(6rem, 1fr));
     }
 
     .panel-row > .panel-card {

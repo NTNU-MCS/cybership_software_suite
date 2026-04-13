@@ -12,6 +12,11 @@
   <depend>rclpy</depend>
   <depend>foxglove_bridge</depend>
   <depend>topic_tools_interfaces</depend>
+  <depend>std_srvs</depend>
+  <depend>lifecycle_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>nav2_msgs</depend>
   <buildtool_depend>ament_cmake_python</buildtool_depend>
 
   <export>

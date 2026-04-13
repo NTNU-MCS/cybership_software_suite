@@ -90,24 +90,23 @@
                 <!-- <legend>Localization</legend> -->
                 <section class="localization-section">
                     <div class="mini-title">Covariance Quality</div>
-                    <div class="muted">Monitors localization quality via odometry covariance. Green indicates good localization (covariance &lt; 3), red indicates poor localization (covariance ≥ 3).</div>
-                    <div class="row">
-                        <label>X Variance</label>
+                    <div class="row row--compact">
+                        <label>Covariance</label>
+                        <span class="muted">X</span>
                         <div class="covariance-indicator" id="covarianceIndicatorX"></div>
                         <span id="covarianceValueX" class="muted">-</span>
-                    </div>
-                    <div class="row">
-                        <label>Y Variance</label>
+                        <span class="muted">Y</span>
                         <div class="covariance-indicator" id="covarianceIndicatorY"></div>
                         <span id="covarianceValueY" class="muted">-</span>
+                    </div>
+                    <div class="row row--compact">
                         <button id="covarianceRefresh">Refresh</button>
                     </div>
-                    <div class="muted">Monitors <code>&lt;ns&gt;/measurement/odom</code> (pose.covariance)</div>
+                    <div class="muted topic-note">Monitors <code>&lt;ns&gt;/measurement/odom</code> (pose.covariance)</div>
                 </section>
 
                 <section class="localization-section" style="margin-top: 1rem; border-top: 1px solid #d7e6f8; padding-top: 0.75rem;">
                     <div class="mini-title">Set Pose</div>
-                    <div class="muted">Sets the estimated pose for localization service.</div>
                     <div class="set-pose-grid">
                         <label for="poseX">X (m)</label>
                         <label for="poseY">Y (m)</label>
@@ -121,7 +120,28 @@
                         <button id="setPose">Set Pose</button>
                         <span id="poseResult" class="muted"></span>
                     </div>
-                    <div class="muted">Calls <code>&lt;ns&gt;/set_pose</code> service</div>
+                    <div class="muted topic-note">Calls <code>&lt;ns&gt;/set_pose</code> service</div>
+                </section>
+
+                <section class="localization-section" style="margin-top: 1rem; border-top: 1px solid #d7e6f8; padding-top: 0.75rem;">
+                    <div class="mini-title">Go To Point</div>
+                    <div class="set-pose-grid set-pose-grid--4">
+                        <label for="gotoX">X (m)</label>
+                        <label for="gotoY">Y (m)</label>
+                        <label for="gotoYaw">Yaw (rad)</label>
+                        <label for="gotoFrame">Frame</label>
+
+                        <input id="gotoX" type="number" value="0.0" step="0.1" />
+                        <input id="gotoY" type="number" value="0.0" step="0.1" />
+                        <input id="gotoYaw" type="number" value="0.0" step="0.01" />
+                        <input id="gotoFrame" type="text" value="world" />
+                    </div>
+                    <div class="row">
+                        <button id="goToGetPose">Get Pose</button>
+                        <button id="goToPoint">Go</button>
+                        <span id="goToResult" class="muted"></span>
+                    </div>
+                    <div class="muted topic-note">Calls <code>&lt;ns&gt;/navigate_to_pose</code> (nav2_msgs/action/NavigateToPose)</div>
                 </section>
             </section>
 

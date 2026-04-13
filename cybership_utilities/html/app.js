@@ -14,6 +14,7 @@ const getAllocatorNode = () => (el("allocNode").value || "").trim();
 // Periodic covariance update
 let covarianceInterval = null;
 const MAX_ODOM_AGE_SECONDS = 10;
+const LIVE_MAP_UPDATE_MS = 250;
 
 // Map state
 let mapState = {
@@ -758,7 +759,7 @@ el("connect").onclick = function() {
     setTimeout(() => {
         if (ws && ws.readyState === WebSocket.OPEN) {
             if (covarianceInterval) clearInterval(covarianceInterval);
-            covarianceInterval = setInterval(updateCovariance, 1000);
+            covarianceInterval = setInterval(updateCovariance, LIVE_MAP_UPDATE_MS);
             updateCovariance();
         }
     }, 500);
@@ -790,5 +791,76 @@ el("setPose").onclick = async () => {
     } catch (e) {
         el('poseResult').textContent = `Error: ${e.message}`;
         log("Error setting pose:", e.message);
+    }
+};
+
+// -------------- Go To Point (NavigateToPose Action) --------------
+el("goToGetPose").onclick = async () => {
+    try {
+        if (!ws || ws.readyState !== WebSocket.OPEN) {
+            el('goToResult').textContent = 'Error: websocket not connected';
+            return;
+        }
+
+        const namespace = "/" + (getNamespace().replace(/^\/+/, ""));
+        const response = await sendMessage({
+            type: "get_covariance",
+            namespace: namespace,
+        });
+
+        if (response.type !== "covariance_response") {
+            el('goToResult').textContent = 'Error: invalid pose response';
+            return;
+        }
+
+        const x = Number(response.x);
+        const y = Number(response.y);
+        const yaw = Number(response.yaw);
+
+        if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(yaw)) {
+            el('goToResult').textContent = 'Error: pose not available';
+            return;
+        }
+
+        el('gotoX').value = x.toFixed(3);
+        el('gotoY').value = y.toFixed(3);
+        el('gotoYaw').value = yaw.toFixed(3);
+        el('goToResult').textContent = 'Pose loaded into Go To fields';
+        log(`Loaded pose for Go To: x=${x.toFixed(3)} y=${y.toFixed(3)} yaw=${yaw.toFixed(3)}`);
+    } catch (e) {
+        el('goToResult').textContent = `Error: ${e.message}`;
+        log("Error getting pose for Go To:", e.message);
+    }
+};
+
+el("goToPoint").onclick = async () => {
+    try {
+        el('goToResult').textContent = 'Sending goal…';
+        const namespace = "/" + (getNamespace().replace(/^\/+/, ""));
+        const x = parseFloat(el('gotoX').value) || 0.0;
+        const y = parseFloat(el('gotoY').value) || 0.0;
+        const yaw = parseFloat(el('gotoYaw').value) || 0.0;
+        const frameId = (el('gotoFrame').value || 'world').trim() || 'world';
+
+        const response = await sendMessage({
+            type: "go_to_point",
+            namespace: namespace,
+            x: x,
+            y: y,
+            yaw: yaw,
+            frame_id: frameId,
+            wait_result: false,
+        });
+
+        if (response.type === "go_to_point_response" && response.success && response.accepted) {
+            el('goToResult').textContent = `Goal accepted: (${x}, ${y}, ${yaw})`;
+            log(`NavigateToPose goal accepted in ${frameId}: x=${x} y=${y} yaw=${yaw}`);
+        } else {
+            el('goToResult').textContent = 'Goal rejected';
+            log('NavigateToPose goal rejected:', response);
+        }
+    } catch (e) {
+        el('goToResult').textContent = `Error: ${e.message}`;
+        log("Error sending NavigateToPose goal:", e.message);
     }
 };
