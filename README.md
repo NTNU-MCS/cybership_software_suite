@@ -147,3 +147,8 @@ Use the utility functions in cybership_utilities for standardized launch argumen
 ```bash
 docker compose --profile voyager up
 ```
+
+# Documentation
+
+The documentations is mostly done through readme files of the subpackages and inline comments.
+[Operational manual is available here.](docs/operational_manual.pdf)
