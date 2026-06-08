@@ -7,12 +7,15 @@
   <maintainer email="emircem.gezer@gmail.com">cem</maintainer>
   <license>GPL-3.0-only</license>
   <depend>geometry_msgs</depend>
+  <depend>nav_msgs</depend>
   <depend>rclcpp</depend>
   <depend>std_msgs</depend>
   <depend>rclpy</depend>
   <depend>robot_localization</depend>
   <depend>tf_transformations</depend>
+
   <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>ament_cmake_python</buildtool_depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
