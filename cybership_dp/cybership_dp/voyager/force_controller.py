@@ -3,6 +3,7 @@ import rclpy
 import numpy as np
 import skadipy
 import skadipy.allocator.reference_filters
+import skadipy.allocator
 
 from cybership_dp.force_controller_base import BaseForceControllerROS
 from cybership_dp.force_controller_base import ThrusterPublisherSpec
@@ -58,6 +59,7 @@ class ForceControllerROS(BaseForceControllerROS):
                 "saturation_limit": 1.0,
                 "reference_angle": np.pi / 2.0,
                 "name": "port_azimuth",
+                "desired_force": np.array([0.0, 0.05, 0.0, 0.0, 0.0, 0.0]),
             },
         )
         starboard_azimuth = skadipy.actuator.Azimuth(
@@ -67,6 +69,7 @@ class ForceControllerROS(BaseForceControllerROS):
                 "saturation_limit": 1.0,
                 "reference_angle": -np.pi / 2.0,
                 "name": "starboard_azimuth",
+                "desired_force": np.array([0.0, -0.05, 0.0, 0.0, 0.0, 0.0]),
             },
         )
 
@@ -83,15 +86,21 @@ class ForceControllerROS(BaseForceControllerROS):
             skadipy.allocator.ForceTorqueComponent.Y,
             skadipy.allocator.ForceTorqueComponent.N,
         ]
-        self.allocator = skadipy.allocator.reference_filters.MinimumMagnitudeAndAzimuth(
+        # self.allocator = skadipy.allocator.reference_filters.MinimumMagnitudeAndAzimuth(
+        #     actuators=self.actuators,
+        #     force_torque_components=dofs,
+        #     gamma=0.01,
+        #     mu=0.1,
+        #     rho=1,
+        #     time_step=(1.0 / self.freq),
+        #     control_barrier_function=skadipy.safety.ControlBarrierFunctionType.SUMSQUARE,
+        # )
+
+        self.allocator = skadipy.allocator.PseudoInverse(
             actuators=self.actuators,
             force_torque_components=dofs,
-            gamma=0.01,
-            mu=0.1,
-            rho=1,
-            time_step=(1.0 / self.freq),
-            control_barrier_function=skadipy.safety.ControlBarrierFunctionType.SUMSQUARE,
         )
+
         self.allocator.compute_configuration_matrix()
 
 
