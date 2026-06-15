@@ -51,6 +51,7 @@ class ForceControllerROS(BaseForceControllerROS):
                 "saturation_limit": 0.7,
                 "name": "tunnel",
             },
+            weight=10.0,
         )
         port_azimuth = skadipy.actuator.Azimuth(
             position=skadipy.toolbox.Point([-0.4574, -0.055, 0.0]),
