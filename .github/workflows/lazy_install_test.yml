@@ -1,4 +1,4 @@
-name: Install & Build via lazy_install.sh (ROS 2 Jazzy, Ubuntu 24.04)
+name: Install & Build via lazy_install.sh
 
 on:
   push:
@@ -6,8 +6,6 @@ on:
   workflow_dispatch:
 
 env:
-  ROS_DISTRO: jazzy
-  # Keep workspace inside runner home by default; override here if your script supports it
   ROS_WS: ${{ github.workspace }}/ros_ws
   DEBIAN_FRONTEND: noninteractive
   NEEDRESTART_MODE: a
@@ -15,8 +13,20 @@ env:
 
 jobs:
   install-and-build:
-    runs-on: ubuntu-latest
+    name: ROS ${{ matrix.ros_distro }} (${{ matrix.ubuntu_version }})
+    runs-on: ${{ matrix.ubuntu_version }}
     timeout-minutes: 60
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - ubuntu_version: ubuntu-22.04
+            ros_distro: humble
+          - ubuntu_version: ubuntu-24.04
+            ros_distro: jazzy
+          - ubuntu_version: ubuntu-26.04
+            ros_distro: lyrical
 
     defaults:
       run:
@@ -34,7 +44,9 @@ jobs:
           cat /etc/os-release
           df -h
 
-      - name: Install ROS 2 Jazzy (CI-safe)
+      - name: Install ROS 2 ${{ matrix.ros_distro }} (CI-safe)
+        env:
+          ROS_DISTRO: ${{ matrix.ros_distro }}
         run: |
           set -eo pipefail
 
@@ -70,21 +82,19 @@ jobs:
           # Required per ROS docs: upgrade before installing ROS
           sudo env DEBIAN_FRONTEND=${DEBIAN_FRONTEND} NEEDRESTART_MODE=${NEEDRESTART_MODE} apt-get upgrade -y
 
-          # Install ROS 2 Jazzy Desktop
-          sudo env DEBIAN_FRONTEND=${DEBIAN_FRONTEND} NEEDRESTART_MODE=${NEEDRESTART_MODE} apt-get install -y ros-jazzy-desktop
+          # Install ROS 2 Desktop
+          sudo env DEBIAN_FRONTEND=${DEBIAN_FRONTEND} NEEDRESTART_MODE=${NEEDRESTART_MODE} apt-get install -y ros-${ROS_DISTRO}-desktop
 
           # Development tools (recommended)
           sudo env DEBIAN_FRONTEND=${DEBIAN_FRONTEND} NEEDRESTART_MODE=${NEEDRESTART_MODE} apt-get install -y ros-dev-tools
 
           # Verify installation
-          source /opt/ros/jazzy/setup.bash
+          source /opt/ros/${ROS_DISTRO}/setup.bash
 
       - name: Run lazy_install.sh (first pass)
         env:
-          ROS_DISTRO: ${{ env.ROS_DISTRO }}
-          # If your script respects ROS_WORKSPACE, we direct it to a contained path
+          ROS_DISTRO: ${{ matrix.ros_distro }}
           ROS_WORKSPACE: ${{ env.ROS_WS }}
-          # ROS is already installed above; avoid extra apt work & prompts
           SKIP_APT: "1"
         run: |
           set -eo pipefail
@@ -98,7 +108,7 @@ jobs:
 
       - name: Run lazy_install.sh again (idempotency check)
         env:
-          ROS_DISTRO: ${{ env.ROS_DISTRO }}
+          ROS_DISTRO: ${{ matrix.ros_distro }}
           ROS_WORKSPACE: ${{ env.ROS_WS }}
           SKIP_APT: "1"
         run: |

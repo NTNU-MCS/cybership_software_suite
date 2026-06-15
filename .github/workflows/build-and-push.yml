@@ -13,8 +13,8 @@ jobs:
       fail-fast: false
       matrix:
         configurations:
+          - ros_distro: 'lyrical'
           - ros_distro: 'humble'
-          - ros_distro: 'kilted'
           - ros_distro: 'jazzy'
 
     runs-on: ubuntu-latest

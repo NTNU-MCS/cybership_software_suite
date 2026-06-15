@@ -24,7 +24,14 @@ Follow these steps to set up your ROS 2 workspace with the CyberShip Software Su
  > source /opt/ros/<distro>/setup.bash
  > ```
  >
- > Replace `<distro>` with your ROS 2 distribution (e.g., `humble`, `jazzy`, etc.).
+ > Replace `<distro>` with your ROS 2 distribution (e.g., `humble`, `jazzy`, `lyrical`, etc.).
+
+ > [!IMPORTANT]
+ > make sure that you have `ros-dev-tools` installed. You can install it using:
+ >
+ >```bash
+ >sudo apt install ros-<distro>-ros-dev-tools
+ >```
 
  > [!NOTE]
  > Guides assumes you have `$ROS_WORKSPACE` environment variable set to the root of your ROS 2 workspace. ROS workspace is usually is at `~/ros_ws` or similar. You can set this variable
