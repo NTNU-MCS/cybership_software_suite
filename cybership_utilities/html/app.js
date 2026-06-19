@@ -833,6 +833,201 @@ el("goToGetPose").onclick = async () => {
     }
 };
 
+// -------------- Straight Line Guidance UI --------------
+(function () {
+    function updateSlgStartInputs() {
+        const locked = el('slgUseVesselPos').checked;
+        el('slgStartX').disabled = locked;
+        el('slgStartY').disabled = locked;
+        el('slgStartNote').style.display = locked ? '' : 'none';
+    }
+
+    el('slgUseVesselPos').addEventListener('change', updateSlgStartInputs);
+    updateSlgStartInputs();
+
+    let slgVdTimer = null;
+    el('slgVelocity').oninput = function () {
+        const v = parseFloat(this.value);
+        el('slgVelocityValue').textContent = v.toFixed(2);
+        // Push to node live if guidance is running (debounced 150 ms)
+        clearTimeout(slgVdTimer);
+        slgVdTimer = setTimeout(async () => {
+            if (slgStatusInterval === null) return;   // not running
+            try {
+                await sendMessage({ type: 'slg_update', namespace: getNamespace(), v_d: v });
+            } catch (_) {}
+        }, 150);
+    };
+
+    el('slgAlignHeading').addEventListener('change', function () {
+        el('slgHeading').disabled = this.checked;
+    });
+})();
+
+// -------------- Straight Line Guidance actions --------------
+let slgStatusInterval = null;
+const SLG_STATUS_MS = 500;
+
+el('slgSetLine').onclick = async () => {
+    try {
+        const namespace = getNamespace();
+        const response = await sendMessage({
+            type:           'slg_set_line',
+            namespace,
+            v_d:            parseFloat(el('slgVelocity').value),
+            psi_ref_deg:    parseFloat(el('slgHeading').value) || 0,
+            sigma:          el('slgSmoothAccel').checked ? 1 : 0,
+            align_heading:  el('slgAlignHeading').checked,
+            use_vessel_pos: el('slgUseVesselPos').checked,
+            p_start_x:      parseFloat(el('slgStartX').value) || 0,
+            p_start_y:      parseFloat(el('slgStartY').value) || 0,
+            p_end_x:        parseFloat(el('slgEndX').value) || 0,
+            p_end_y:        parseFloat(el('slgEndY').value) || 0,
+            lam:            parseFloat(el('slgLambda').value) || 0.01,
+            k:              parseFloat(el('slgKRamp').value)  || 8,
+        });
+        if (response.type === 'slg_set_line_response' && response.success) {
+            el('slgState').textContent = 'running';
+            log(`SLG: line set — ${response.message || 'ok'}`);
+            if (slgStatusInterval) clearInterval(slgStatusInterval);
+            slgStatusInterval = setInterval(pollSlgStatus, SLG_STATUS_MS);
+        } else {
+            log('SLG: set_line rejected —', response.message ?? JSON.stringify(response));
+        }
+    } catch (e) {
+        log('SLG set_line error:', e.message);
+    }
+};
+
+el('slgStop').onclick = async () => {
+    try {
+        const namespace = getNamespace();
+        const response = await sendMessage({ type: 'slg_stop', namespace });
+        if (response.type === 'slg_stop_response' && response.success) {
+            if (slgStatusInterval) { clearInterval(slgStatusInterval); slgStatusInterval = null; }
+            el('slgState').textContent = 'idle';
+            log('SLG: stopped');
+        }
+    } catch (e) {
+        log('SLG stop error:', e.message);
+    }
+};
+
+// -------------- Tracking error rolling plots --------------
+const SLG_HISTORY = 120; // samples at 2 Hz ≈ 60 s
+const slgErr = { ex: [], ey: [], epsi: [] };
+
+function pushSlgError(ex, ey, epsi) {
+    slgErr.ex.push(ex);     if (slgErr.ex.length   > SLG_HISTORY) slgErr.ex.shift();
+    slgErr.ey.push(ey);     if (slgErr.ey.length   > SLG_HISTORY) slgErr.ey.shift();
+    slgErr.epsi.push(epsi); if (slgErr.epsi.length > SLG_HISTORY) slgErr.epsi.shift();
+}
+
+function _drawPlot(canvasId, series, colors, waitMsg) {
+    const canvas = el(canvasId);
+    if (!canvas) return;
+    canvas.width = canvas.offsetWidth;
+    const W = canvas.width, H = canvas.height;
+    const ctx = canvas.getContext('2d');
+
+    ctx.fillStyle = '#111c2d';
+    ctx.fillRect(0, 0, W, H);
+
+    const pad = { t: 6, b: 18, l: 44, r: 8 };
+    const pw = W - pad.l - pad.r;
+    const ph = H - pad.t - pad.b;
+    const n  = series[0].length;
+
+    if (n < 2) {
+        ctx.fillStyle = 'rgba(138,170,214,0.25)';
+        ctx.font = '11px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(waitMsg ?? 'waiting for data…', W / 2, H / 2);
+        return;
+    }
+
+    const allVals = series.flat();
+    const maxAbs  = Math.max(0.01, ...allVals.map(Math.abs));
+    const yMax    = maxAbs * 1.25;
+    const gridY   = v => pad.t + ph / 2 - (v / yMax) * (ph / 2);
+
+    // Half-range grid lines
+    ctx.strokeStyle = 'rgba(138,170,214,0.12)';
+    ctx.lineWidth = 1;
+    for (const v of [-yMax / 2, yMax / 2]) {
+        ctx.beginPath(); ctx.moveTo(pad.l, gridY(v)); ctx.lineTo(pad.l + pw, gridY(v)); ctx.stroke();
+    }
+    // Zero line
+    ctx.strokeStyle = 'rgba(138,170,214,0.3)';
+    ctx.beginPath(); ctx.moveTo(pad.l, gridY(0)); ctx.lineTo(pad.l + pw, gridY(0)); ctx.stroke();
+
+    // Y-axis labels
+    ctx.fillStyle = '#486081';
+    ctx.font = '9px monospace';
+    ctx.textAlign = 'right';
+    const fmt = v => Math.abs(v) < 10 ? v.toFixed(2) : v.toFixed(1);
+    ctx.fillText(fmt(yMax),  pad.l - 3, gridY(yMax) + 3);
+    ctx.fillText('0',        pad.l - 3, gridY(0) + 3);
+    ctx.fillText(fmt(-yMax), pad.l - 3, gridY(-yMax) + 3);
+
+    // Series lines
+    series.forEach((data, i) => {
+        ctx.strokeStyle = colors[i];
+        ctx.lineWidth = 1.5;
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        for (let j = 0; j < n; j++) {
+            const x = pad.l + (j / (n - 1)) * pw;
+            const y = gridY(data[j]);
+            j === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+    });
+}
+
+function drawSlgPlots() {
+    _drawPlot('slgPosPlot',  [slgErr.ex, slgErr.ey], ['#e36f65', '#17b4a0']);
+    _drawPlot('slgHeadPlot', [slgErr.epsi],           ['#9b7fe8']);
+}
+
+async function pollSlgStatus() {
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    try {
+        const response = await sendMessage({
+            type: 'slg_status',
+            namespace: getNamespace(),
+        });
+        if (response.type !== 'slg_status_response') return;
+
+        el('slgPathLength').textContent =
+            Number.isFinite(response.path_length)
+                ? `${response.path_length.toFixed(2)} m` : '—';
+        el('slgBearing').textContent =
+            Number.isFinite(response.bearing_deg)
+                ? `${response.bearing_deg.toFixed(1)}°` : '—';
+        el('slgProgress').textContent =
+            Number.isFinite(response.theta)
+                ? response.theta.toFixed(2) : '—';
+
+        const state = response.state ?? '—';
+        el('slgState').textContent = state;
+
+        // Feed error plot
+        const ex   = response.ex;
+        const ey   = response.ey;
+        const epsi = response.epsi_deg;
+        if (Number.isFinite(ex) && Number.isFinite(ey) && Number.isFinite(epsi)) {
+            pushSlgError(ex, ey, epsi);
+            drawSlgPlots();
+        }
+
+        if (state === 'arrived' || state === 'idle') {
+            clearInterval(slgStatusInterval);
+            slgStatusInterval = null;
+        }
+    } catch (_) { /* silent during polling */ }
+}
+
 el("goToPoint").onclick = async () => {
     try {
         el('goToResult').textContent = 'Sending goal…';

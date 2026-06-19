@@ -14,6 +14,7 @@ Run: ros2 run cybership_utilities web_interface_server.py
 import asyncio
 import json
 import logging
+import math
 from typing import Dict, List, Optional, Set
 import websockets
 from websockets.asyncio.server import serve
@@ -31,8 +32,12 @@ try:
     from nav_msgs.msg import Odometry
     from geometry_msgs.msg import PoseStamped
     from nav2_msgs.action import NavigateToPose
+    from rcl_interfaces.srv import SetParameters
+    from rcl_interfaces.msg import Parameter as RclParameter, ParameterValue, ParameterType
+    from std_msgs.msg import Float64, String as StdString
+    from geometry_msgs.msg import Vector3
 except ImportError:
-    print("Missing dependencies: topic_tools_interfaces, std_srvs, lifecycle_msgs, nav_msgs, geometry_msgs, nav2_msgs")
+    print("Missing dependencies: topic_tools_interfaces, std_srvs, lifecycle_msgs, nav_msgs, geometry_msgs, nav2_msgs, rcl_interfaces")
     raise
 
 
@@ -57,6 +62,11 @@ class ROS2Bridge(Node):
         self._odometry_cache: Dict[str, Odometry] = {}
         self._odometry_last_update_sec: Dict[str, float] = {}
         self._action_clients: Dict[str, ActionClient] = {}
+
+        # Straight-line guidance bridge-side state (keyed by namespace)
+        self._slg_state: Dict[str, Dict] = {}
+        # Live data from node topics (keyed by namespace)
+        self._slg_live: Dict[str, Dict] = {}
 
     def get_or_create_clients(self, namespace: str, mux_name: str):
         """Get or create service clients for a given namespace and mux name."""
@@ -97,6 +107,85 @@ class ROS2Bridge(Node):
         """Callback for odometry messages."""
         self._odometry_cache[namespace] = msg
         self._odometry_last_update_sec[namespace] = self.get_clock().now().nanoseconds / 1e9
+
+    def get_or_create_slg_subscriptions(self, namespace: str):
+        """Subscribe to all straight_line_guidance status topics for a namespace."""
+        key = f"slg:{namespace}"
+        if key in self._service_clients:
+            return
+
+        ns = self._normalize_namespace(namespace)
+        prefix = f"{ns}/guidance/straight_line" if ns else "/guidance/straight_line"
+
+        def _f64(field):
+            return lambda msg: self._slg_live.setdefault(namespace, {}).__setitem__(field, float(msg.data))
+
+        def _vec3(msg):
+            self._slg_live.setdefault(namespace, {}).update(
+                ex=float(msg.x), ey=float(msg.y), epsi=float(msg.z)
+            )
+
+        def _state(msg):
+            live = self._slg_live.setdefault(namespace, {})
+            live['state'] = msg.data
+            # Keep bridge-side state in sync so slg_stop sees consistent data
+            self._slg_state.setdefault(namespace, {})['state'] = msg.data
+
+        self._service_clients[key] = [
+            self.create_subscription(Float64,    f"{prefix}/path_length",     _f64('path_length'), 10),
+            self.create_subscription(Float64,    f"{prefix}/bearing",         _f64('bearing_rad'), 10),
+            self.create_subscription(Float64,    f"{prefix}/theta",           _f64('theta'),       10),
+            self.create_subscription(StdString,  f"{prefix}/state",           _state,              10),
+            self.create_subscription(Vector3,    f"{prefix}/tracking_error",  _vec3,               10),
+        ]
+        logger.info(f"Created SLG topic subscriptions under {prefix}")
+
+    def get_or_create_param_client(self, namespace: str, node_name: str):
+        """Get or create a SetParameters client for a node."""
+        ns = self._normalize_namespace(namespace)
+        key = f"set_params:{ns}/{node_name}"
+        if key not in self._service_clients:
+            svc = f"{ns}/{node_name}/set_parameters" if ns else f"/{node_name}/set_parameters"
+            self._service_clients[key] = {
+                "set_params": self.create_client(SetParameters, svc)
+            }
+            logger.info(f"Created SetParameters client for {svc}")
+        return self._service_clients[key]["set_params"]
+
+    @staticmethod
+    def _make_param(name: str, value) -> RclParameter:
+        p = RclParameter()
+        p.name = name
+        pv = ParameterValue()
+        if isinstance(value, bool):
+            pv.type = ParameterType.PARAMETER_BOOL
+            pv.bool_value = value
+        elif isinstance(value, int):
+            pv.type = ParameterType.PARAMETER_INTEGER
+            pv.integer_value = value
+        elif isinstance(value, float):
+            pv.type = ParameterType.PARAMETER_DOUBLE
+            pv.double_value = value
+        else:
+            raise TypeError(f"Unsupported parameter type: {type(value)}")
+        p.value = pv
+        return p
+
+    async def call_set_parameters(self, namespace: str, node_name: str, params: Dict) -> bool:
+        """Set ROS 2 parameters on a node via the SetParameters service."""
+        cli = self.get_or_create_param_client(namespace, node_name)
+        if not cli.wait_for_service(timeout_sec=2.0):
+            raise Exception(f"SetParameters service not available for {node_name}")
+        req = SetParameters.Request()
+        req.parameters = [self._make_param(k, v) for k, v in params.items()]
+        future = cli.call_async(req)
+        start = self.get_clock().now()
+        while not future.done():
+            await asyncio.sleep(0.01)
+            if (self.get_clock().now() - start).nanoseconds / 1e9 > 5.0:
+                raise Exception("SetParameters call timed out")
+        result = future.result()
+        return all(r.successful for r in result.results) if result else False
 
     def get_or_create_empty_client(self, service_name: str):
         """Get or create an Empty service client."""
@@ -766,6 +855,77 @@ class WebSocketServer:
             return {
                 "type": "services",
                 "services": services
+            }
+
+        elif msg_type == "slg_set_line":
+            namespace = data.get("namespace", "")
+            ns = self.ros_bridge._normalize_namespace(namespace)
+
+            # Subscribe to live topics as early as possible.
+            self.ros_bridge.get_or_create_slg_subscriptions(namespace)
+
+            # Push all UI values as ROS 2 parameters before calling the service.
+            ros_params = {
+                "guidance.v_d":            float(data.get("v_d", 0.0)),
+                "guidance.psi_ref_deg":    float(data.get("psi_ref_deg", 0.0)),
+                "guidance.sigma":          int(data.get("sigma", 1)),
+                "guidance.align_heading":  bool(data.get("align_heading", False)),
+                "guidance.use_vessel_pos": bool(data.get("use_vessel_pos", True)),
+                "guidance.p_start_x":      float(data.get("p_start_x", 0.0)),
+                "guidance.p_start_y":      float(data.get("p_start_y", 0.0)),
+                "guidance.p_end_x":        float(data.get("p_end_x", 0.0)),
+                "guidance.p_end_y":        float(data.get("p_end_y", 0.0)),
+                "guidance.lam":            float(data.get("lam", 0.01)),
+                "guidance.k":              float(data.get("k", 8.0)),
+            }
+            await self.ros_bridge.call_set_parameters(namespace, "straight_line_guidance", ros_params)
+
+            service_name = f"{ns}/guidance/straight_line/set_line" if ns else "/guidance/straight_line/set_line"
+            await self.ros_bridge.call_empty_service(service_name)
+
+            self.ros_bridge._slg_state[namespace] = {"state": "running"}
+            return {"type": "slg_set_line_response", "success": True, "message": "ok"}
+
+        elif msg_type == "slg_update":
+            namespace = data.get("namespace", "")
+            # Only the keys present in the message are updated — allows partial updates.
+            live_map = {
+                "v_d":          ("guidance.v_d",         float),
+                "sigma":        ("guidance.sigma",        int),
+                "psi_ref_deg":  ("guidance.psi_ref_deg",  float),
+                "align_heading": ("guidance.align_heading", bool),
+            }
+            params = {}
+            for ui_key, (ros_key, cast) in live_map.items():
+                if ui_key in data:
+                    params[ros_key] = cast(data[ui_key])
+            if params:
+                await self.ros_bridge.call_set_parameters(namespace, "straight_line_guidance", params)
+            return {"type": "slg_update_response", "success": True}
+
+        elif msg_type == "slg_stop":
+            namespace = data.get("namespace", "")
+            ns = self.ros_bridge._normalize_namespace(namespace)
+            service_name = f"{ns}/guidance/straight_line/stop" if ns else "/guidance/straight_line/stop"
+            await self.ros_bridge.call_empty_service(service_name)
+            self.ros_bridge._slg_state[namespace] = {"state": "idle"}
+            return {"type": "slg_stop_response", "success": True}
+
+        elif msg_type == "slg_status":
+            namespace = data.get("namespace", "")
+            # Ensure subscriptions are active (idempotent).
+            self.ros_bridge.get_or_create_slg_subscriptions(namespace)
+            live = self.ros_bridge._slg_live.get(namespace, {})
+            bearing_rad = live.get("bearing_rad")
+            return {
+                "type":        "slg_status_response",
+                "state":       live.get("state", self.ros_bridge._slg_state.get(namespace, {}).get("state", "idle")),
+                "path_length": live.get("path_length"),
+                "bearing_deg": math.degrees(bearing_rad) if bearing_rad is not None else None,
+                "theta":       live.get("theta"),
+                "ex":          live.get("ex"),
+                "ey":          live.get("ey"),
+                "epsi_deg":    math.degrees(live["epsi"]) if live.get("epsi") is not None else None,
             }
 
         else:

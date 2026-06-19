@@ -184,6 +184,133 @@
         </div>
     </fieldset>
 
+<fieldset class="panel-card panel-stack">
+    <legend>Guidance System</legend>
+
+    <section class="panel-card panel-card--soft">
+        <div class="mini-title">Straight Line Guidance</div>
+        <div class="guidance-grid">
+
+            <!-- Waypoints -->
+            <div class="guidance-card">
+                <div class="mini-title">⊙ Waypoints</div>
+                <label class="checkbox-label">
+                    <input type="checkbox" id="slgUseVesselPos" checked />
+                    Start at current vessel position
+                </label>
+                <div class="guidance-sub-label">
+                    <span>Start point</span>
+                    <span id="slgStartNote" class="muted" style="font-weight:400;">from vessel</span>
+                </div>
+                <div class="guidance-xy-row">
+                    <span class="guidance-axis">x</span>
+                    <input id="slgStartX" type="number" value="0.00" step="0.1" disabled />
+                    <span class="guidance-axis">y</span>
+                    <input id="slgStartY" type="number" value="0.00" step="0.1" disabled />
+                </div>
+                <div class="guidance-sub-label" style="margin-top:0.5rem;">
+                    <span>End point [m]</span>
+                </div>
+                <div class="guidance-xy-row">
+                    <span class="guidance-axis">x</span>
+                    <input id="slgEndX" type="number" value="3.00" step="0.1" />
+                    <span class="guidance-axis">y</span>
+                    <input id="slgEndY" type="number" value="2.00" step="0.1" />
+                </div>
+                <div class="muted topic-note">Either point is arbitrary. Positive x is towards the beach, negative towards the wavemaker.</div>
+            </div>
+
+            <!-- Speed -->
+            <div class="guidance-card">
+                <div class="mini-title">⊛ Speed</div>
+                <div style="font-weight:600; font-size:0.9rem; margin-bottom:0.3rem;">Desired velocity [m/s]</div>
+                <div class="guidance-velocity-row">
+                    <input id="slgVelocity" type="range" min="0" max="0.3" step="0.01" value="0" />
+                    <span class="guidance-velocity-value" id="slgVelocityValue">0.00</span>
+                </div>
+                <div class="muted topic-note">Initialised to 0.00 m/s.</div>
+                <label class="checkbox-label" style="margin-top:0.55rem;">
+                    <input type="checkbox" id="slgSmoothAccel" checked />
+                    Enable smooth acceleration
+                </label>
+                <div class="muted topic-note">On: tanh ramp up/down at waypoints (σ=1). Off: speed is stepped (σ=0). Can change live.</div>
+            </div>
+
+            <!-- Heading -->
+            <div class="guidance-card">
+                <div class="mini-title">⊙ Heading</div>
+                <div style="font-weight:600; font-size:0.9rem; margin-bottom:0.3rem;">Heading [deg]</div>
+                <input id="slgHeading" type="number" value="0" step="1" style="width:100%;" />
+                <label class="checkbox-label" style="margin-top:0.55rem;">
+                    <input type="checkbox" id="slgAlignHeading" />
+                    Align heading to path
+                </label>
+                <div class="muted topic-note">Off: vessel holds the fixed heading while translating (it can crab sideways along the line).</div>
+            </div>
+
+            <!-- Operation -->
+            <div class="guidance-card">
+                <div class="mini-title">▷ Operation</div>
+                <div class="guidance-op-buttons">
+                    <button id="slgSetLine">✓ Set line / start</button>
+                    <button id="slgStop" class="btn-secondary">↺ Stop / hold</button>
+                </div>
+                <div class="muted topic-note">Set line freezes p<sub>s</sub>/p<sub>e</sub> at the current position and begins DP tracking.</div>
+                <div class="guidance-advanced">
+                    <div class="guidance-advanced-label">Advanced</div>
+                    <div class="guidance-advanced-grid">
+                        <label for="slgLambda">λ regularization</label>
+                        <label for="slgKRamp">k ramp steepness</label>
+                        <input id="slgLambda" type="number" value="0.01" step="0.001" />
+                        <input id="slgKRamp" type="number" value="8" step="1" />
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Live status -->
+        <div class="guidance-status-bar">
+            <div class="guidance-status-header">↑ Live status — read-only outputs</div>
+            <div class="guidance-status-stats">
+                <div>
+                    <div class="stat-label">Path length</div>
+                    <div class="stat-value" id="slgPathLength">—</div>
+                </div>
+                <div>
+                    <div class="stat-label">Bearing</div>
+                    <div class="stat-value" id="slgBearing">—</div>
+                </div>
+                <div>
+                    <div class="stat-label">Progress θ</div>
+                    <div class="stat-value" id="slgProgress">—</div>
+                </div>
+                <div>
+                    <div class="stat-label">State</div>
+                    <div class="stat-value" id="slgState">idle</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tracking error plots -->
+        <div class="guidance-metrics">
+            <div class="guidance-status-header">↗ Position tracking error — live</div>
+            <canvas id="slgPosPlot" height="110"></canvas>
+            <div class="slg-legend">
+                <span class="slg-legend-swatch" style="--c:#e36f65"></span>e<sub>x</sub> [m]
+                <span class="slg-legend-swatch" style="--c:#17b4a0"></span>e<sub>y</sub> [m]
+            </div>
+        </div>
+        <div class="guidance-metrics" style="margin-top:0.4rem;">
+            <div class="guidance-status-header">↗ Heading tracking error — live</div>
+            <canvas id="slgHeadPlot" height="110"></canvas>
+            <div class="slg-legend">
+                <span class="slg-legend-swatch" style="--c:#9b7fe8"></span>e<sub>ψ</sub> [°]
+            </div>
+        </div>
+    </section>
+</fieldset>
+
 <pre id="log"></pre>
 <div class="muted">Log shows responses/errors from the WebSocket bridge.</div>
 </div>
