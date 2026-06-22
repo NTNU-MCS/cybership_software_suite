@@ -427,9 +427,17 @@ input[type="checkbox"] {
     margin-bottom: 0.25rem;
 }
 
-.guidance-xy-row input[type="number"] {
+.guidance-xy-row input[type="number"],
+.guidance-xy-row input[type="text"] {
     width: 100%;
     min-width: 0;
+}
+
+.guidance-xy-row input[type="text"]:placeholder-shown {
+    color: var(--muted);
+    font-style: italic;
+    background: #eef3fb;
+    border-color: #b0c4de;
 }
 
 .guidance-axis {
@@ -454,7 +462,8 @@ input[type="checkbox"] {
 .guidance-velocity-value {
     font-weight: 700;
     font-size: 1rem;
-    min-width: 3rem;
+    min-width: 4.5rem;
+    width: 4.5rem;
     text-align: right;
     color: var(--text);
 }

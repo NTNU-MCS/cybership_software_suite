@@ -25,10 +25,10 @@ Parameters
     guidance.sigma          int     1       smooth acceleration {0=step, 1=tanh}
     guidance.align_heading  bool    False   override psi_ref with path bearing
     guidance.use_vessel_pos bool    True    use current odom as p_start
-    guidance.p_start_x      float   0.0     start x [m]  (ignored if use_vessel_pos)
-    guidance.p_start_y      float   0.0     start y [m]  (ignored if use_vessel_pos)
-    guidance.p_end_x        float   3.0     end x [m]
-    guidance.p_end_y        float   2.0     end y [m]
+    guidance.p_start_x      float   None    start x [m]  (ignored if use_vessel_pos; reset to None on stop)
+    guidance.p_start_y      float   None    start y [m]  (ignored if use_vessel_pos; reset to None on stop)
+    guidance.p_end_x        float   None    end x [m]   (must be set before calling set_line; reset to None on stop)
+    guidance.p_end_y        float   None    end y [m]   (must be set before calling set_line; reset to None on stop)
     vessel.length           float   1.0     ship length [m]
     vessel.beam             float   0.3     ship beam [m]
     vessel.draft            float   0.1     ship draft [m]
@@ -44,6 +44,8 @@ import math
 import numpy as np
 import rclpy
 from rclpy.node import Node
+from rclpy.parameter import Parameter
+from rcl_interfaces.msg import ParameterDescriptor
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Wrench, Vector3
 from std_msgs.msg import Float64, String
@@ -60,7 +62,7 @@ from cybership_controller.guidance.straight_line import (
 class StraightLineGuidanceNode(Node):
 
     def __init__(self):
-        super().__init__('straight_line_guidance')
+        super().__init__('straight_line_guidance', allow_undeclared_parameters=True)
 
         # ---- guidance parameters ----
         self.declare_parameter('guidance.lam', 0.01)
@@ -70,10 +72,11 @@ class StraightLineGuidanceNode(Node):
         self.declare_parameter('guidance.sigma', 1)
         self.declare_parameter('guidance.align_heading', False)
         self.declare_parameter('guidance.use_vessel_pos', True)
-        self.declare_parameter('guidance.p_start_x', 0.0)
-        self.declare_parameter('guidance.p_start_y', 0.0)
-        self.declare_parameter('guidance.p_end_x', 3.0)
-        self.declare_parameter('guidance.p_end_y', 2.0)
+        _dyn = ParameterDescriptor(dynamic_typing=True)
+        self.declare_parameter('guidance.p_start_x', None, _dyn)
+        self.declare_parameter('guidance.p_start_y', None, _dyn)
+        self.declare_parameter('guidance.p_end_x', None, _dyn)
+        self.declare_parameter('guidance.p_end_y', None, _dyn)
 
         # ---- vessel model parameters ----
         self.declare_parameter('vessel.length', 1.0)
@@ -81,7 +84,7 @@ class StraightLineGuidanceNode(Node):
         self.declare_parameter('vessel.draft', 0.05)
 
         # ---- controller gains ----
-        self.declare_parameter('control.kp', [1.0, 1.0, 1.0])
+        self.declare_parameter('control.kp', [0.3, 0.3, 0.3])
         self.declare_parameter('control.kd', [0.4, 0.5, 0.2])
         self.declare_parameter('control.frequency', 20.0)
         self.declare_parameter('control.max_force', 5.0)
@@ -124,7 +127,6 @@ class StraightLineGuidanceNode(Node):
 
         self._control_timer = None
         self._dt = 1.0 / self.get_parameter('control.frequency').value
-        self._arrived = False
 
         self.get_logger().info('straight_line_guidance node ready')
 
@@ -164,20 +166,36 @@ class StraightLineGuidanceNode(Node):
         self.guidance.psi_ref = math.radians(
             float(self.get_parameter('guidance.psi_ref_deg').value))
 
-        p_end = [
-            self.get_parameter('guidance.p_end_x').value,
-            self.get_parameter('guidance.p_end_y').value,
-        ]
-        if self.get_parameter('guidance.use_vessel_pos').value:
-            p_start = None   # set_line() will use eta_signal[:2]
+        p_end_x = self.get_parameter('guidance.p_end_x').value if self.has_parameter('guidance.p_end_x') else None
+        p_end_y = self.get_parameter('guidance.p_end_y').value if self.has_parameter('guidance.p_end_y') else None
+
+        if p_end_x is None and p_end_y is None:
+            self.get_logger().warn('p_end not configured — ignoring set_line call.')
+            return response
+
+        if p_end_x is None or p_end_y is None:
+            # Single-axis offset mode: the non-None value is a relative offset;
+            # the missing axis is snapped from the vessel's current position.
+            vessel_pos = self.guidance.eta_signal[:2]
+            if p_end_y is None:
+                p_end = [vessel_pos[0] + p_end_x, vessel_pos[1]]
+            else:
+                p_end = [vessel_pos[0], vessel_pos[1] + p_end_y]
+            p_start = None  # always start from current vessel position
         else:
-            p_start = [
-                self.get_parameter('guidance.p_start_x').value,
-                self.get_parameter('guidance.p_start_y').value,
-            ]
+            # Both axes set: treat as absolute world coordinates (existing behaviour).
+            p_end = [p_end_x, p_end_y]
+            if self.get_parameter('guidance.use_vessel_pos').value:
+                p_start = None
+            else:
+                p_start_x = self.get_parameter('guidance.p_start_x').value if self.has_parameter('guidance.p_start_x') else None
+                p_start_y = self.get_parameter('guidance.p_start_y').value if self.has_parameter('guidance.p_start_y') else None
+                if p_start_x is None or p_start_y is None:
+                    self.get_logger().warn('p_start not configured and use_vessel_pos=False — ignoring set_line call.')
+                    return response
+                p_start = [p_start_x, p_start_y]
 
         self.guidance.set_line(p_end=p_end, p_start=p_start)
-        self._arrived = False
 
         # (re)start the control loop
         if self._control_timer is not None:
@@ -199,7 +217,12 @@ class StraightLineGuidanceNode(Node):
             self._control_timer.cancel()
             self._control_timer = None
         self.guidance.active = False
-        self._arrived = False
+        self.set_parameters([
+            Parameter('guidance.p_end_x'),
+            Parameter('guidance.p_end_y'),
+            Parameter('guidance.p_start_x'),
+            Parameter('guidance.p_start_y'),
+        ])
         self._force_pub.publish(Wrench())
         self._pub_state.publish(String(data='idle'))
         self.get_logger().info('Guidance stopped.')
@@ -224,16 +247,7 @@ class StraightLineGuidanceNode(Node):
             self.guidance.psi_ref = math.radians(
                 float(self.get_parameter('guidance.psi_ref_deg').value))
 
-        if self._arrived:
-            # Hold at the endpoint with zero velocity/acceleration reference.
-            eta_d = np.array([self.guidance.p1[0], self.guidance.p1[1], self.guidance.psi_ref])
-            eta_d_dot  = np.zeros(3)
-            eta_d_ddot = np.zeros(3)
-        else:
-            eta_d, eta_d_dot, eta_d_ddot = self.guidance.step(self._dt)
-            if self.guidance.arrived:
-                self._arrived = True
-                self.get_logger().info('Arrived at end point — holding position.')
+        eta_d, eta_d_dot, eta_d_ddot = self.guidance.step(self._dt)
 
         self.controller.eta_d_signal = eta_d
         self.controller.eta_d_dot_signal = eta_d_dot
@@ -270,7 +284,7 @@ class StraightLineGuidanceNode(Node):
         self._pub_path_length.publish(Float64(data=self.guidance._len))
         self._pub_bearing.publish(Float64(data=bearing))
         self._pub_theta.publish(Float64(data=self.guidance.theta))
-        self._pub_state.publish(String(data='holding' if self._arrived else 'running'))
+        self._pub_state.publish(String(data='running'))
 
 
 def main(args=None):

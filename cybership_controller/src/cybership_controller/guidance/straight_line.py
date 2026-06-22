@@ -38,22 +38,33 @@ class StraightLineGuidance:
         self.p1 = np.asarray(p_end,   float)[:2].copy()
         self.rho_theta = (self.p1 - self.p0) / (1.0 + self.lam)
         self._len = float(np.linalg.norm(self.p1 - self.p0))
-        self.theta = 0.0
+        if self.v_d < 0.0:
+            self.theta = (1.0 + 2.0 * self.lam) if self.sigma == 1 else 1.0
+        else:
+            self.theta = 0.0
         self.active = True
 
     def rho(self, theta):
         return ((1.0 + self.lam) * self.p0 + (self.p1 - self.p0) * theta) / (1.0 + self.lam)
 
     def gamma(self, theta):
-        mid = 0.5 * (1.0 - self.lam)
+        if self.v_d < 0.0:
+            mid = 0.5 * (1.0 + 2.0 * self.lam)
+            if theta < mid:             return np.tanh(self.k * theta)
+            if theta <= 1.0 + 2*self.lam: return np.tanh(self.k * (1.0 + 2.0*self.lam - theta))
+            return 0.0
         if theta < -self.lam:  return 0.0
-        if theta <= mid:       return np.tanh(self.k * (self.lam + theta))
+        if theta <= 0.5:       return np.tanh(self.k * (self.lam + theta))
         return np.tanh(self.k * (1.0 + self.lam - theta))
 
     def gamma_theta(self, theta):
-        mid = 0.5 * (1.0 - self.lam)
+        if self.v_d < 0.0:
+            mid = 0.5 * (1.0 + 2.0 * self.lam)
+            if theta < mid:               return  self.k * (1.0 - np.tanh(self.k * theta)**2)
+            if theta <= 1.0 + 2*self.lam: return -self.k * (1.0 - np.tanh(self.k * (1.0 + 2.0*self.lam - theta))**2)
+            return 0.0
         if theta < -self.lam:  return 0.0
-        if theta <= mid:       return  self.k * (1.0 - np.tanh(self.k * (self.lam + theta))**2)
+        if theta <= 0.5:       return  self.k * (1.0 - np.tanh(self.k * (self.lam + theta))**2)
         return -self.k * (1.0 - np.tanh(self.k * (1.0 + self.lam - theta))**2)
 
     def speed(self, theta):
@@ -73,11 +84,14 @@ class StraightLineGuidance:
         eta_d      = np.array([p_d[0],     p_d[1],     self.psi_ref])
         eta_d_dot  = np.array([pd_dot[0],  pd_dot[1],  0.0])
         eta_d_ddot = np.array([pd_ddot[0], pd_ddot[1], 0.0])
-        self.theta = min(self.theta + dt * theta_dot, 1.0)
+        new_theta = self.theta + dt * theta_dot
+        self.theta = max(new_theta, 0.0) if self.v_d < 0.0 else min(new_theta, 1.0)
         return eta_d, eta_d_dot, eta_d_ddot
 
     @property
     def arrived(self):
+        if self.v_d < 0.0:
+            return self.theta <= 0.0
         return self.theta >= 1.0
 
 

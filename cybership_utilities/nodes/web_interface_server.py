@@ -157,7 +157,9 @@ class ROS2Bridge(Node):
         p = RclParameter()
         p.name = name
         pv = ParameterValue()
-        if isinstance(value, bool):
+        if value is None:
+            pv.type = ParameterType.PARAMETER_NOT_SET
+        elif isinstance(value, bool):
             pv.type = ParameterType.PARAMETER_BOOL
             pv.bool_value = value
         elif isinstance(value, int):
@@ -873,8 +875,8 @@ class WebSocketServer:
                 "guidance.use_vessel_pos": bool(data.get("use_vessel_pos", True)),
                 "guidance.p_start_x":      float(data.get("p_start_x", 0.0)),
                 "guidance.p_start_y":      float(data.get("p_start_y", 0.0)),
-                "guidance.p_end_x":        float(data.get("p_end_x", 0.0)),
-                "guidance.p_end_y":        float(data.get("p_end_y", 0.0)),
+                "guidance.p_end_x":        None if data.get("p_end_x") is None else float(data["p_end_x"]),
+                "guidance.p_end_y":        None if data.get("p_end_y") is None else float(data["p_end_y"]),
                 "guidance.lam":            float(data.get("lam", 0.01)),
                 "guidance.k":              float(data.get("k", 8.0)),
             }

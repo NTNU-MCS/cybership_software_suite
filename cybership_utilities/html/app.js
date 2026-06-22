@@ -846,17 +846,30 @@ el("goToGetPose").onclick = async () => {
     updateSlgStartInputs();
 
     let slgVdTimer = null;
-    el('slgVelocity').oninput = function () {
-        const v = parseFloat(this.value);
-        el('slgVelocityValue').textContent = v.toFixed(2);
-        // Push to node live if guidance is running (debounced 150 ms)
+    function slgVelocityChanged(v) {
         clearTimeout(slgVdTimer);
         slgVdTimer = setTimeout(async () => {
-            if (slgStatusInterval === null) return;   // not running
+            if (slgStatusInterval === null) return;
             try {
                 await sendMessage({ type: 'slg_update', namespace: getNamespace(), v_d: v });
             } catch (_) {}
         }, 150);
+    }
+    el('slgVelocity').oninput = function () {
+        let v = parseFloat(this.value);
+        if (Math.abs(v) < 0.02) { v = 0; this.value = 0; }
+        el('slgVelocityValue').value = v.toFixed(2);
+        slgVelocityChanged(v);
+    };
+    el('slgVelocityValue').oninput = function () {
+        let v = parseFloat(this.value);
+        const slider = el('slgVelocity');
+        const min = parseFloat(slider.min);
+        const max = parseFloat(slider.max);
+        if (isNaN(v)) return;
+        v = Math.min(max, Math.max(min, v));
+        slider.value = v;
+        slgVelocityChanged(v);
     };
 
     el('slgAlignHeading').addEventListener('change', function () {
@@ -867,6 +880,13 @@ el("goToGetPose").onclick = async () => {
 // -------------- Straight Line Guidance actions --------------
 let slgStatusInterval = null;
 const SLG_STATUS_MS = 500;
+
+function parseCoord(id) {
+    const raw = el(id).value.trim();
+    if (raw === '') return null;
+    const v = parseFloat(raw);
+    return isNaN(v) ? null : v;
+}
 
 el('slgSetLine').onclick = async () => {
     try {
@@ -881,8 +901,8 @@ el('slgSetLine').onclick = async () => {
             use_vessel_pos: el('slgUseVesselPos').checked,
             p_start_x:      parseFloat(el('slgStartX').value) || 0,
             p_start_y:      parseFloat(el('slgStartY').value) || 0,
-            p_end_x:        parseFloat(el('slgEndX').value) || 0,
-            p_end_y:        parseFloat(el('slgEndY').value) || 0,
+            p_end_x:        parseCoord('slgEndX'),
+            p_end_y:        parseCoord('slgEndY'),
             lam:            parseFloat(el('slgLambda').value) || 0.01,
             k:              parseFloat(el('slgKRamp').value)  || 8,
         });

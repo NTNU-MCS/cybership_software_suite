@@ -213,11 +213,11 @@
                 </div>
                 <div class="guidance-xy-row">
                     <span class="guidance-axis">x</span>
-                    <input id="slgEndX" type="number" value="3.00" step="0.1" />
+                    <input id="slgEndX" type="text" inputmode="decimal" value="3.00" placeholder="auto" />
                     <span class="guidance-axis">y</span>
-                    <input id="slgEndY" type="number" value="2.00" step="0.1" />
+                    <input id="slgEndY" type="text" inputmode="decimal" value="2.00" placeholder="auto" />
                 </div>
-                <div class="muted topic-note">Either point is arbitrary. Positive x is towards the beach, negative towards the wavemaker.</div>
+                <div class="muted topic-note">Positive x is towards the beach, negative towards the wavemaker. Leave an axis blank to lock it to the vessel's current position (single-axis offset mode).</div>
             </div>
 
             <!-- Speed -->
@@ -225,8 +225,9 @@
                 <div class="mini-title">⊛ Speed</div>
                 <div style="font-weight:600; font-size:0.9rem; margin-bottom:0.3rem;">Desired velocity [m/s]</div>
                 <div class="guidance-velocity-row">
-                    <input id="slgVelocity" type="range" min="0" max="0.3" step="0.01" value="0" />
-                    <span class="guidance-velocity-value" id="slgVelocityValue">0.00</span>
+                    <input id="slgVelocity" type="range" min="-0.2" max="0.3" step="0.01" value="0" list="slgVelocityTicks" />
+                    <datalist id="slgVelocityTicks"><option value="0"></option></datalist>
+                    <input id="slgVelocityValue" type="number" class="guidance-velocity-value" min="-0.2" max="0.3" step="0.01" value="0.00" />
                 </div>
                 <div class="muted topic-note">Initialised to 0.00 m/s.</div>
                 <label class="checkbox-label" style="margin-top:0.55rem;">
