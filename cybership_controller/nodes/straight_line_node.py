@@ -45,7 +45,7 @@ import numpy as np
 import rclpy
 from rclpy.node import Node
 from rclpy.parameter import Parameter
-from rcl_interfaces.msg import ParameterDescriptor
+from rcl_interfaces.msg import ParameterDescriptor, SetParametersResult
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Wrench, Vector3
 from std_msgs.msg import Float64, String
@@ -128,9 +128,21 @@ class StraightLineGuidanceNode(Node):
         self._control_timer = None
         self._dt = 1.0 / self.get_parameter('control.frequency').value
 
+        self.add_on_set_parameters_callback(self._on_set_parameters)
+
         self.get_logger().info('straight_line_guidance node ready')
 
     # ------------------------------------------------------------------
+
+    def _on_set_parameters(self, params):
+        for p in params:
+            if p.name == 'control.kp':
+                self.controller.Kp = np.diag(p.value)
+                self.get_logger().info(f'Kp updated: {p.value}')
+            elif p.name == 'control.kd':
+                self.controller.Kd = np.diag(p.value)
+                self.get_logger().info(f'Kd updated: {p.value}')
+        return SetParametersResult(successful=True)
 
     def _build_model(self) -> Shoebox:
         return Shoebox(
