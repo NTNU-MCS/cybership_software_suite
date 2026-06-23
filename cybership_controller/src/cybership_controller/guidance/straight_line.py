@@ -13,9 +13,9 @@ class StraightLineGuidance:
         eta_d, eta_d_dot, eta_d_ddot = g.step(dt)          # timer callback
     """
 
-    def __init__(self, lam=0.01, k=8.0):
+    def __init__(self, lam=0.01, k=10.0):
         self.lam = lam              # small regularization (lambda << 1)
-        self.k = k                  # tanh ramp steepness
+        self.k = k                  # tanh ramp steepness, typically k=10
         # ---- incoming ROS signal (subscriber writes here) ----
         self.eta_signal = np.zeros(3)   # measured vessel pose [x, y, psi]
         # ---- parameters (GUI / ROS params) ----
@@ -36,36 +36,47 @@ class StraightLineGuidance:
             p_start = self.eta_signal[:2]        # default: start at the vessel
         self.p0 = np.asarray(p_start, float)[:2].copy()
         self.p1 = np.asarray(p_end,   float)[:2].copy()
-        self.rho_theta = (self.p1 - self.p0) / (1.0 + self.lam)
+        # self.rho_theta = (self.p1 - self.p0) / (1.0 + self.lam)
+        self.rho_theta = (self.p1 - self.p0) 
         self._len = float(np.linalg.norm(self.p1 - self.p0))
         if self.v_d < 0.0:
-            self.theta = (1.0 + 2.0 * self.lam) if self.sigma == 1 else 1.0
+            # self.theta = (1.0 + 2.0 * self.lam) if self.sigma == 1 else 1.0
+            self.theta = 1.0
         else:
             self.theta = 0.0
         self.active = True
 
     def rho(self, theta):
-        return ((1.0 + self.lam) * self.p0 + (self.p1 - self.p0) * theta) / (1.0 + self.lam)
+        # return ((1.0 + self.lam) * self.p0 + (self.p1 - self.p0) * theta) / (1.0 + self.lam)
+        return (self.p0 + (self.p1 - self.p0) * theta)
 
     def gamma(self, theta):
         if self.v_d < 0.0:
-            mid = 0.5 * (1.0 + 2.0 * self.lam)
-            if theta < mid:             return np.tanh(self.k * theta)
+            # mid = 0.5 * (1.0 + 2.0 * self.lam)
+            mid = 0.5 + self.lam
+            if theta <= mid:              return np.tanh(self.k * theta)
             if theta <= 1.0 + 2*self.lam: return np.tanh(self.k * (1.0 + 2.0*self.lam - theta))
             return 0.0
-        if theta < -self.lam:  return 0.0
-        if theta <= 0.5:       return np.tanh(self.k * (self.lam + theta))
-        return np.tanh(self.k * (1.0 + self.lam - theta))
+        # if theta < -self.lam:  return 0.0
+        if theta < -2*self.lam:         return 0.0
+        # if theta <= 0.5:       return np.tanh(self.k * (self.lam + theta))
+        if theta <= 0.5-self.lam:       return np.tanh(self.k * (theta + 2*self.lam))
+        # return np.tanh(self.k * (1.0 + self.lam - theta))
+        return np.tanh(self.k * (1.0 - theta))
 
     def gamma_theta(self, theta):
         if self.v_d < 0.0:
-            mid = 0.5 * (1.0 + 2.0 * self.lam)
-            if theta < mid:               return  self.k * (1.0 - np.tanh(self.k * theta)**2)
+            # mid = 0.5 * (1.0 + 2.0 * self.lam)
+            mid = 0.5 + self.lam
+            if theta <= mid:              return  self.k * (1.0 - np.tanh(self.k * theta)**2)
             if theta <= 1.0 + 2*self.lam: return -self.k * (1.0 - np.tanh(self.k * (1.0 + 2.0*self.lam - theta))**2)
             return 0.0
-        if theta < -self.lam:  return 0.0
-        if theta <= 0.5:       return  self.k * (1.0 - np.tanh(self.k * (self.lam + theta))**2)
-        return -self.k * (1.0 - np.tanh(self.k * (1.0 + self.lam - theta))**2)
+        # if theta < -self.lam:  return 0.0
+        if theta < -2*self.lam:         return 0.0
+        # if theta <= 0.5:       return  self.k * (1.0 - np.tanh(self.k * (self.lam + theta))**2)
+        if theta <= 0.5-self.lam:       return  self.k * (1.0 - np.tanh(self.k * (theta + 2*self.lam))**2)
+        # return -self.k * (1.0 - np.tanh(self.k * (1.0 + self.lam - theta))**2)
+        return -self.k * (1.0 - np.tanh(self.k * (1.0 - theta))**2)
 
     def speed(self, theta):
         if self._len < 1e-9:
@@ -122,7 +133,9 @@ class DPTrackingController:
 
     @staticmethod
     def wrap(a):
-        return (a + np.pi) % (2.0 * np.pi) - np.pi
+        # Here you can rather use np.arctan2(np.sin(a), np.cos(a)) to wrap the angle to [-pi, pi]
+        # return (a + np.pi) % (2.0 * np.pi) - np.pi
+        return np.arctan2(np.sin(a), np.cos(a))
 
     def compute_tau(self):
         eta = np.asarray(self.eta_signal, float)
@@ -134,6 +147,7 @@ class DPTrackingController:
         J = self.model.J(eta)
         C = self.model.C_RB(nu) + self.model.C_A(nu)
 
+        # We should rewrite this control law, but for now we will keep it as is.
         e = eta - eta_d
         e[2] = self.wrap(e[2])                         # wrap heading error
         e_dot = J @ nu - eta_d_dot                     # eta_dot - eta_d_dot
