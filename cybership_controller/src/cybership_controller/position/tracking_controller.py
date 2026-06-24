@@ -217,20 +217,17 @@ class DPTrackingController:
         Dterm = -self.Kd @ e2
         I_full = -self.Ki @ self.xi                      # ungated integral term
 
+        PID = P + I_full + Dterm
+        tau = Dmat @ nu + PID + M @ nu_d_dot
+
         # ---- per-DOF conditional-integration anti-windup ----
         # Test with the full integral so the decision is stable across steps.
         if self.u_max is None:
             self.windup_flag = np.ones(3)
         else:
-            u_test = P + I_full + Dterm
-            excess = u_test - np.clip(u_test, self.u_min, self.u_max)
+            excess = tau - np.clip(tau, self.u_min, self.u_max)
             d_u    = -self.Ki @ e1                       # effort move per integration
             self.windup_flag = np.where(excess * d_u > 0.0, 0.0, 1.0)
-
-        # ---- gated integral term, PID, and force ----
-        I = self.windup_flag * I_full                    # I = windup_flag * (-Ki*xi)
-        PID = P + I + Dterm
-        tau = Dmat @ nu + PID + M @ nu_d_dot
 
         with np.printoptions(formatter={'float': lambda x: f"{x:+.3f}"}):
             print(f"tau: {tau}, P: {P}, I: {I}, D: {Dterm}, windup_flag: {self.windup_flag}")

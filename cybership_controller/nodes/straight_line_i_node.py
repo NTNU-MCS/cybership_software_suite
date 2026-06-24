@@ -82,9 +82,9 @@ class StraightLineGuidanceNode(Node):
         self.declare_parameter('vessel.draft', 0.1)
 
         # ---- controller gains ----
-        self.declare_parameter('control.kp', [1.4, 1.0, 3.5])
-        self.declare_parameter('control.kd', [70.0, 20.0, 30.0])
-        self.declare_parameter('control.ki', [0.01, 0.01, 0.03])
+        self.declare_parameter('control.kp', [2.0, 1.5, 8.0])
+        self.declare_parameter('control.kd', [50.0, 20.0, 50.0])
+        self.declare_parameter('control.ki', [0.01, 0.01, 0.1])
         self.declare_parameter('control.frequency', 20.0)
         self.declare_parameter('control.max_force', 5.0)
         self.declare_parameter('control.max_torque', 2.0)
