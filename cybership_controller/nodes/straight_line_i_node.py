@@ -77,13 +77,13 @@ class StraightLineGuidanceNode(Node):
         self.declare_parameter('guidance.p_end_y', None, _dyn)
 
         # ---- vessel model parameters ----
-        self.declare_parameter('vessel.length', 1.0)
-        self.declare_parameter('vessel.beam', 0.3)
-        self.declare_parameter('vessel.draft', 0.05)
+        self.declare_parameter('vessel.length', 3.0)
+        self.declare_parameter('vessel.beam', 0.4)
+        self.declare_parameter('vessel.draft', 0.1)
 
         # ---- controller gains ----
-        self.declare_parameter('control.kp', [0.7, 0.7, 0.7])
-        self.declare_parameter('control.kd', [0.4, 0.5, 0.2])
+        self.declare_parameter('control.kp', [6.9, 10.8, 0.9])
+        self.declare_parameter('control.kd', [69.3, 10.8, 27.0])
         self.declare_parameter('control.ki', [0.1, 0.1, 0.1])
         self.declare_parameter('control.frequency', 20.0)
         self.declare_parameter('control.max_force', 5.0)
