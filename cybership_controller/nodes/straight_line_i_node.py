@@ -82,9 +82,9 @@ class StraightLineGuidanceNode(Node):
         self.declare_parameter('vessel.draft', 0.1)
 
         # ---- controller gains ----
-        self.declare_parameter('control.kp', [6.9, 10.8, 0.9])
-        self.declare_parameter('control.kd', [69.3, 10.8, 27.0])
-        self.declare_parameter('control.ki', [0.1, 0.1, 0.1])
+        self.declare_parameter('control.kp', [1.4, 1.0, 3.5])
+        self.declare_parameter('control.kd', [70.0, 20.0, 30.0])
+        self.declare_parameter('control.ki', [0.01, 0.01, 0.03])
         self.declare_parameter('control.frequency', 20.0)
         self.declare_parameter('control.max_force', 5.0)
         self.declare_parameter('control.max_torque', 2.0)
@@ -146,6 +146,9 @@ class StraightLineGuidanceNode(Node):
             elif p.name == 'control.ki':
                 self.controller.Ki = np.diag(p.value)
                 self.get_logger().info(f'Ki updated: {p.value}')
+            elif p.name == 'guidance.psi_ref_deg':
+                self.guidance.psi_ref = math.radians(float(p.value))
+                self.get_logger().info(f'psi_ref updated: {p.value} deg')
         return SetParametersResult(successful=True)
 
     def _build_model(self) -> Shoebox:

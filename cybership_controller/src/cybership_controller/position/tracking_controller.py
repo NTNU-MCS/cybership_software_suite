@@ -232,6 +232,9 @@ class DPTrackingController:
         PID = P + I + Dterm
         tau = Dmat @ nu + PID + M @ nu_d_dot
 
+        with np.printoptions(formatter={'float': lambda x: f"{x:+.3f}"}):
+            print(f"tau: {tau}, P: {P}, I: {I}, D: {Dterm}, windup_flag: {self.windup_flag}")
+
         # ---- advance integrator on active DOFs only ----
         if dt > 0.0:
             self.xi = self.xi + dt * (self.windup_flag * e1)

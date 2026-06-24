@@ -872,8 +872,25 @@ el("goToGetPose").onclick = async () => {
         slgVelocityChanged(v);
     };
 
+    let slgHeadingTimer = null;
+    function slgHeadingChanged(deg) {
+        clearTimeout(slgHeadingTimer);
+        slgHeadingTimer = setTimeout(async () => {
+            if (slgStatusInterval === null) return;
+            try {
+                await sendMessage({ type: 'slg_update', namespace: getNamespace(), psi_ref_deg: deg });
+            } catch (_) {}
+        }, 150);
+    }
+    el('slgHeading').addEventListener('input', function () {
+        const v = parseFloat(this.value);
+        if (!isNaN(v)) slgHeadingChanged(v);
+    });
+
     el('slgAlignHeading').addEventListener('change', function () {
         el('slgHeading').disabled = this.checked;
+        if (slgStatusInterval === null) return;
+        sendMessage({ type: 'slg_update', namespace: getNamespace(), align_heading: this.checked }).catch(() => {});
     });
 })();
 
