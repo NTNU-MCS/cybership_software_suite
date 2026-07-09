@@ -499,7 +499,7 @@
 		\item The $x$-axis points toward the wavemaker.
 		\item The $z$-axis points downward.
 		\item The $y$-axis completes the right-handed coordinate system and points from the gangway toward the opposite side of the basin.
-		\item The origin is placed as close to the center of the basin as possible. At the time of writing, its exact position may vary between calibrations.
+		\item The origin is located as close to the center of the basin as possible. At the time of writing, its exact position may vary between calibrations.
 		\item The coordinate system orientation and origin location are established during calibration, which is normally performed by laboratory personnel. If your project requires the exact origin position or a different coordinate system orientation, contact the laboratory engineers before starting.
 	\end{itemize}
 	
@@ -518,9 +518,9 @@
 	
 	Note that QTM displays position coordinates ($x$, $y$, and $z$) in millimeters and orientation angles (roll, pitch, and yaw) in degrees.
 	
-	You may now place the vessel in the basin. If the vessel is tracked correctly in QTM and the residual remains sufficiently low, the system is ready for use. Keep in mind that residuals may increase in regions with limited camera coverage or areas that were not fully included during calibration. The calibrated volume can be visualized by pressing \texttt{Alt + 7}.
+	You may now place the vessel in the basin. If the vessel is tracked correctly in QTM and the residual  sufficiently low, the system is ready for use. Keep in mind that residuals may increase in regions with limited camera coverage or areas that were not fully included during calibration. The calibrated volume can be visualized by pressing \texttt{Alt + 7}.
 	
-	If the vessel is not detected correctly or the residual remains high ($>1$ mm), continue to Section~\ref{sec:rigidbody}.
+	If the vessel is not detected correctly, or the residual remains high ($>1$ mm), continue to Section~\ref{sec:rigidbody}.
 	
 	\subsubsection{Rigid Body Setup and Verification}
 	\label{sec:rigidbody}
@@ -623,14 +623,14 @@
 		\item Cameras are blocked by personnel or equipment.
 		\item Markers are covered by water spray or reflections.
 		\item One or more markers have detached from the vessel.
-		\item Poor camera exposure or marker threshold settings.
+		\item Poor camera exposure or marker threshold settings. 
 	\end{itemize}
 	
 	\textbf{Recommended Actions}
 	\begin{itemize}
 		\item Verify that all markers are attached and clearly visible.
 		\item Remove any obstructions from the camera field of view.
-		\item Check the camera images for poor contrast or excessive reflections.
+		\item Check the camera images for poor contrast and marker threshold settings(This option is for advanced users) or excessive reflections.
 	\end{itemize}
 	
 	\subsubsection{High Residuals}
@@ -672,6 +672,7 @@
 	\begin{itemize}
 		\item Too few markers are visible to the camera system.
 		\item Temporary obstruction by personnel or equipment.
+		\item The vessel have strayed to the boundary of the covered volume. 
 	\end{itemize}
 	
 	\textbf{Recommended Actions}
