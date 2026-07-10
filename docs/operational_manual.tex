@@ -16,6 +16,7 @@
 \usepackage{titlesec}
 \usepackage{fancyhdr}
 \usepackage{amsmath}
+\usepackage{amssymb}
 \usepackage{microtype}
 \usepackage{parskip}
 \usepackage{tikz}
@@ -85,7 +86,7 @@
 	\large Architecture, Operation, and Configuration Manual
 }
 \author{Marine Cybernetics Laboratory (MCLab)\\NTNU}
-\date{March 2026}
+\date{June 2026}
 
 \begin{document}
 	
@@ -483,7 +484,15 @@
 	
 	\subsubsection{Quick Startup Checklist}
 	
-	% Short checklist for experienced users
+	Begin with this short checklist if you already know the QTM workflow:
+	
+	\begin{enumerate}
+		\item[$\square$] Open the \textit{Qualisys\_Default\_MCLab} project in QTM.
+		\item[$\square$] Open a new measurement window.
+		\item[$\square$] Verify that all cameras are connected and that the expected number of cameras is shown.
+		\item[$\square$] Check that the vessel appears in 6DOF view with the correct rigid body definition, and that the vessels are in the correct order. 
+		\item[$\square$] Confirm that the residual is sufficiently low before starting an experiment.
+	\end{enumerate}
 	
 	\subsubsection{Qualisys Track Manager Startup}
 	
@@ -518,7 +527,7 @@
 	
 	Note that QTM displays position coordinates ($x$, $y$, and $z$) in millimeters and orientation angles (roll, pitch, and yaw) in degrees.
 	
-	You may now place the vessel in the basin. If the vessel is tracked correctly in QTM and the residual  sufficiently low, the system is ready for use. Keep in mind that residuals may increase in regions with limited camera coverage or areas that were not fully included during calibration. The calibrated volume can be visualized by pressing \texttt{Alt + 7}.
+	You may now place the vessel in the basin. If the vessel is tracked correctly in QTM and the residual is sufficiently low, the system is ready for use. Residuals may increase in regions with limited camera coverage or areas that were not fully included during calibration. The calibrated volume can be visualized by pressing \texttt{Alt + 7}.
 	
 	If the vessel is not detected correctly, or the residual remains high ($>1$ mm), continue to Section~\ref{sec:rigidbody}.
 	
@@ -541,11 +550,11 @@
 	
 	% Add rigid body creation procedure here.
 	
-	Place the vessel in the basin. Only one vessel should be present during rigid body acquisition. Remove other vessels from the basin or cover their markers to prevent false detections. It is important that it is in view of as many cameras as possible(clicking \textit{2D} on the left takes you back to \textit{camera view} which is helpful here). The initial position($x,y,z$) doesn't matter, but make sure that the vessel heading is aligned with the desired heading corresponding to $0^\circ$ yaw, if it is important for your experiment also make sure that the vessel is balanced, the reason for this is that when you acquire a rigid body QTM sets ($roll, pitch,yaw)=(0,0,0)$. 
+	Place the vessel in the basin. Only one vessel should be present during rigid body acquisition. Remove other vessels from the basin or cover their markers to prevent false detections. Keep the vessel in view of as many cameras as possible; clicking \textit{2D} on the left returns you to \textit{camera view}, which is useful here. The initial position ($x$, $y$, $z$) does not matter, but make sure that the vessel heading is aligned with the desired heading corresponding to $0^\circ$ yaw. If your experiment requires it, also make sure that the vessel is balanced, because QTM sets $(roll, pitch, yaw) = (0, 0, 0)$ when you acquire a rigid body. 
 	
-	Go to \textit{6DOF settings} window in the \textit{Project Options}, press \textit{Acquire Body} button. Verify that the body has been detected and then click \textit{Apply} and then \textit{OK}. Close the measurement window by pressing the lower of the two crosses in the top right corner. Open a new measurement window and repeat the steps up until you see the rigid body coordinates in 6-DOF. 
+	Go to the \textit{6DOF Settings} window in \textit{Project Options} and press \textit{Acquire Body}. Verify that the body has been detected, then click \textit{Apply} and \textit{OK}. Close the measurement window by pressing the lower of the two crosses in the top right corner. Open a new measurement window and repeat the steps until you see the rigid body coordinates in 6DOF. 
 	
-	For the first time user it might seem that everything is in order. One should be able to see the rigid body defined by the markers as well as its coordinates in 6DOF, but QTM uses the centroid of the markers defining a rigid body as the body frame origin which does not correspond to the vessel geometric center. To remedy this all Cybership vessels should have a reference marker marked by a black line on the marker stem with its position relative to the vessel geometric center and the vessel waterline written close to it. The current values at the time of writing are noted below in tables for Voyager (Table~\ref{tab:voyager_ref_marker}) and Drillship (Table~\ref{tab:drillship_ref_marker}).
+	For first-time users it may seem that everything is in order. The rigid body defined by the markers and its coordinates in 6DOF should both be visible, but QTM uses the centroid of the marker constellation as the body frame origin, which does not correspond to the vessel geometric center. To correct this, all Cybership vessels should have a reference marker marked by a black line on the marker stem, with its position relative to the vessel geometric center and waterline written near it. The current values at the time of writing are listed below for Voyager (Table~\ref{tab:voyager_ref_marker}) and Drillship (Table~\ref{tab:drillship_ref_marker}).
 	
 	\begin{table}[h]
 		\centering
@@ -577,15 +586,15 @@
 		\end{tabular}
 	\end{table}
 	
-	Find the marker in QTM corresponding to the reference marker on the vessel. Select the marker and note its label. The label will typically have the format \texttt{Body1-x}, although it may instead appear as \texttt{Voyager-y} or a similar name if the rigid body has previously been renamed. Return to \emph{6DOF Tracking} settings, select the rigid body and click \emph{Translate}. 
+	Find the marker in QTM corresponding to the reference marker on the vessel. Select the marker and note its label. The label will typically have the format \texttt{Body1-x}, although it may instead appear as \texttt{Voyager-y} or a similar name if the rigid body has previously been renamed. Return to \emph{6DOF Tracking} settings, select the rigid body, and click \emph{Translate}. Select the option: 
 	
 	\begin{center}
-		\emph{So that point [marker label] in the body has local coordinates (in mm):}
+		\emph{So that point \textlangle LABEL\textrangle in the body has local coordinates(in mm):}
 	\end{center}
-	Enter the values for the vessel in question and press \emph{OK}, press apply and verify that the body has moved the origin of the system. 
+	Enter the values for the vessel in question and press \emph{OK}, then press \emph{Apply} and verify that the body origin has moved to the correct location. 
 	\subsubsection{Streaming Output Verification}
 	
-	% Verifying streaming to downstream systems
+	After QTM is configured, confirm that the 6DOF data stream is visible to downstream ROS~2 nodes. Verify that pose updates are being published and that the vessel appears at the expected position in RViz or any other consumer of the mocap topic. Make sure that the rigid bodies are in the correct order expected by the ROS~2 mocap nodes, Voyager at the top and then Drillship.  If no data appears, re-check the rigid body definition, the QTM project, and the network connection to the mocap computer.
 	
 	\subsection{Common Failure Modes and Symptoms}
 	\subsubsection{Incorrect Body Frame Origin}
@@ -723,7 +732,7 @@
 	
 	\begin{figure}[H]
 		\centering
-		\includegraphics[width=0.5\textwidth]{QTM/02_new_measurement_window}
+		\includegraphics[width=0.5\textwidth]{QTM/03_camera_view_marker_mode}
 		\caption{Camera view in \textit{marker mode} click on the \textit{3D} icon on the left to enter \textit{3D mode}.}
 		\label{fig:Cameraview}
 	\end{figure}
