@@ -229,8 +229,9 @@ class BaseForceControllerROS(LifecycleNode):
 
     @staticmethod
     def _apply_mapping(*, msg: Wrench, vector: np.ndarray, mapping: Dict[str, int]) -> None:
+        flat = np.asarray(vector, dtype=np.float64).ravel()
         for field_path, index in mapping.items():
-            value = float(vector[index]) if index < len(vector) else 0.0
+            value = float(flat[index]) if index < flat.size else 0.0
             root, leaf = field_path.split(".", 1)
             target = getattr(msg, root)
             setattr(target, leaf, value)
