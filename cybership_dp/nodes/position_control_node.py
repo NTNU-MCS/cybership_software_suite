@@ -31,7 +31,9 @@ from visualization_msgs.msg import Marker
 from std_msgs.msg import Float32MultiArray
 from std_srvs.srv import SetBool, Trigger, Empty
 from cybership_controller.position.reference_filter import ThirdOrderReferenceFilter
-
+from rclpy.duration import Duration
+from tf2_ros import Buffer, TransformListener, TransformException
+import tf2_geometry_msgs
 try:
     from cybership_interfaces.msg import PerformanceMetrics
 except ImportError:
@@ -132,6 +134,10 @@ class PositionController(Node):
         self.error_yaw_window = []  # For yaw error
         self.sample_count = 0
         self.last_metrics_time = 0.0
+
+        #Initialize TF buffer and listener for frame transformations
+        self.tf_buffer = Buffer()
+        self.tf_listener = TransformListener(self.tf_buffer, self)
 
         # Action server goal tracking (for non-blocking execution)
         self.active_goal_handle = None
@@ -669,19 +675,31 @@ class PositionController(Node):
 
         # Extract target pose from the goal message
         target_pose: PoseStamped = goal_handle.request.pose
-        # Warn if frame differs from odom, since we compute distances in odom frame
-        if target_pose.header.frame_id and target_pose.header.frame_id not in ("odom", "/odom"):
-            self.get_logger().warn(
-                f"Goal frame_id '{target_pose.header.frame_id}' differs from 'odom'; no TF transform is applied."
-            )
-        self.target_x = target_pose.pose.position.x
-        self.target_y = target_pose.pose.position.y
+
+        if not target_pose.header.frame_id:
+            self.get_logger().error("Rejected goal without frame_id")
+            goal_handle.abort()
+            return NavigateToPose.Result()
+        try:
+            if target_pose.header.frame_id in("odom","/odom"):
+                target_in_odom = target_pose
+            else:
+                target_in_odom = self.tf_buffer.transform(
+                    target_pose, "odom", timeout=Duration(seconds=0.2))
+        except TransformException as error:
+            self.get_logger().error(
+                f"Failed to transform target pose from {target_pose.header.frame_id} to odom: {error}")
+            goal_handle.abort()
+            return NavigateToPose.Result()
+
+        self.target_x = target_in_odom.pose.position.x
+        self.target_y = target_in_odom.pose.position.y
 
         self.get_logger().info(
             f"Target position: ({self.target_x}, {self.target_y})")
 
         # Convert quaternion to yaw angle
-        orientation = target_pose.pose.orientation
+        orientation = target_in_odom.pose.orientation
         rot = R.from_quat([
             orientation.x,
             orientation.y,
@@ -691,7 +709,7 @@ class PositionController(Node):
         _, _, self.target_yaw = rot.as_euler("xyz", degrees=False)
 
         # Publish target pose marker
-        self.publish_target_pose_marker(target_pose)
+        self.publish_target_pose_marker(target_in_odom)
 
         # Store the goal handle for monitoring in control_loop
         self.active_goal_handle = goal_handle
@@ -705,7 +723,6 @@ class PositionController(Node):
         """Publish a simple marker (e.g., an arrow) in RViz to visualize the requested pose."""
         marker = Marker()
         marker.header = pose_stamped.header
-        marker.header.frame_id = "world"  # Adjust frame if necessary
         marker.ns = "target_pose"
         marker.id = 0
         marker.type = Marker.ARROW
